@@ -172,8 +172,8 @@ def test_hybrid_dithers_colour_surfaces_but_hard_maps_protected_pixels():
     crisp = dashboard.quantize_for_panel(source, mode="crisp")
     hybrid = dashboard.quantize_for_panel(source, mode="hybrid", protected_mask=protected)
 
-    assert set(hybrid.crop((0, 0, 200, 480)).getdata()) == {0x1}
-    assert len(set(hybrid.crop((200, 0, 800, 480)).getdata())) > 1
+    assert set(hybrid.crop((0, 0, 200, 480)).get_flattened_data()) == {0x1}
+    assert len(set(hybrid.crop((200, 0, 800, 480)).get_flattened_data())) > 1
     assert hybrid.tobytes() != crisp.tobytes()
 
 
@@ -185,7 +185,7 @@ def test_panel_preview_replaces_codes_with_appearance_values():
     preview = dashboard.render_panel_preview(panel)
     assert preview.mode == "RGB"
     assert preview.size == (800, 480)
-    assert list(preview.getdata())[:6] == [
+    assert list(preview.get_flattened_data())[:6] == [
         dashboard.PANEL_APPEARANCE_RGB[code] for code in (0, 1, 2, 3, 5, 6)
     ]
 

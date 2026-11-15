@@ -127,7 +127,7 @@ def test_browser_verified_identity_owner_csrf_and_no_get_dispatch(tmp_path):
         assert image.mode == 'P'
     with Image.open(io.BytesIO(simulated_png.content)) as image:
         assert image.mode == 'RGB'
-        assert set(image.getdata()) <= {
+        assert set(image.get_flattened_data()) <= {
             (0x19, 0x1E, 0x21), (0xE8, 0xE8, 0xE8), (0xEF, 0xDE, 0x44),
             (0xB2, 0x13, 0x18), (0x21, 0x57, 0xBA), (0x12, 0x5F, 0x20),
         }

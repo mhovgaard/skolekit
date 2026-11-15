@@ -832,8 +832,8 @@ def quantize_for_panel(image: Image.Image, *, mode: str = "hybrid",
     if protected_mask is not None and protected_mask.size != source.size:
         raise ValueError("Protected mask must match the panel image")
 
-    source_pixels = list(source.getdata())
-    mask_pixels = (bytes(protected_mask.convert("L").getdata())
+    source_pixels = list(source.get_flattened_data())
+    mask_pixels = (bytes(protected_mask.convert("L").get_flattened_data())
                    if protected_mask is not None else None)
     hard_cache: dict[tuple[int, int, int], int] = {}
 
@@ -939,7 +939,7 @@ def render_panel_preview(image: Image.Image) -> Image.Image:
     from PIL import Image
 
     validate_panel_image(image)
-    pixels = [PANEL_APPEARANCE_RGB[index] for index in image.getdata()]
+    pixels = [PANEL_APPEARANCE_RGB[index] for index in image.get_flattened_data()]
     result = Image.new("RGB", image.size)
     result.putdata(pixels)
     return result
@@ -948,7 +948,7 @@ def render_panel_preview(image: Image.Image) -> Image.Image:
 def pack_panel_frame(image: Image.Image) -> bytes:
     """Pack two hardware colour codes per byte, left pixel in the high nibble."""
     validate_panel_image(image)
-    pixels = bytes(image.getdata())
+    pixels = bytes(image.get_flattened_data())
     if len(pixels) % 2:
         raise ValueError("Panel rows must contain an even number of pixels")
     return bytes((pixels[index] << 4) | pixels[index + 1]
