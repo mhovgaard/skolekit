@@ -1,0 +1,5 @@
+#!/bin/sh
+# Refuses a commit whose staged files hold the household's identifiers or a personal
+# trace (see tests_python/staged_guard.py). Enable once per clone:
+#   git config core.hooksPath .githooks
+exec python3 -m tests_python.staged_guard

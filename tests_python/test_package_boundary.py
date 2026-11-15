@@ -144,3 +144,27 @@ def test_the_household_is_in_no_tracked_file():
     found = offenders([ROOT / name for name in tracked.stdout.splitlines()
                        if (ROOT / name).is_file() and name != "tests_python/household_guard.py"])
     assert found == []
+
+
+def test_the_pre_commit_check_reads_what_is_staged(tmp_path):
+    from tests_python.staged_guard import staged_offenders
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    real_looking = "someone" + "@" + "mail.dk"
+    (tmp_path / "notes.md").write_text(f"Write to {real_looking}\n", encoding="utf-8")
+    (tmp_path / "board.md").write_text("Alfa and Beta\n", encoding="utf-8")
+    git("add", "notes.md", "board.md")
+    # Fixed on disk but not staged again: the commit would still carry the address.
+    (tmp_path / "notes.md").write_text("Write to someone@example.dk\n", encoding="utf-8")
+    assert staged_offenders(tmp_path) == ["notes.md: an email address"]
+    git("add", "notes.md")
+    assert staged_offenders(tmp_path) == []
+
+
+def test_the_pre_commit_hook_runs_the_staged_check():
+    hook = ROOT / ".githooks" / "pre-commit"
+    assert os.access(hook, os.X_OK)
+    assert "tests_python.staged_guard" in hook.read_text(encoding="utf-8")

@@ -87,6 +87,11 @@ def personal_traces(text: str) -> list[str]:
     return kinds
 
 
+def kinds_in(text: str, patterns: list[tuple[str, re.Pattern[str]]]) -> list[str]:
+    """The kinds of household identifier and personal trace in `text`."""
+    return [kind for kind, pattern in patterns if pattern.search(text)] + personal_traces(text)
+
+
 def offenders(roots: list[Path], *, skip: tuple[Path, ...] = ()) -> list[str]:
     """'path: kind' for every file under `roots` that holds one of the identifiers."""
     patterns = household_patterns() or []
@@ -96,6 +101,5 @@ def offenders(roots: list[Path], *, skip: tuple[Path, ...] = ()) -> list[str]:
             if not path.is_file() or path.suffix in BINARY or any(path.is_relative_to(s) for s in skip):
                 continue
             text = path.read_text(encoding="utf-8", errors="ignore")
-            found += [f"{path}: {kind}" for kind, pattern in patterns if pattern.search(text)]
-            found += [f"{path}: {kind}" for kind in personal_traces(text)]
+            found += [f"{path}: {kind}" for kind in kinds_in(text, patterns)]
     return sorted(set(found))

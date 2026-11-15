@@ -49,6 +49,13 @@ hostnames.
 Also inspect new files before staging: an untracked file is outside a
 tracked-file-only guard until it is added.
 
+Enable the pre-commit hook once in each clone with
+`git config core.hooksPath .githooks`. It runs the same guard over the staged
+version of every added or changed file and refuses the commit on a hit. The
+GitHub test workflow has no owner's files, so on GitHub only the generic checks
+run; the household's names are caught only by the hook on the owner's machine.
+Report security problems as described in [SECURITY.md](../SECURITY.md).
+
 CLI/parser work must preserve flags, exit behavior, async dispatch, writer
 guards and CLI/MCP parity. Check `--help` without heavyweight integrations;
 `test_cli_dependencies.py` exercises base commands with optional imports blocked.
