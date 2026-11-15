@@ -254,13 +254,15 @@ def test_power_command_sets_mode_and_reports_the_power_rows(helper, capsys):
     worker = threading.Thread(target=fake_board, args=(master, replies, 'status-json'), daemon=True)
     worker.start()
     port = os.ttyname(slave)
-    os.close(slave)
+    # Keep this end open until the helper is done: on Linux, reading the board's end
+    # fails with EIO while no process holds the port open (macOS waits instead).
     try:
         helper.usb_command(SimpleNamespace(port=port, command='power', mode='sleep', details=False))
         worker.join(timeout=2)
         assert not worker.is_alive()
     finally:
         os.close(master)
+        os.close(slave)
     text = capsys.readouterr().out
     assert '01 Battery: [OK] 3.98 V · about 70%' in text
     assert 'Mode: [—] Sleeps between updates' in text

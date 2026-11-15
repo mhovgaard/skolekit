@@ -237,6 +237,9 @@ def test_a_missing_or_old_copy_says_to_pull(copy, tmp_path):
     with contextlib.closing(sqlite3.connect(copy)) as connection:
         connection.execute("DELETE FROM schema_migrations WHERE version = (SELECT max(version) FROM schema_migrations)")
         connection.commit()
+        # Into the main file, as a pulled copy arrives: the server opens it immutable and
+        # ignores a -wal file, which stays behind while any other connection is still open.
+        connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     old = build_server(copy)
     for name, arguments in (("week", {}), ("board_context", {}), ("last_scan", {})):
         with pytest.raises(ToolError, match="Pull again"):
