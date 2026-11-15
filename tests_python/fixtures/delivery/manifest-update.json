@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "manifest_id": "20260825T193142Z-b8e42d213049",
+  "generated_at": "2026-08-25T19:31:42Z",
+  "expires_at": "2026-08-27T07:31:42Z",
+  "headline": "AMBER · 1 relevant item",
+  "calendar": [
+    {
+      "stable_key": "event:rita:museum:2026-08-26",
+      "revision": 2,
+      "state": "active",
+      "title": "Beta · Museum trip",
+      "start": "2026-08-26",
+      "end": "2026-08-26",
+      "all_day": true,
+      "notes": "Meet at 08:15 with a packed lunch.",
+      "source_url": "https://x.skoleintra.dk/item/1"
+    }
+  ],
+  "reminders": [],
+  "review": [],
+  "brief": {
+    "title": "School brief · 2026-08-25",
+    "body": "🟠 AMBER — 1 attention",
+    "signal": "amber"
+  }
+}

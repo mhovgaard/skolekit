@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "member_item_ids": {"type": "array", "items": {"type": "integer"}, "minItems": 2},
+          "resolution": {"type": "string", "enum": ["duplicate", "complementary", "revision", "conflict"]},
+          "canonical": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "stream": {"type": "string", "enum": ["homework", "actions", "calendar", "context", "watch"]},
+              "type": {"type": "string", "enum": ["homework", "bring", "event", "schedule_change", "substitute", "parent_action", "reminder", "context", "routine", "lesson_preview"]},
+              "audience": {"type": "string", "enum": ["child", "parent", "family"]},
+              "child": {"type": "string", "maxLength": 80},
+              "title": {"type": "string", "maxLength": 80},
+              "summary": {"type": "string", "maxLength": 220},
+              "effective_date": {"type": ["string", "null"]},
+              "end_date": {"type": ["string", "null"]},
+              "all_day": {"type": "boolean"},
+              "timing_rule": {"type": "string", "enum": ["explicit", "complete_before_source_day", "needed_on_source_day", "occurs_on_source_day", "no_derived_date", "ambiguous"]},
+              "actionability": {"type": "string", "enum": ["required", "recommended", "informational"]},
+              "urgency": {"type": "string", "enum": ["routine", "attention", "urgent", "critical"]},
+              "urgency_reason": {"type": "string", "maxLength": 200},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            },
+            "required": ["stream", "type", "audience", "child", "title", "summary", "effective_date", "end_date", "all_day", "timing_rule", "actionability", "urgency", "urgency_reason", "confidence"]
+          },
+          "needs_review": {"type": "boolean"},
+          "review_reason": {"type": "string", "maxLength": 240},
+          "reason": {"type": "string", "maxLength": 240}
+        },
+        "required": ["member_item_ids", "resolution", "canonical", "needs_review", "review_reason", "reason"]
+      }
+    },
+    "unclustered_item_ids": {"type": "array", "items": {"type": "integer"}}
+  },
+  "required": ["groups", "unclustered_item_ids"]
+}

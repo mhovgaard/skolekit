@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skoleklar E-ink Renderer"
+  short_description: "Render the school dashboard for a Pi e-ink screen"
+  default_prompt: "Use $ag-school-eink-renderer. Render the prepared school dashboard as an 800×480 e-ink PNG."

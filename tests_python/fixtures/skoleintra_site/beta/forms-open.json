@@ -1,0 +1,15 @@
+{
+  "Items": [
+    {
+      "Name": "Tilmelding til svømning",
+      "CreatedBy": "Klasselærer (NT)",
+      "Status": "Besvaret",
+      "Deadline": "16-11-2026",
+      "Type": "Tilmelding",
+      "Url": "/parent/{{student_id}}/{{child}}/forms/open/survey/610",
+      "ResultsLink": null,
+      "OpenInNewTab": false,
+      "IsApp": false
+    }
+  ]
+}

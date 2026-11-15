@@ -1,0 +1,3070 @@
+{
+ "children": [
+  {
+   "student_id": 9101,
+   "child": "Alfa",
+   "calendar_class_name": "001"
+  },
+  {
+   "student_id": 9202,
+   "child": "Beta",
+   "calendar_class_name": "003"
+  }
+ ],
+ "policy": {
+  "mode": "daily",
+  "message_mode": "events-only",
+  "message_processor": "zdr"
+ },
+ "requests": [
+  "GET /parent/9101/Alfa/Index",
+  "GET /parent/9101/Alfa/calendareventsource/ActivitiesEvents?departmentIds=%5B%220%22%5D&start=1793574000&end=1795993200",
+  "GET /parent/9101/Alfa/calendareventsource/SchoolEvents?departmentIds=%5B%220%22%5D&start=1793574000&end=1795993200",
+  "GET /parent/9101/Alfa/calendareventsource/LessonsEvents?departmentIds=%5B%220%22%5D&start=1793574000&end=1795993200&className=001",
+  "GET /parent/9101/Alfaitem/weeklyplansandhomework/list",
+  "GET /parent/9101/Alfaitem/weeklyplansandhomework/item/class/46-2026",
+  "GET /parent/9101/Alfaitem/weeklyplansandhomework/item/class/47-2026",
+  "GET /parent/9101/Alfa/forms/open",
+  "GET /parent/9101/Alfa/forms/open/survey/501",
+  "GET /parent/9101/Alfa/forms/open/survey/501/answer",
+  "GET /parent/9101/Alfa/forms/open/conversations/812/edit",
+  "GET /parent/9101/Alfa/forms/closed",
+  "GET /parent/9101/Alfa/forms/closed/consent/455",
+  "GET /parent/9202/Beta/Index",
+  "GET /parent/9202/Beta/calendareventsource/ActivitiesEvents?departmentIds=%5B%220%22%5D&start=1793574000&end=1795993200",
+  "GET /parent/9202/Beta/calendareventsource/SchoolEvents?departmentIds=%5B%220%22%5D&start=1793574000&end=1795993200",
+  "GET /parent/9202/Beta/calendareventsource/LessonsEvents?departmentIds=%5B%220%22%5D&start=1793574000&end=1795993200&className=003",
+  "GET /parent/9202/Betaitem/weeklyplansandhomework/list",
+  "GET /parent/9202/Betaitem/weeklyplansandhomework/item/class/46-2026",
+  "GET /parent/9202/Beta/forms/open",
+  "GET /parent/9202/Beta/forms/open/survey/610",
+  "GET /parent/9202/Beta/forms/closed"
+ ],
+ "checks": [
+  {
+   "student_id": 9101,
+   "child": "Alfa",
+   "source_type": "frontpage",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "pages": 1,
+    "exhausted": false
+   },
+   "coverage": {
+    "kind": "page_window",
+    "pages": 1
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "frontpage",
+     "source_key": "skoleintra-pin:3101",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/Index#skoleintra-pin:3101",
+     "title": "Ny mødetid om morgenen",
+     "body_html": "<div class=\"sk-news-item-content\">\n<p><strong>Ny mødetid om morgenen</strong></p>\n<p>Fra mandag den 16. november åbner skolen kl. 7.30.<br/>SFO'en åbner som hidtil kl. 6.30.</p>\n</div>",
+     "body_text": "Ny mødetid om morgenen\nFra mandag den 16. november åbner skolen kl. 7.30.\nSFO'en åbner som hidtil kl. 6.30.",
+     "dates": [
+      {
+       "kind": "display_timestamp",
+       "value": "2. nov. 2026 08:00"
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "feed_type": "skoleintra-pin",
+      "feed_id": "3101",
+      "author": "Skolekontoret",
+      "audience": "Hele skolen",
+      "footer_text": "Fastgjort opslag",
+      "timestamps": [
+       "2. nov. 2026 08:00"
+      ]
+     },
+     "content_data": {
+      "author": "Skolekontoret",
+      "audience": "Hele skolen",
+      "footer_text": "Fastgjort opslag"
+     },
+     "state_data": {},
+     "raw_payload": "<div class=\"sk-news-item\" data-feed-item-id=\"3101\" data-feed-item-type=\"skoleintra-pin\">\n<div class=\"sk-news-item-header\">\n<span class=\"sk-news-item-author\">Skolekontoret</span>\n<span class=\"sk-news-item-for\">Hele skolen</span>\n<span class=\"sk-news-item-timestamp\">2. nov. 2026  08:00</span>\n</div>\n<div class=\"sk-news-item-content\">\n<p><strong>Ny mødetid om morgenen</strong></p>\n<p>Fra mandag den 16. november åbner skolen kl. 7.30.<br/>SFO'en åbner som hidtil kl. 6.30.</p>\n</div>\n<div class=\"sk-news-item-footer\">Fastgjort opslag</div>\n</div>",
+     "raw_hash": "ee1a536273561b3d7a97d06c558171ccd154b29dc20f4916d2b41d77682a8788",
+     "content_hash": "d13792dbc5247db43b3548a1693cc518065a4977ecf2ad762c688c52ba85656f",
+     "state_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "frontpage",
+     "source_key": "news:7003",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/Index#news:7003",
+     "title": "Tur til skoven onsdag",
+     "body_html": "<div class=\"sk-news-item-content\">\n<p><strong>Tur til skoven onsdag</strong></p>\n<p>Vi går i skoven onsdag den 18. november.<br/>Medbring madpakke, drikkedunk og regntøj.</p>\n<p>Husk at <a href=\"/parent/9101/Alfa/forms/open/survey/501\">tilmelde jer juleklip</a> inden fredag.</p>\n<p><a href=\"javascript:void(0)\">Vis mere</a> <a href=\"/parent/9101/Alfa/forms/open/survey/501\">tilmelding</a></p>\n</div>",
+     "body_text": "Tur til skoven onsdag\nVi går i skoven onsdag den 18. november.\nMedbring madpakke, drikkedunk og regntøj.\nHusk at\ntilmelde jer juleklip\ninden fredag.\nVis mere\ntilmelding",
+     "dates": [
+      {
+       "kind": "display_timestamp",
+       "value": "11. nov. 2026 14:05"
+      },
+      {
+       "kind": "display_timestamp",
+       "value": "Opdateret 11. nov. 2026 15:30"
+      }
+     ],
+     "attachments": [
+      {
+       "url": "{BASE_URL}/files/synthetic/tur-pakkeliste.pdf",
+       "title": "Pakkeliste (PDF)"
+      }
+     ],
+     "links": [
+      "{BASE_URL}/parent/9101/Alfa/forms/open/survey/501",
+      "{BASE_URL}/files/synthetic/tur-pakkeliste.pdf"
+     ],
+     "source_data": {
+      "feed_type": "news",
+      "feed_id": "7003",
+      "author": "Klasselærer (KL)",
+      "audience": "1. klasse",
+      "footer_text": "Vises til 19. nov. 2026",
+      "timestamps": [
+       "11. nov. 2026 14:05",
+       "Opdateret 11. nov. 2026 15:30"
+      ]
+     },
+     "content_data": {
+      "author": "Klasselærer (KL)",
+      "audience": "1. klasse",
+      "footer_text": "Vises til 19. nov. 2026"
+     },
+     "state_data": {},
+     "raw_payload": "<div class=\"sk-news-item\" data-feed-item-id=\"7003\" data-feed-item-type=\"news\">\n<div class=\"sk-news-item-header\">\n<span class=\"sk-news-item-author\">Klasselærer (KL)</span>\n<span class=\"sk-news-item-for\">1. klasse</span>\n<span class=\"sk-news-item-timestamp\">11. nov. 2026 14:05</span>\n<span class=\"sk-news-item-timestamp\">Opdateret 11. nov. 2026 15:30</span>\n</div>\n<div class=\"sk-news-item-content\">\n<p><strong>Tur til skoven onsdag</strong></p>\n<p>Vi går i skoven onsdag den 18. november.<br/>Medbring madpakke, drikkedunk og regntøj.</p>\n<p>Husk at <a href=\"/parent/9101/Alfa/forms/open/survey/501\">tilmelde jer juleklip</a> inden fredag.</p>\n<p><a href=\"javascript:void(0)\">Vis mere</a> <a href=\"/parent/9101/Alfa/forms/open/survey/501\">tilmelding</a></p>\n</div>\n<ul class=\"sk-attachments-list\">\n<li><a href=\"/files/synthetic/tur-pakkeliste.pdf\">Pakkeliste  (PDF)</a></li>\n</ul>\n<div class=\"sk-news-item-footer\">Vises til 19. nov. 2026</div>\n</div>",
+     "raw_hash": "bba84a41117033cb403e38f9c0a5fd8b9102de1086ec6a7521da129365ea3a0d",
+     "content_hash": "e3c6db2ade658414d4db264e864d2ba75f9d8fd7827b0e0f915c921b5d5a9539",
+     "state_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "frontpage",
+     "source_key": "news:7002",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/Index#news:7002",
+     "title": "Fredag den 20. november lukker SFO'en kl. 15.00 på grund af personalemøde.",
+     "body_html": "<div class=\"sk-news-item-content\">\n<p>Fredag den 20. november lukker SFO'en kl. 15.00 på grund af personalemøde.</p>\n</div>",
+     "body_text": "Fredag den 20. november lukker SFO'en kl. 15.00 på grund af personalemøde.",
+     "dates": [
+      {
+       "kind": "display_timestamp",
+       "value": "9. nov. 2026 12:00"
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "feed_type": "news",
+      "feed_id": "7002",
+      "author": "SFO-leder (SL)",
+      "audience": "SFO",
+      "footer_text": "",
+      "timestamps": [
+       "9. nov. 2026 12:00"
+      ]
+     },
+     "content_data": {
+      "author": "SFO-leder (SL)",
+      "audience": "SFO",
+      "footer_text": ""
+     },
+     "state_data": {},
+     "raw_payload": "<div class=\"sk-news-item\" data-feed-item-id=\"7002\" data-feed-item-type=\"news\">\n<div class=\"sk-news-item-header\">\n<span class=\"sk-news-item-author\">SFO-leder (SL)</span>\n<span class=\"sk-news-item-for\">SFO</span>\n<span class=\"sk-news-item-timestamp\">9. nov. 2026 12:00</span>\n</div>\n<div class=\"sk-news-item-content\">\n<p>Fredag den 20. november lukker SFO'en kl. 15.00 på grund af personalemøde.</p>\n</div>\n</div>",
+     "raw_hash": "cd7ebc08adea53afd5da070886e8234f3f6371cf8080048aa6ebfca5f5fd7429",
+     "content_hash": "b030db55f7214a26bf12f8af92c13661e157b96c124f0b05e994523d1a44c270",
+     "state_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    }
+   ]
+  },
+  {
+   "student_id": 9101,
+   "child": "Alfa",
+   "source_type": "messages",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "message_mode": "events-only",
+    "excluded_by_policy": false,
+    "bodies_retained": 0
+   },
+   "coverage": {
+    "kind": "excluded_by_policy"
+   },
+   "records": []
+  },
+  {
+   "student_id": 9101,
+   "child": "Alfa",
+   "source_type": "calendar",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "counts": {
+     "ActivitiesEvents": 3,
+     "SchoolEvents": 2,
+     "LessonsEvents": 4
+    },
+    "range_start": "2026-11-02T00:00:00+01:00",
+    "range_end": "2026-11-30T00:00:00+01:00",
+    "requests": 3
+   },
+   "coverage": {
+    "kind": "date_window",
+    "start": "2026-11-02",
+    "end": "2026-11-30"
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "ActivitiesEvents:880101",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/ActivitiesEvents",
+     "title": "Forældremøde 1. klasse",
+     "body_html": "<p>Vi mødes i klasselokalet.<br>Der er kaffe og te.</p>",
+     "body_text": "Vi mødes i klasselokalet.\nDer er kaffe og te.",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-17T19:00:00",
+       "end": "2026-11-17T20:30:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [
+      {
+       "Name": "dagsorden.pdf",
+       "Url": "/files/synthetic/dagsorden.pdf"
+      }
+     ],
+     "links": [
+      "/parent/9101/Alfa/messages/conversations#thread-301"
+     ],
+     "source_data": {
+      "calendar_kind": "ActivitiesEvents",
+      "event": {
+       "id": "0_a1f0c101",
+       "originalId": 880101,
+       "title": "Forældremøde 1. klasse",
+       "description": "<p>Vi mødes i klasselokalet.<br>Der er kaffe og te.</p>",
+       "start": "2026-11-17T19:00:00",
+       "end": "2026-11-17T20:30:00",
+       "allDay": false,
+       "location": "Klasselokalet",
+       "authorName": "Klasselærer (KL)",
+       "invitees": "Forældre i 1. klasse",
+       "Attachments": [
+        {
+         "Name": "dagsorden.pdf",
+         "Url": "/files/synthetic/dagsorden.pdf"
+        }
+       ],
+       "IsPrivate": false,
+       "conversationLink": "/parent/9101/Alfa/messages/conversations#thread-301"
+      }
+     },
+     "content_data": {
+      "title": "Forældremøde 1. klasse",
+      "description": "<p>Vi mødes i klasselokalet.<br>Der er kaffe og te.</p>",
+      "location": "Klasselokalet",
+      "authorName": "Klasselærer (KL)",
+      "invitees": "Forældre i 1. klasse",
+      "Attachments": [
+       {
+        "Name": "dagsorden.pdf",
+        "Url": "/files/synthetic/dagsorden.pdf"
+       }
+      ],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "ActivitiesEvents"
+     },
+     "raw_payload": {
+      "id": "0_a1f0c101",
+      "originalId": 880101,
+      "title": "Forældremøde 1. klasse",
+      "description": "<p>Vi mødes i klasselokalet.<br>Der er kaffe og te.</p>",
+      "start": "2026-11-17T19:00:00",
+      "end": "2026-11-17T20:30:00",
+      "allDay": false,
+      "location": "Klasselokalet",
+      "authorName": "Klasselærer (KL)",
+      "invitees": "Forældre i 1. klasse",
+      "Attachments": [
+       {
+        "Name": "dagsorden.pdf",
+        "Url": "/files/synthetic/dagsorden.pdf"
+       }
+      ],
+      "IsPrivate": false,
+      "conversationLink": "/parent/9101/Alfa/messages/conversations#thread-301"
+     },
+     "raw_hash": "e118b6c125cc2b5c436a0ced2520310ddb95cd4eb7d8f8ca7a228b6c1970ed6a",
+     "content_hash": "75ce9ac62cb6ada6d307f85e48815f7384f5a830737d61ac182ac1debd499295",
+     "state_hash": "93206ab41b551c2b16bbe1ba2d4a26984d31b6a369ed29971643526da12ac3c5"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "ActivitiesEvents:880150",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/ActivitiesEvents",
+     "title": "Motionsdag",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-20T00:00:00",
+       "end": "2026-11-21T00:00:00",
+       "all_day": true
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "ActivitiesEvents",
+      "event": {
+       "id": "0_a1f0c150",
+       "originalId": 880150,
+       "title": "Motionsdag",
+       "description": "",
+       "start": "2026-11-20T00:00:00",
+       "end": "2026-11-21T00:00:00",
+       "allDay": true,
+       "location": "",
+       "authorName": "Skolekontoret",
+       "invitees": "Hele skolen",
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Motionsdag",
+      "description": "",
+      "location": "",
+      "authorName": "Skolekontoret",
+      "invitees": "Hele skolen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "ActivitiesEvents"
+     },
+     "raw_payload": {
+      "id": "0_a1f0c150",
+      "originalId": 880150,
+      "title": "Motionsdag",
+      "description": "",
+      "start": "2026-11-20T00:00:00",
+      "end": "2026-11-21T00:00:00",
+      "allDay": true,
+      "location": "",
+      "authorName": "Skolekontoret",
+      "invitees": "Hele skolen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "6004c17ef3c6d92346ff3d98692ae96f9bcb3c4dd9e8688865adb0fe735cb057",
+     "content_hash": "2e8ad4e78f1091edf0716ba852f0e068e28f46a9971151a6611c2ce4963424d2",
+     "state_hash": "93206ab41b551c2b16bbe1ba2d4a26984d31b6a369ed29971643526da12ac3c5"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "ActivitiesEvents:880103",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/ActivitiesEvents",
+     "title": "Temauge: Rummet",
+     "body_html": "<p>Hele skolen arbejder med rummet.</p>",
+     "body_text": "Hele skolen arbejder med rummet.",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-26T00:00:00",
+       "end": "2026-12-05T00:00:00",
+       "all_day": true
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "ActivitiesEvents",
+      "event": {
+       "id": "0_a1f0c103",
+       "originalId": 880103,
+       "title": "Temauge: Rummet",
+       "description": "<p>Hele skolen arbejder med rummet.</p>",
+       "start": "2026-11-26T00:00:00",
+       "end": "2026-12-05T00:00:00",
+       "allDay": true,
+       "location": "",
+       "authorName": "Skolekontoret",
+       "invitees": "Hele skolen",
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Temauge: Rummet",
+      "description": "<p>Hele skolen arbejder med rummet.</p>",
+      "location": "",
+      "authorName": "Skolekontoret",
+      "invitees": "Hele skolen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "ActivitiesEvents"
+     },
+     "raw_payload": {
+      "id": "0_a1f0c103",
+      "originalId": 880103,
+      "title": "Temauge: Rummet",
+      "description": "<p>Hele skolen arbejder med rummet.</p>",
+      "start": "2026-11-26T00:00:00",
+      "end": "2026-12-05T00:00:00",
+      "allDay": true,
+      "location": "",
+      "authorName": "Skolekontoret",
+      "invitees": "Hele skolen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "084cbe4c28b54e80d0c4e3120842c01acdf582b95277ae000bc318b5fbc3f604",
+     "content_hash": "5facb2f0773a2373c6fd73a2db228b2279f82cbb6d586091ed717ad4fdbe4844",
+     "state_hash": "93206ab41b551c2b16bbe1ba2d4a26984d31b6a369ed29971643526da12ac3c5"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "SchoolEvents:880201",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/SchoolEvents",
+     "title": "Skolefoto",
+     "body_html": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+     "body_text": "Fotografen kommer. Husk pænt tøj.",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-19T08:00:00",
+       "end": "2026-11-19T12:00:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "SchoolEvents",
+      "event": {
+       "id": "1_5c40e201",
+       "originalId": 880201,
+       "title": "Skolefoto",
+       "description": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+       "start": "2026-11-19T08:00:00",
+       "end": "2026-11-19T12:00:00",
+       "allDay": false,
+       "location": "Gymnastiksalen",
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Skolefoto",
+      "description": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+      "location": "Gymnastiksalen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "SchoolEvents"
+     },
+     "raw_payload": {
+      "id": "1_5c40e201",
+      "originalId": 880201,
+      "title": "Skolefoto",
+      "description": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+      "start": "2026-11-19T08:00:00",
+      "end": "2026-11-19T12:00:00",
+      "allDay": false,
+      "location": "Gymnastiksalen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "e95ab2a59d4f03f82efe98d8ea60d5f6d2607926d6e75056f4be1854d31c0fff",
+     "content_hash": "ddeaf86f16d91c65dc4a87dbb4276c1de54b309d2bdd7f22e06070f93894eb35",
+     "state_hash": "47bab0b3cf413042d78322b26ca1ccaac7d72fa65db537d1d7f29b781025b1bd"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "SchoolEvents:880150",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/SchoolEvents",
+     "title": "Motionsdag",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-20T00:00:00",
+       "end": "2026-11-21T00:00:00",
+       "all_day": true
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "SchoolEvents",
+      "event": {
+       "id": "1_5c40e150",
+       "originalId": 880150,
+       "title": "Motionsdag",
+       "description": "",
+       "start": "2026-11-20T00:00:00",
+       "end": "2026-11-21T00:00:00",
+       "allDay": true,
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Motionsdag",
+      "description": "",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "SchoolEvents"
+     },
+     "raw_payload": {
+      "id": "1_5c40e150",
+      "originalId": 880150,
+      "title": "Motionsdag",
+      "description": "",
+      "start": "2026-11-20T00:00:00",
+      "end": "2026-11-21T00:00:00",
+      "allDay": true,
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "5872687141e837b6e56630b433d53bf5d7486abccbd062f4c3e93e303ad0abfa",
+     "content_hash": "8f96ea000f95329f1a3bbc0d1bf46711d8b750814a6c2166d5f7ec6ec3546707",
+     "state_hash": "47bab0b3cf413042d78322b26ca1ccaac7d72fa65db537d1d7f29b781025b1bd"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "LessonsEvents:slot:65ff37c9b9ad4a83bb43f98689d4502fa7cd850b981886bd9d78ad99cb8a73d8",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/LessonsEvents",
+     "title": "Dansk",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-12T08:00:00",
+       "end": "2026-11-12T08:45:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "LessonsEvents",
+      "event": {
+       "id": "2_9f1e0001",
+       "originalId": 990001,
+       "title": "Dansk",
+       "start": "2026-11-12T08:00:00",
+       "end": "2026-11-12T08:45:00",
+       "allDay": false,
+       "location": "Lokale 12",
+       "lessonName": "Dansk",
+       "lessonClassName": "001",
+       "staffName": "KL",
+       "absentStaff": null,
+       "substituteStaff": null,
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Dansk",
+      "location": "Lokale 12",
+      "lessonName": "Dansk",
+      "lessonClassName": "001",
+      "staffName": "KL",
+      "absentStaff": null,
+      "substituteStaff": null,
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "LessonsEvents"
+     },
+     "raw_payload": {
+      "id": "2_9f1e0001",
+      "originalId": 990001,
+      "title": "Dansk",
+      "start": "2026-11-12T08:00:00",
+      "end": "2026-11-12T08:45:00",
+      "allDay": false,
+      "location": "Lokale 12",
+      "lessonName": "Dansk",
+      "lessonClassName": "001",
+      "staffName": "KL",
+      "absentStaff": null,
+      "substituteStaff": null,
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "24369bb8c61ea8f6cf9be3e5fac669442c349e9a487950a66dba6428687c901b",
+     "content_hash": "cf878ae5a436e666ce7bcf7b3fe92206e7bfaea84d949dd05309c611b03b9900",
+     "state_hash": "3f2bb1370fbaa185c606201f8a7b8fb7f68b28e2ee6a8616005fe6812afca150"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "LessonsEvents:slot:e62c5640df61deadd692bb16af43e4b613c79a3d478ff33da0da5bcbd481a169",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/LessonsEvents",
+     "title": "Matematik",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-12T08:50:00",
+       "end": "2026-11-12T09:35:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "LessonsEvents",
+      "event": {
+       "id": "2_9f1e0002",
+       "originalId": 990002,
+       "title": "Matematik",
+       "start": "2026-11-12T08:50:00",
+       "end": "2026-11-12T09:35:00",
+       "allDay": false,
+       "location": "Lokale 12",
+       "lessonName": "Matematik",
+       "lessonClassName": "001",
+       "staffName": "MT",
+       "absentStaff": null,
+       "substituteStaff": null,
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Matematik",
+      "location": "Lokale 12",
+      "lessonName": "Matematik",
+      "lessonClassName": "001",
+      "staffName": "MT",
+      "absentStaff": null,
+      "substituteStaff": null,
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "LessonsEvents"
+     },
+     "raw_payload": {
+      "id": "2_9f1e0002",
+      "originalId": 990002,
+      "title": "Matematik",
+      "start": "2026-11-12T08:50:00",
+      "end": "2026-11-12T09:35:00",
+      "allDay": false,
+      "location": "Lokale 12",
+      "lessonName": "Matematik",
+      "lessonClassName": "001",
+      "staffName": "MT",
+      "absentStaff": null,
+      "substituteStaff": null,
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "35e30abbe625386943e933c1f4b8eb46cc87f8752aecb623a45859695bfce13b",
+     "content_hash": "e2e6e40507d7dc6d0429c5ba6bb9e48e7d2104fbc941a16d62ab5eda7c321230",
+     "state_hash": "3f2bb1370fbaa185c606201f8a7b8fb7f68b28e2ee6a8616005fe6812afca150"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "LessonsEvents:990004",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/LessonsEvents",
+     "title": "Musik",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-13T10:00:00",
+       "end": "2026-11-13T10:45:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "LessonsEvents",
+      "event": {
+       "id": "2_9f1e0004",
+       "originalId": 990004,
+       "title": null,
+       "formattedName": "Musik",
+       "start": "2026-11-13T10:00:00",
+       "end": "2026-11-13T10:45:00",
+       "allDay": false,
+       "lessonName": "Musik",
+       "lessonClassName": "001",
+       "staffName": null,
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": null,
+      "lessonName": "Musik",
+      "lessonClassName": "001",
+      "staffName": null,
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "LessonsEvents"
+     },
+     "raw_payload": {
+      "id": "2_9f1e0004",
+      "originalId": 990004,
+      "title": null,
+      "formattedName": "Musik",
+      "start": "2026-11-13T10:00:00",
+      "end": "2026-11-13T10:45:00",
+      "allDay": false,
+      "lessonName": "Musik",
+      "lessonClassName": "001",
+      "staffName": null,
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "06fe886a122f54bfb6a59821d03d340d7bfba755906a5a3d35fc8357de80c476",
+     "content_hash": "7faaea1427e8cf721e6e63919bcc99d764fe020db3f4057585841cfd5f178293",
+     "state_hash": "3f2bb1370fbaa185c606201f8a7b8fb7f68b28e2ee6a8616005fe6812afca150"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "calendar",
+     "source_key": "LessonsEvents:slot:bf6fea74a338f7536fde20efc99bf48e79b1739e5e927b8ccf54b2a6a168129b",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/calendareventsource/LessonsEvents",
+     "title": "Dansk",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-19T08:00:00",
+       "end": "2026-11-19T08:45:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [
+      "/parent/9101/Alfa/substitutions"
+     ],
+     "source_data": {
+      "calendar_kind": "LessonsEvents",
+      "event": {
+       "id": "2_9f1e0003",
+       "originalId": 990003,
+       "title": "Dansk",
+       "start": "2026-11-19T08:00:00",
+       "end": "2026-11-19T08:45:00",
+       "allDay": false,
+       "location": "Lokale 12",
+       "lessonName": "Dansk",
+       "lessonClassName": "001",
+       "staffName": "KL",
+       "absentStaff": "KL",
+       "substituteStaff": "VI",
+       "substitutionExtraTitle": "Vikar",
+       "substituteExplainedAbbreviations": "VI = vikar",
+       "substitutionPageLink": "/parent/9101/Alfa/substitutions",
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Dansk",
+      "location": "Lokale 12",
+      "lessonName": "Dansk",
+      "lessonClassName": "001",
+      "staffName": "KL",
+      "absentStaff": "KL",
+      "substituteStaff": "VI",
+      "substitutionExtraTitle": "Vikar",
+      "substituteExplainedAbbreviations": "VI = vikar",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "LessonsEvents"
+     },
+     "raw_payload": {
+      "id": "2_9f1e0003",
+      "originalId": 990003,
+      "title": "Dansk",
+      "start": "2026-11-19T08:00:00",
+      "end": "2026-11-19T08:45:00",
+      "allDay": false,
+      "location": "Lokale 12",
+      "lessonName": "Dansk",
+      "lessonClassName": "001",
+      "staffName": "KL",
+      "absentStaff": "KL",
+      "substituteStaff": "VI",
+      "substitutionExtraTitle": "Vikar",
+      "substituteExplainedAbbreviations": "VI = vikar",
+      "substitutionPageLink": "/parent/9101/Alfa/substitutions",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "7d9c8e4563fa251005d5d9a4b7f7266ca361e2dbe470a83a581f660e08ac5acf",
+     "content_hash": "85f5166a1a031df98d006aa63de1423f9dcebd6cdafe3052f005f6c2c07eccb6",
+     "state_hash": "3f2bb1370fbaa185c606201f8a7b8fb7f68b28e2ee6a8616005fe6812afca150"
+    }
+   ]
+  },
+  {
+   "student_id": 9101,
+   "child": "Alfa",
+   "source_type": "weekly_plan",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "weeks": 2,
+    "available_weeks": 3
+   },
+   "coverage": {
+    "kind": "record_keys",
+    "source_keys": [
+     "class:46-2026",
+     "class:47-2026"
+    ]
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "weekly_plan",
+     "source_key": "class:46-2026",
+     "source_url": "{BASE_URL}/parent/9101/Alfaitem/weeklyplansandhomework/item/class/46-2026",
+     "title": "Uge 46",
+     "body_html": "<p>Kære forældre<br>I denne uge arbejder vi med efteråret.</p><p>Medbring: Gummistøvler hver dag.</p>\n<p>Lektie: Læs side 12 i læsebogen.</p><p>Materialer: Læsebog og blyant.</p>\n<p>Aktivitet:</p><p>Vi samler blade i skolegården.</p><p>Medbring: En pose.</p>\n<p>Vi øver plus til 20.</p>\n<p>Dagens program: Boldspil i hallen.<br>Medbring idrætstøj.</p>",
+     "body_text": "Kære forældre\nI denne uge arbejder vi med efteråret.\nMedbring: Gummistøvler hver dag.\nLektie: Læs side 12 i læsebogen.\nMaterialer: Læsebog og blyant.\nAktivitet:\nVi samler blade i skolegården.\nMedbring: En pose.\nVi øver plus til 20.\nDagens program: Boldspil i hallen.\nMedbring idrætstøj.",
+     "dates": [
+      {
+       "kind": "source_day",
+       "value": "2026-11-09T00:00:00"
+      },
+      {
+       "kind": "source_day",
+       "value": "2026-11-10T00:00:00"
+      },
+      {
+       "kind": "source_day",
+       "value": "2026-11-11T00:00:00"
+      },
+      {
+       "kind": "source_day",
+       "value": "2026-11-12T00:00:00"
+      },
+      {
+       "kind": "source_day",
+       "value": "2026-11-13T00:00:00"
+      }
+     ],
+     "attachments": [
+      {
+       "Name": "ugeplan-46.pdf",
+       "Url": "/files/synthetic/ugeplan-46.pdf"
+      },
+      {
+       "Name": "efteraar.pdf",
+       "Url": "/files/synthetic/efteraar.pdf"
+      },
+      {
+       "Name": "arbejdsark.pdf",
+       "Url": "/files/synthetic/arbejdsark.pdf"
+      }
+     ],
+     "links": [],
+     "source_data": {
+      "schema_version": 1,
+      "source": {
+       "url": "{BASE_URL}/parent/9101/Alfaitem/weeklyplansandhomework/item/class/46-2026",
+       "student_id": 9101,
+       "child": "Alfa"
+      },
+      "week": {
+       "number": 46,
+       "year": 2026,
+       "label": "Uge 46",
+       "class_or_group": "1. klasse"
+      },
+      "general_plans": [
+       {
+        "source_plan_id": 46001,
+        "subject": "Fælles",
+        "subject_is_general": true,
+        "lesson_number": null,
+        "content_html": "<p>Kære forældre<br>I denne uge arbejder vi med efteråret.</p><p>Medbring: Gummistøvler hver dag.</p>",
+        "content_text": "Kære forældre\nI denne uge arbejder vi med efteråret.\nMedbring: Gummistøvler hver dag.",
+        "segments": [
+         {
+          "section_hint": "unsectioned",
+          "heading": "",
+          "text": "Kære forældre\nI denne uge arbejder vi med efteråret."
+         },
+         {
+          "section_hint": "bring",
+          "heading": "Medbring",
+          "text": "Gummistøvler hver dag."
+         }
+        ],
+        "link": null,
+        "attachments": [
+         {
+          "Name": "efteraar.pdf",
+          "Url": "/files/synthetic/efteraar.pdf"
+         }
+        ],
+        "snapshots": [],
+        "is_draft": false
+       }
+      ],
+      "days": [
+       {
+        "weekday": "Mandag",
+        "weekday_number": 1,
+        "date": "2026-11-09T00:00:00",
+        "formatted_date": "9. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46011,
+          "subject": "Dansk",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Lektie: Læs side 12 i læsebogen.</p><p>Materialer: Læsebog og blyant.</p>",
+          "content_text": "Lektie: Læs side 12 i læsebogen.\nMaterialer: Læsebog og blyant.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektie",
+            "text": "Læs side 12 i læsebogen."
+           },
+           {
+            "section_hint": "materials",
+            "heading": "Materialer",
+            "text": "Læsebog og blyant."
+           }
+          ],
+          "link": "/link/synthetic/laesebog",
+          "attachments": [
+           {
+            "Name": "arbejdsark.pdf",
+            "Url": "/files/synthetic/arbejdsark.pdf"
+           }
+          ],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Tirsdag",
+        "weekday_number": 2,
+        "date": "2026-11-10T00:00:00",
+        "formatted_date": "10. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": []
+       },
+       {
+        "weekday": "Onsdag",
+        "weekday_number": 3,
+        "date": "2026-11-11T00:00:00",
+        "formatted_date": "11. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46031,
+          "subject": "Natur/teknologi",
+          "subject_is_general": false,
+          "lesson_number": 3,
+          "content_html": "<p>Aktivitet:</p><p>Vi samler blade i skolegården.</p><p>Medbring: En pose.</p>",
+          "content_text": "Aktivitet:\nVi samler blade i skolegården.\nMedbring: En pose.",
+          "segments": [
+           {
+            "section_hint": "activity",
+            "heading": "Aktivitet",
+            "text": "Vi samler blade i skolegården."
+           },
+           {
+            "section_hint": "bring",
+            "heading": "Medbring",
+            "text": "En pose."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Torsdag",
+        "weekday_number": 4,
+        "date": "2026-11-12T00:00:00",
+        "formatted_date": "12. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46041,
+          "subject": "Matematik",
+          "subject_is_general": false,
+          "lesson_number": 2,
+          "content_html": "<p>Vi øver plus til 20.</p>",
+          "content_text": "Vi øver plus til 20.",
+          "segments": [
+           {
+            "section_hint": "unsectioned",
+            "heading": "",
+            "text": "Vi øver plus til 20."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": true
+         }
+        ]
+       },
+       {
+        "weekday": "Fredag",
+        "weekday_number": 5,
+        "date": "2026-11-13T00:00:00",
+        "formatted_date": "13. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46051,
+          "subject": "Idræt",
+          "subject_is_general": false,
+          "lesson_number": 4,
+          "content_html": "<p>Dagens program: Boldspil i hallen.<br>Medbring idrætstøj.</p>",
+          "content_text": "Dagens program: Boldspil i hallen.\nMedbring idrætstøj.",
+          "segments": [
+           {
+            "section_hint": "program",
+            "heading": "Dagens program",
+            "text": "Boldspil i hallen.\nMedbring idrætstøj."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ],
+      "attachments": [
+       {
+        "Name": "ugeplan-46.pdf",
+        "Url": "/files/synthetic/ugeplan-46.pdf"
+       }
+      ],
+      "source_hash": "238fb4ab22db727e0394cbadabfab7c25305a73bf7bdce435b42c6311ec86712"
+     },
+     "content_data": {
+      "week": {
+       "number": 46,
+       "year": 2026,
+       "label": "Uge 46",
+       "class_or_group": "1. klasse"
+      },
+      "general_plans": [
+       {
+        "source_plan_id": 46001,
+        "subject": "Fælles",
+        "subject_is_general": true,
+        "lesson_number": null,
+        "content_html": "<p>Kære forældre<br>I denne uge arbejder vi med efteråret.</p><p>Medbring: Gummistøvler hver dag.</p>",
+        "content_text": "Kære forældre\nI denne uge arbejder vi med efteråret.\nMedbring: Gummistøvler hver dag.",
+        "segments": [
+         {
+          "section_hint": "unsectioned",
+          "heading": "",
+          "text": "Kære forældre\nI denne uge arbejder vi med efteråret."
+         },
+         {
+          "section_hint": "bring",
+          "heading": "Medbring",
+          "text": "Gummistøvler hver dag."
+         }
+        ],
+        "link": null,
+        "attachments": [
+         {
+          "Name": "efteraar.pdf",
+          "Url": "/files/synthetic/efteraar.pdf"
+         }
+        ],
+        "snapshots": [],
+        "is_draft": false
+       }
+      ],
+      "days": [
+       {
+        "weekday": "Mandag",
+        "weekday_number": 1,
+        "date": "2026-11-09T00:00:00",
+        "formatted_date": "9. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46011,
+          "subject": "Dansk",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Lektie: Læs side 12 i læsebogen.</p><p>Materialer: Læsebog og blyant.</p>",
+          "content_text": "Lektie: Læs side 12 i læsebogen.\nMaterialer: Læsebog og blyant.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektie",
+            "text": "Læs side 12 i læsebogen."
+           },
+           {
+            "section_hint": "materials",
+            "heading": "Materialer",
+            "text": "Læsebog og blyant."
+           }
+          ],
+          "link": "/link/synthetic/laesebog",
+          "attachments": [
+           {
+            "Name": "arbejdsark.pdf",
+            "Url": "/files/synthetic/arbejdsark.pdf"
+           }
+          ],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Tirsdag",
+        "weekday_number": 2,
+        "date": "2026-11-10T00:00:00",
+        "formatted_date": "10. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": []
+       },
+       {
+        "weekday": "Onsdag",
+        "weekday_number": 3,
+        "date": "2026-11-11T00:00:00",
+        "formatted_date": "11. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46031,
+          "subject": "Natur/teknologi",
+          "subject_is_general": false,
+          "lesson_number": 3,
+          "content_html": "<p>Aktivitet:</p><p>Vi samler blade i skolegården.</p><p>Medbring: En pose.</p>",
+          "content_text": "Aktivitet:\nVi samler blade i skolegården.\nMedbring: En pose.",
+          "segments": [
+           {
+            "section_hint": "activity",
+            "heading": "Aktivitet",
+            "text": "Vi samler blade i skolegården."
+           },
+           {
+            "section_hint": "bring",
+            "heading": "Medbring",
+            "text": "En pose."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Torsdag",
+        "weekday_number": 4,
+        "date": "2026-11-12T00:00:00",
+        "formatted_date": "12. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46041,
+          "subject": "Matematik",
+          "subject_is_general": false,
+          "lesson_number": 2,
+          "content_html": "<p>Vi øver plus til 20.</p>",
+          "content_text": "Vi øver plus til 20.",
+          "segments": [
+           {
+            "section_hint": "unsectioned",
+            "heading": "",
+            "text": "Vi øver plus til 20."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": true
+         }
+        ]
+       },
+       {
+        "weekday": "Fredag",
+        "weekday_number": 5,
+        "date": "2026-11-13T00:00:00",
+        "formatted_date": "13. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46051,
+          "subject": "Idræt",
+          "subject_is_general": false,
+          "lesson_number": 4,
+          "content_html": "<p>Dagens program: Boldspil i hallen.<br>Medbring idrætstøj.</p>",
+          "content_text": "Dagens program: Boldspil i hallen.\nMedbring idrætstøj.",
+          "segments": [
+           {
+            "section_hint": "program",
+            "heading": "Dagens program",
+            "text": "Boldspil i hallen.\nMedbring idrætstøj."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ]
+     },
+     "state_data": {
+      "has_drafts": true
+     },
+     "raw_payload": {
+      "schema_version": 1,
+      "source": {
+       "url": "{BASE_URL}/parent/9101/Alfaitem/weeklyplansandhomework/item/class/46-2026",
+       "student_id": 9101,
+       "child": "Alfa"
+      },
+      "week": {
+       "number": 46,
+       "year": 2026,
+       "label": "Uge 46",
+       "class_or_group": "1. klasse"
+      },
+      "general_plans": [
+       {
+        "source_plan_id": 46001,
+        "subject": "Fælles",
+        "subject_is_general": true,
+        "lesson_number": null,
+        "content_html": "<p>Kære forældre<br>I denne uge arbejder vi med efteråret.</p><p>Medbring: Gummistøvler hver dag.</p>",
+        "content_text": "Kære forældre\nI denne uge arbejder vi med efteråret.\nMedbring: Gummistøvler hver dag.",
+        "segments": [
+         {
+          "section_hint": "unsectioned",
+          "heading": "",
+          "text": "Kære forældre\nI denne uge arbejder vi med efteråret."
+         },
+         {
+          "section_hint": "bring",
+          "heading": "Medbring",
+          "text": "Gummistøvler hver dag."
+         }
+        ],
+        "link": null,
+        "attachments": [
+         {
+          "Name": "efteraar.pdf",
+          "Url": "/files/synthetic/efteraar.pdf"
+         }
+        ],
+        "snapshots": [],
+        "is_draft": false
+       }
+      ],
+      "days": [
+       {
+        "weekday": "Mandag",
+        "weekday_number": 1,
+        "date": "2026-11-09T00:00:00",
+        "formatted_date": "9. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46011,
+          "subject": "Dansk",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Lektie: Læs side 12 i læsebogen.</p><p>Materialer: Læsebog og blyant.</p>",
+          "content_text": "Lektie: Læs side 12 i læsebogen.\nMaterialer: Læsebog og blyant.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektie",
+            "text": "Læs side 12 i læsebogen."
+           },
+           {
+            "section_hint": "materials",
+            "heading": "Materialer",
+            "text": "Læsebog og blyant."
+           }
+          ],
+          "link": "/link/synthetic/laesebog",
+          "attachments": [
+           {
+            "Name": "arbejdsark.pdf",
+            "Url": "/files/synthetic/arbejdsark.pdf"
+           }
+          ],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Tirsdag",
+        "weekday_number": 2,
+        "date": "2026-11-10T00:00:00",
+        "formatted_date": "10. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": []
+       },
+       {
+        "weekday": "Onsdag",
+        "weekday_number": 3,
+        "date": "2026-11-11T00:00:00",
+        "formatted_date": "11. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46031,
+          "subject": "Natur/teknologi",
+          "subject_is_general": false,
+          "lesson_number": 3,
+          "content_html": "<p>Aktivitet:</p><p>Vi samler blade i skolegården.</p><p>Medbring: En pose.</p>",
+          "content_text": "Aktivitet:\nVi samler blade i skolegården.\nMedbring: En pose.",
+          "segments": [
+           {
+            "section_hint": "activity",
+            "heading": "Aktivitet",
+            "text": "Vi samler blade i skolegården."
+           },
+           {
+            "section_hint": "bring",
+            "heading": "Medbring",
+            "text": "En pose."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Torsdag",
+        "weekday_number": 4,
+        "date": "2026-11-12T00:00:00",
+        "formatted_date": "12. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46041,
+          "subject": "Matematik",
+          "subject_is_general": false,
+          "lesson_number": 2,
+          "content_html": "<p>Vi øver plus til 20.</p>",
+          "content_text": "Vi øver plus til 20.",
+          "segments": [
+           {
+            "section_hint": "unsectioned",
+            "heading": "",
+            "text": "Vi øver plus til 20."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": true
+         }
+        ]
+       },
+       {
+        "weekday": "Fredag",
+        "weekday_number": 5,
+        "date": "2026-11-13T00:00:00",
+        "formatted_date": "13. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46051,
+          "subject": "Idræt",
+          "subject_is_general": false,
+          "lesson_number": 4,
+          "content_html": "<p>Dagens program: Boldspil i hallen.<br>Medbring idrætstøj.</p>",
+          "content_text": "Dagens program: Boldspil i hallen.\nMedbring idrætstøj.",
+          "segments": [
+           {
+            "section_hint": "program",
+            "heading": "Dagens program",
+            "text": "Boldspil i hallen.\nMedbring idrætstøj."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ],
+      "attachments": [
+       {
+        "Name": "ugeplan-46.pdf",
+        "Url": "/files/synthetic/ugeplan-46.pdf"
+       }
+      ],
+      "source_hash": "238fb4ab22db727e0394cbadabfab7c25305a73bf7bdce435b42c6311ec86712"
+     },
+     "raw_hash": "2a72cee5664d1c082236a22fa97c0bbe055fd58d4d84b558118e56c16653568b",
+     "content_hash": "3213816e335895ec0daf2e83e18e467ffead8f474dc8a334e5f65a7a8948f369",
+     "state_hash": "3717ae0a6281e224fdbbd9ce5936f90f4a0dcb9a8442359ea7c10130fc1f8e69"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "weekly_plan",
+     "source_key": "class:47-2026",
+     "source_url": "{BASE_URL}/parent/9101/Alfaitem/weeklyplansandhomework/item/class/47-2026",
+     "title": "Uge 47",
+     "body_html": "<p>Onsdag går vi i skoven. Se opslaget på forsiden.</p>\n<p>Lektier til tirsdag: Skriv tre ord med F.</p>\n<p>Tur til skoven<br>Medbring: Madpakke, drikkedunk og regntøj.</p>",
+     "body_text": "Onsdag går vi i skoven. Se opslaget på forsiden.\nLektier til tirsdag: Skriv tre ord med F.\nTur til skoven\nMedbring: Madpakke, drikkedunk og regntøj.",
+     "dates": [
+      {
+       "kind": "source_day",
+       "value": "2026-11-16T00:00:00"
+      },
+      {
+       "kind": "source_day",
+       "value": "2026-11-18T00:00:00"
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "schema_version": 1,
+      "source": {
+       "url": "{BASE_URL}/parent/9101/Alfaitem/weeklyplansandhomework/item/class/47-2026",
+       "student_id": 9101,
+       "child": "Alfa"
+      },
+      "week": {
+       "number": 47,
+       "year": 2026,
+       "label": "Uge 47",
+       "class_or_group": "1. klasse"
+      },
+      "general_plans": [
+       {
+        "source_plan_id": 47001,
+        "subject": "Fælles",
+        "subject_is_general": true,
+        "lesson_number": null,
+        "content_html": "<p>Onsdag går vi i skoven. Se opslaget på forsiden.</p>",
+        "content_text": "Onsdag går vi i skoven. Se opslaget på forsiden.",
+        "segments": [
+         {
+          "section_hint": "unsectioned",
+          "heading": "",
+          "text": "Onsdag går vi i skoven. Se opslaget på forsiden."
+         }
+        ],
+        "link": null,
+        "attachments": [],
+        "snapshots": [],
+        "is_draft": false
+       }
+      ],
+      "days": [
+       {
+        "weekday": "Mandag",
+        "weekday_number": 1,
+        "date": "2026-11-16T00:00:00",
+        "formatted_date": "16. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 47011,
+          "subject": "Dansk",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Lektier til tirsdag: Skriv tre ord med F.</p>",
+          "content_text": "Lektier til tirsdag: Skriv tre ord med F.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektier til tirsdag",
+            "text": "Skriv tre ord med F."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Onsdag",
+        "weekday_number": 3,
+        "date": "2026-11-18T00:00:00",
+        "formatted_date": "18. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 47031,
+          "subject": "Udeskole",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Tur til skoven<br>Medbring: Madpakke, drikkedunk og regntøj.</p>",
+          "content_text": "Tur til skoven\nMedbring: Madpakke, drikkedunk og regntøj.",
+          "segments": [
+           {
+            "section_hint": "unsectioned",
+            "heading": "",
+            "text": "Tur til skoven"
+           },
+           {
+            "section_hint": "bring",
+            "heading": "Medbring",
+            "text": "Madpakke, drikkedunk og regntøj."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ],
+      "attachments": [],
+      "source_hash": "e61c396d7c4fb1006881b96aa0de22a5c61462bab281450820d72eba62c58253"
+     },
+     "content_data": {
+      "week": {
+       "number": 47,
+       "year": 2026,
+       "label": "Uge 47",
+       "class_or_group": "1. klasse"
+      },
+      "general_plans": [
+       {
+        "source_plan_id": 47001,
+        "subject": "Fælles",
+        "subject_is_general": true,
+        "lesson_number": null,
+        "content_html": "<p>Onsdag går vi i skoven. Se opslaget på forsiden.</p>",
+        "content_text": "Onsdag går vi i skoven. Se opslaget på forsiden.",
+        "segments": [
+         {
+          "section_hint": "unsectioned",
+          "heading": "",
+          "text": "Onsdag går vi i skoven. Se opslaget på forsiden."
+         }
+        ],
+        "link": null,
+        "attachments": [],
+        "snapshots": [],
+        "is_draft": false
+       }
+      ],
+      "days": [
+       {
+        "weekday": "Mandag",
+        "weekday_number": 1,
+        "date": "2026-11-16T00:00:00",
+        "formatted_date": "16. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 47011,
+          "subject": "Dansk",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Lektier til tirsdag: Skriv tre ord med F.</p>",
+          "content_text": "Lektier til tirsdag: Skriv tre ord med F.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektier til tirsdag",
+            "text": "Skriv tre ord med F."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Onsdag",
+        "weekday_number": 3,
+        "date": "2026-11-18T00:00:00",
+        "formatted_date": "18. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 47031,
+          "subject": "Udeskole",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Tur til skoven<br>Medbring: Madpakke, drikkedunk og regntøj.</p>",
+          "content_text": "Tur til skoven\nMedbring: Madpakke, drikkedunk og regntøj.",
+          "segments": [
+           {
+            "section_hint": "unsectioned",
+            "heading": "",
+            "text": "Tur til skoven"
+           },
+           {
+            "section_hint": "bring",
+            "heading": "Medbring",
+            "text": "Madpakke, drikkedunk og regntøj."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ]
+     },
+     "state_data": {
+      "has_drafts": false
+     },
+     "raw_payload": {
+      "schema_version": 1,
+      "source": {
+       "url": "{BASE_URL}/parent/9101/Alfaitem/weeklyplansandhomework/item/class/47-2026",
+       "student_id": 9101,
+       "child": "Alfa"
+      },
+      "week": {
+       "number": 47,
+       "year": 2026,
+       "label": "Uge 47",
+       "class_or_group": "1. klasse"
+      },
+      "general_plans": [
+       {
+        "source_plan_id": 47001,
+        "subject": "Fælles",
+        "subject_is_general": true,
+        "lesson_number": null,
+        "content_html": "<p>Onsdag går vi i skoven. Se opslaget på forsiden.</p>",
+        "content_text": "Onsdag går vi i skoven. Se opslaget på forsiden.",
+        "segments": [
+         {
+          "section_hint": "unsectioned",
+          "heading": "",
+          "text": "Onsdag går vi i skoven. Se opslaget på forsiden."
+         }
+        ],
+        "link": null,
+        "attachments": [],
+        "snapshots": [],
+        "is_draft": false
+       }
+      ],
+      "days": [
+       {
+        "weekday": "Mandag",
+        "weekday_number": 1,
+        "date": "2026-11-16T00:00:00",
+        "formatted_date": "16. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 47011,
+          "subject": "Dansk",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Lektier til tirsdag: Skriv tre ord med F.</p>",
+          "content_text": "Lektier til tirsdag: Skriv tre ord med F.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektier til tirsdag",
+            "text": "Skriv tre ord med F."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       },
+       {
+        "weekday": "Onsdag",
+        "weekday_number": 3,
+        "date": "2026-11-18T00:00:00",
+        "formatted_date": "18. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 47031,
+          "subject": "Udeskole",
+          "subject_is_general": false,
+          "lesson_number": 1,
+          "content_html": "<p>Tur til skoven<br>Medbring: Madpakke, drikkedunk og regntøj.</p>",
+          "content_text": "Tur til skoven\nMedbring: Madpakke, drikkedunk og regntøj.",
+          "segments": [
+           {
+            "section_hint": "unsectioned",
+            "heading": "",
+            "text": "Tur til skoven"
+           },
+           {
+            "section_hint": "bring",
+            "heading": "Medbring",
+            "text": "Madpakke, drikkedunk og regntøj."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ],
+      "attachments": [],
+      "source_hash": "e61c396d7c4fb1006881b96aa0de22a5c61462bab281450820d72eba62c58253"
+     },
+     "raw_hash": "aed0c540a1bddd6c21bdfe7f684675fce43778e30f1e780206b6c8dac71dc012",
+     "content_hash": "12bcd0f46ebfc9945a529c219f095a9b0f29fb01b92227773b33473ce0755bf0",
+     "state_hash": "545cfd8d925b707140e772a8e76c6822516b84f976b5bc45d0954f8729913362"
+    }
+   ]
+  },
+  {
+   "student_id": 9101,
+   "child": "Alfa",
+   "source_type": "forms",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "open": 2,
+    "closed": 1
+   },
+   "coverage": {
+    "kind": "full"
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "forms",
+     "source_key": "survey:501",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/forms/open/survey/501",
+     "title": "Tilmelding til juleklip",
+     "body_html": "<div class=\"sk-white-box\">\n<h3>Tilmelding til juleklip</h3>\n<div class=\"sk-form-description\">\n<p>Vi holder juleklip fredag den 27. november kl. 9-12.<br/>Forældre er velkomne.</p>\n<p>Se <a href=\"/files/synthetic/juleklip-program.pdf\">programmet</a> og\n         <a href=\"/parent/9101/Alfa/forms/open/survey/499\">sidste års blanket</a>.</p>\n</div>\n<a class=\"sk-button\" href=\"/parent/9101/Alfa/forms/open/survey/501/answer\">Besvar</a>\n</div>",
+     "body_text": "Tilmelding til juleklip\nVi holder juleklip fredag den 27. november kl. 9-12.\nForældre er velkomne.\nSe\nprogrammet\nog\nsidste års blanket\n.\nBesvar",
+     "dates": [
+      {
+       "kind": "deadline",
+       "value": "20-11-2026"
+      }
+     ],
+     "attachments": [
+      {
+       "url": "{BASE_URL}/files/synthetic/juleklip-program.pdf",
+       "title": ""
+      }
+     ],
+     "links": [
+      "{BASE_URL}/parent/9101/Alfa/forms/open/survey/501",
+      "{BASE_URL}/parent/9101/Alfa/forms/open/survey/501/answer"
+     ],
+     "source_data": {
+      "creator": "Klasselærer (KL)",
+      "type": "Tilmelding",
+      "order_date": "2026-11-10T09:00:00",
+      "results_link": null,
+      "open_in_new_tab": false,
+      "is_app": false,
+      "questions": [
+       {
+        "name": "Answers[0].Value",
+        "type": "select",
+        "label": "Deltager I?",
+        "options": [
+         {
+          "text": "Vælg",
+          "value": "",
+          "selected": false
+         },
+         {
+          "text": "Ja",
+          "value": "yes",
+          "selected": true
+         },
+         {
+          "text": "Nej",
+          "value": "no",
+          "selected": false
+         }
+        ],
+        "value": ""
+       },
+       {
+        "name": "Answers[2].Value",
+        "type": "textarea",
+        "label": "Bemærkninger",
+        "options": [],
+        "value": "Vi tager kage med."
+       },
+       {
+        "name": "Answers[3].Value",
+        "type": "radio",
+        "label": "Formiddag",
+        "options": [],
+        "value": "morning"
+       },
+       {
+        "name": "Answers[3].Value",
+        "type": "radio",
+        "label": "Eftermiddag",
+        "options": [],
+        "value": "afternoon"
+       },
+       {
+        "name": "Answers[4].Value",
+        "type": "checkbox",
+        "label": "Jeg vil gerne hjælpe til",
+        "options": [],
+        "value": "true"
+       },
+       {
+        "name": "Answers[5].Value",
+        "type": "checkbox",
+        "label": "",
+        "options": [],
+        "value": "unlabelled"
+       }
+      ]
+     },
+     "content_data": {
+      "creator": "Klasselærer (KL)",
+      "type": "Tilmelding",
+      "questions": [
+       {
+        "name": "Answers[0].Value",
+        "type": "select",
+        "label": "Deltager I?",
+        "options": [
+         {
+          "text": "Vælg",
+          "value": "",
+          "selected": false
+         },
+         {
+          "text": "Ja",
+          "value": "yes",
+          "selected": true
+         },
+         {
+          "text": "Nej",
+          "value": "no",
+          "selected": false
+         }
+        ],
+        "value": ""
+       },
+       {
+        "name": "Answers[2].Value",
+        "type": "textarea",
+        "label": "Bemærkninger",
+        "options": [],
+        "value": "Vi tager kage med."
+       },
+       {
+        "name": "Answers[3].Value",
+        "type": "radio",
+        "label": "Formiddag",
+        "options": [],
+        "value": "morning"
+       },
+       {
+        "name": "Answers[3].Value",
+        "type": "radio",
+        "label": "Eftermiddag",
+        "options": [],
+        "value": "afternoon"
+       },
+       {
+        "name": "Answers[4].Value",
+        "type": "checkbox",
+        "label": "Jeg vil gerne hjælpe til",
+        "options": [],
+        "value": "true"
+       },
+       {
+        "name": "Answers[5].Value",
+        "type": "checkbox",
+        "label": "",
+        "options": [],
+        "value": "unlabelled"
+       }
+      ]
+     },
+     "state_data": {
+      "list_state": "open",
+      "status": "Ikke besvaret"
+     },
+     "raw_payload": {
+      "list_item": {
+       "Name": "Tilmelding til juleklip",
+       "CreatedBy": "Klasselærer (KL)",
+       "Status": "Ikke besvaret",
+       "Deadline": "20-11-2026",
+       "Type": "Tilmelding",
+       "OrderDate": "2026-11-10T09:00:00",
+       "Url": "/parent/9101/Alfa/forms/open/survey/501",
+       "ResultsLink": null,
+       "OpenInNewTab": false,
+       "IsApp": false
+      },
+      "detail_html": "<div class=\"sk-white-box\">\n<h3>Tilmelding til juleklip</h3>\n<div class=\"sk-form-description\">\n<p>Vi holder juleklip fredag den 27. november kl. 9-12.<br/>Forældre er velkomne.</p>\n<p>Se <a href=\"/files/synthetic/juleklip-program.pdf\">programmet</a> og\n         <a href=\"/parent/9101/Alfa/forms/open/survey/499\">sidste års blanket</a>.</p>\n</div>\n<a class=\"sk-button\" href=\"/parent/9101/Alfa/forms/open/survey/501/answer\">Besvar</a>\n</div>",
+      "questions": [
+       {
+        "name": "Answers[0].Value",
+        "type": "select",
+        "label": "Deltager I?",
+        "options": [
+         {
+          "text": "Vælg",
+          "value": "",
+          "selected": false
+         },
+         {
+          "text": "Ja",
+          "value": "yes",
+          "selected": true
+         },
+         {
+          "text": "Nej",
+          "value": "no",
+          "selected": false
+         }
+        ],
+        "value": ""
+       },
+       {
+        "name": "Answers[2].Value",
+        "type": "textarea",
+        "label": "Bemærkninger",
+        "options": [],
+        "value": "Vi tager kage med."
+       },
+       {
+        "name": "Answers[3].Value",
+        "type": "radio",
+        "label": "Formiddag",
+        "options": [],
+        "value": "morning"
+       },
+       {
+        "name": "Answers[3].Value",
+        "type": "radio",
+        "label": "Eftermiddag",
+        "options": [],
+        "value": "afternoon"
+       },
+       {
+        "name": "Answers[4].Value",
+        "type": "checkbox",
+        "label": "Jeg vil gerne hjælpe til",
+        "options": [],
+        "value": "true"
+       },
+       {
+        "name": "Answers[5].Value",
+        "type": "checkbox",
+        "label": "",
+        "options": [],
+        "value": "unlabelled"
+       }
+      ]
+     },
+     "raw_hash": "84e3c0f27c1a3bb12c8c95589a38a8f7d93e8534a4fbb695ffd874d048aaa8c9",
+     "content_hash": "67f7497af50b38880bddf10fc41c4b0a12cedcefec6f2b536c38dec11742f6c3",
+     "state_hash": "b0312e4d78816c3513960ecc6b88ec7d6fcb778c0d167ff3d715ce6128fed1fd"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "forms",
+     "source_key": "conversations:812",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/forms/open/conversations/812/edit",
+     "title": "Skole-hjem-samtaler i 1. klasse",
+     "body_html": "<div class=\"sk-white-box\">\n<h3>Skole-hjem-samtaler i 1. klasse</h3>\n<p>Jeres tid: tirsdag den 24. november kl. 16.20-16.40.</p>\n<p>Samtalen foregår i klasselokalet.</p>\n</div>",
+     "body_text": "Skole-hjem-samtaler i 1. klasse\nJeres tid: tirsdag den 24. november kl. 16.20-16.40.\nSamtalen foregår i klasselokalet.",
+     "dates": [
+      {
+       "kind": "deadline",
+       "value": "13-11-2026"
+      }
+     ],
+     "attachments": [],
+     "links": [
+      "{BASE_URL}/parent/9101/Alfa/forms/open/conversations/812/edit"
+     ],
+     "source_data": {
+      "creator": "Skolekontoret",
+      "type": "Samtaler",
+      "order_date": "2026-10-20T12:00:00",
+      "results_link": "/parent/9101/Alfa/forms/results/conversations/812",
+      "open_in_new_tab": false,
+      "is_app": false,
+      "questions": []
+     },
+     "content_data": {
+      "creator": "Skolekontoret",
+      "type": "Samtaler",
+      "questions": []
+     },
+     "state_data": {
+      "list_state": "open",
+      "status": "Min tid"
+     },
+     "raw_payload": {
+      "list_item": {
+       "Name": "Skole-hjem-samtaler i 1. klasse",
+       "CreatedBy": "Skolekontoret",
+       "Status": "Min tid",
+       "Deadline": "13-11-2026",
+       "Type": "Samtaler",
+       "OrderDate": "2026-10-20T12:00:00",
+       "Url": "/parent/9101/Alfa/forms/open/conversations/812/edit",
+       "ResultsLink": "/parent/9101/Alfa/forms/results/conversations/812",
+       "OpenInNewTab": false,
+       "IsApp": false
+      },
+      "detail_html": "<div class=\"sk-white-box\">\n<h3>Skole-hjem-samtaler i 1. klasse</h3>\n<p>Jeres tid: tirsdag den 24. november kl. 16.20-16.40.</p>\n<p>Samtalen foregår i klasselokalet.</p>\n</div>",
+      "questions": []
+     },
+     "raw_hash": "dc678b54dcc07fd2a7872e52d53a9530f0891787506cac69b73e4a526bb7f8a7",
+     "content_hash": "52a389ec5037c303d267545669169fec85a823f00bbf2cd3a455d624b7bedb46",
+     "state_hash": "ccaf076a5d7345a683880a4d0c15b0b483f08ab4c47b7712640650624ef75158"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9101,
+     "child": "Alfa",
+     "source_type": "forms",
+     "source_key": "consent:455",
+     "source_url": "{BASE_URL}/parent/9101/Alfa/forms/closed/consent/455",
+     "title": "Samtykke til foto",
+     "body_html": "<div class=\"sk-white-box\">\n<h3>Samtykke til foto</h3>\n<p>Må skolen bruge billeder af jeres barn på intra?</p>\n<a href=\"/files/synthetic/samtykke-vilkaar.pdf\">Vilkår</a>\n</div>",
+     "body_text": "Samtykke til foto\nMå skolen bruge billeder af jeres barn på intra?\nVilkår",
+     "dates": [],
+     "attachments": [
+      {
+       "url": "{BASE_URL}/files/synthetic/samtykke-vilkaar.pdf",
+       "title": ""
+      }
+     ],
+     "links": [
+      "{BASE_URL}/parent/9101/Alfa/forms/closed/consent/455"
+     ],
+     "source_data": {
+      "creator": "Skolekontoret",
+      "type": "Samtykke",
+      "order_date": "2026-08-12T08:00:00",
+      "results_link": null,
+      "open_in_new_tab": true,
+      "is_app": true,
+      "questions": []
+     },
+     "content_data": {
+      "creator": "Skolekontoret",
+      "type": "Samtykke",
+      "questions": []
+     },
+     "state_data": {
+      "list_state": "closed",
+      "status": "Besvaret"
+     },
+     "raw_payload": {
+      "list_item": {
+       "Name": "Samtykke til foto",
+       "CreatedBy": "Skolekontoret",
+       "Status": "Besvaret",
+       "Deadline": "",
+       "Type": "Samtykke",
+       "OrderDate": "2026-08-12T08:00:00",
+       "Url": "/parent/9101/Alfa/forms/closed/consent/455",
+       "ResultsLink": null,
+       "OpenInNewTab": true,
+       "IsApp": true
+      },
+      "detail_html": "<div class=\"sk-white-box\">\n<h3>Samtykke til foto</h3>\n<p>Må skolen bruge billeder af jeres barn på intra?</p>\n<a href=\"/files/synthetic/samtykke-vilkaar.pdf\">Vilkår</a>\n</div>",
+      "questions": []
+     },
+     "raw_hash": "e5a6bda448328e8e770a7e2bb20c1506368d40cd600443352ba9b3118cb4f958",
+     "content_hash": "e9b30215f54fa0d6208994fcda444bc8919e13d3c1244687836520e1749673f0",
+     "state_hash": "fe9d37c0378fa62f5e99b9c90c525007132ecd44fcea102b2680513822f06804"
+    }
+   ]
+  },
+  {
+   "student_id": 9202,
+   "child": "Beta",
+   "source_type": "frontpage",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "pages": 1,
+    "exhausted": true
+   },
+   "coverage": {
+    "kind": "full"
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9202,
+     "child": "Beta",
+     "source_type": "frontpage",
+     "source_key": "skoleintra-pin:3101",
+     "source_url": "{BASE_URL}/parent/9202/Beta/Index#skoleintra-pin:3101",
+     "title": "Ny mødetid om morgenen",
+     "body_html": "<div class=\"sk-news-item-content\">\n<p><strong>Ny mødetid om morgenen</strong></p>\n<p>Fra mandag den 16. november åbner skolen kl. 7.30.<br/>SFO'en åbner som hidtil kl. 6.30.</p>\n</div>",
+     "body_text": "Ny mødetid om morgenen\nFra mandag den 16. november åbner skolen kl. 7.30.\nSFO'en åbner som hidtil kl. 6.30.",
+     "dates": [
+      {
+       "kind": "display_timestamp",
+       "value": "2. nov. 2026 08:00"
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "feed_type": "skoleintra-pin",
+      "feed_id": "3101",
+      "author": "Skolekontoret",
+      "audience": "Hele skolen",
+      "footer_text": "Fastgjort opslag",
+      "timestamps": [
+       "2. nov. 2026 08:00"
+      ]
+     },
+     "content_data": {
+      "author": "Skolekontoret",
+      "audience": "Hele skolen",
+      "footer_text": "Fastgjort opslag"
+     },
+     "state_data": {},
+     "raw_payload": "<div class=\"sk-news-item\" data-feed-item-id=\"3101\" data-feed-item-type=\"skoleintra-pin\">\n<div class=\"sk-news-item-header\">\n<span class=\"sk-news-item-author\">Skolekontoret</span>\n<span class=\"sk-news-item-for\">Hele skolen</span>\n<span class=\"sk-news-item-timestamp\">2. nov. 2026  08:00</span>\n</div>\n<div class=\"sk-news-item-content\">\n<p><strong>Ny mødetid om morgenen</strong></p>\n<p>Fra mandag den 16. november åbner skolen kl. 7.30.<br/>SFO'en åbner som hidtil kl. 6.30.</p>\n</div>\n<div class=\"sk-news-item-footer\">Fastgjort opslag</div>\n</div>",
+     "raw_hash": "ee1a536273561b3d7a97d06c558171ccd154b29dc20f4916d2b41d77682a8788",
+     "content_hash": "d13792dbc5247db43b3548a1693cc518065a4977ecf2ad762c688c52ba85656f",
+     "state_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9202,
+     "child": "Beta",
+     "source_type": "frontpage",
+     "source_key": "news:8104",
+     "source_url": "{BASE_URL}/parent/9202/Beta/Index#news:8104",
+     "title": "Svømning starter i uge 48. Husk badetøj og håndklæde.",
+     "body_html": "<div class=\"sk-news-item-content\">\n<p>Svømning starter i uge 48. Husk badetøj og håndklæde.</p>\n</div>",
+     "body_text": "Svømning starter i uge 48. Husk badetøj og håndklæde.",
+     "dates": [
+      {
+       "kind": "display_timestamp",
+       "value": "10. nov. 2026 11:20"
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "feed_type": "news",
+      "feed_id": "8104",
+      "author": "Klasselærer (NT)",
+      "audience": "3. klasse",
+      "footer_text": "",
+      "timestamps": [
+       "10. nov. 2026 11:20"
+      ]
+     },
+     "content_data": {
+      "author": "Klasselærer (NT)",
+      "audience": "3. klasse",
+      "footer_text": ""
+     },
+     "state_data": {},
+     "raw_payload": "<div class=\"sk-news-item\" data-feed-item-id=\"8104\" data-feed-item-type=\"news\">\n<div class=\"sk-news-item-header\">\n<span class=\"sk-news-item-author\">Klasselærer (NT)</span>\n<span class=\"sk-news-item-for\">3. klasse</span>\n<span class=\"sk-news-item-timestamp\">10. nov. 2026 11:20</span>\n</div>\n<div class=\"sk-news-item-content\">\n<p>Svømning starter i uge 48. Husk badetøj og håndklæde.</p>\n</div>\n</div>",
+     "raw_hash": "f1eebf6a6d009e39a6a36e8e5f8535412fa7fd659db1d051a9b67ca7b51af5ee",
+     "content_hash": "d2901a7b3ddbd30986c3ae58d6a60944e461e58fb556c4eae4a8010672910b34",
+     "state_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    }
+   ]
+  },
+  {
+   "student_id": 9202,
+   "child": "Beta",
+   "source_type": "messages",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "message_mode": "events-only",
+    "excluded_by_policy": false,
+    "bodies_retained": 0
+   },
+   "coverage": {
+    "kind": "excluded_by_policy"
+   },
+   "records": []
+  },
+  {
+   "student_id": 9202,
+   "child": "Beta",
+   "source_type": "calendar",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "counts": {
+     "ActivitiesEvents": 0,
+     "SchoolEvents": 1,
+     "LessonsEvents": 2
+    },
+    "range_start": "2026-11-02T00:00:00+01:00",
+    "range_end": "2026-11-30T00:00:00+01:00",
+    "requests": 3
+   },
+   "coverage": {
+    "kind": "date_window",
+    "start": "2026-11-02",
+    "end": "2026-11-30"
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9202,
+     "child": "Beta",
+     "source_type": "calendar",
+     "source_key": "SchoolEvents:880201",
+     "source_url": "{BASE_URL}/parent/9202/Beta/calendareventsource/SchoolEvents",
+     "title": "Skolefoto",
+     "body_html": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+     "body_text": "Fotografen kommer. Husk pænt tøj.",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-19T08:00:00",
+       "end": "2026-11-19T12:00:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "SchoolEvents",
+      "event": {
+       "id": "1_5c40e201",
+       "originalId": 880201,
+       "title": "Skolefoto",
+       "description": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+       "start": "2026-11-19T08:00:00",
+       "end": "2026-11-19T12:00:00",
+       "allDay": false,
+       "location": "Gymnastiksalen",
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Skolefoto",
+      "description": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+      "location": "Gymnastiksalen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "SchoolEvents"
+     },
+     "raw_payload": {
+      "id": "1_5c40e201",
+      "originalId": 880201,
+      "title": "Skolefoto",
+      "description": "<p>Fotografen kommer. Husk pænt tøj.</p>",
+      "start": "2026-11-19T08:00:00",
+      "end": "2026-11-19T12:00:00",
+      "allDay": false,
+      "location": "Gymnastiksalen",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "e95ab2a59d4f03f82efe98d8ea60d5f6d2607926d6e75056f4be1854d31c0fff",
+     "content_hash": "ddeaf86f16d91c65dc4a87dbb4276c1de54b309d2bdd7f22e06070f93894eb35",
+     "state_hash": "47bab0b3cf413042d78322b26ca1ccaac7d72fa65db537d1d7f29b781025b1bd"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9202,
+     "child": "Beta",
+     "source_type": "calendar",
+     "source_key": "LessonsEvents:slot:75cb052c78ed58854eaae0b21a190e6f444527dbad35169a8e1cfbc00adea75b",
+     "source_url": "{BASE_URL}/parent/9202/Beta/calendareventsource/LessonsEvents",
+     "title": "Natur/teknologi",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-12T08:00:00",
+       "end": "2026-11-12T08:45:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "LessonsEvents",
+      "event": {
+       "id": "2_9f1e1001",
+       "originalId": 991001,
+       "title": "Natur/teknologi",
+       "start": "2026-11-12T08:00:00",
+       "end": "2026-11-12T08:45:00",
+       "allDay": false,
+       "location": "Lokale 3",
+       "lessonName": "Natur/teknologi",
+       "lessonClassName": "003",
+       "staffName": "NT",
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Natur/teknologi",
+      "location": "Lokale 3",
+      "lessonName": "Natur/teknologi",
+      "lessonClassName": "003",
+      "staffName": "NT",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "LessonsEvents"
+     },
+     "raw_payload": {
+      "id": "2_9f1e1001",
+      "originalId": 991001,
+      "title": "Natur/teknologi",
+      "start": "2026-11-12T08:00:00",
+      "end": "2026-11-12T08:45:00",
+      "allDay": false,
+      "location": "Lokale 3",
+      "lessonName": "Natur/teknologi",
+      "lessonClassName": "003",
+      "staffName": "NT",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "13e46e702d6d81904b35de0a8a07ec3fe374d705bef49527190fa246b2b92b0b",
+     "content_hash": "59bd3c1021154d574f536c482bbee3124d3f83a64f7b8bcb5516d8967812dacf",
+     "state_hash": "3f2bb1370fbaa185c606201f8a7b8fb7f68b28e2ee6a8616005fe6812afca150"
+    },
+    {
+     "schema_version": 1,
+     "student_id": 9202,
+     "child": "Beta",
+     "source_type": "calendar",
+     "source_key": "LessonsEvents:slot:d1649b40e244436ba0dbecfb4f9305d50b0f91a1fd8bbac4135a0731b2c146c8",
+     "source_url": "{BASE_URL}/parent/9202/Beta/calendareventsource/LessonsEvents",
+     "title": "Engelsk",
+     "body_html": "",
+     "body_text": "",
+     "dates": [
+      {
+       "kind": "event",
+       "start": "2026-11-12T08:50:00",
+       "end": "2026-11-12T09:35:00",
+       "all_day": false
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "calendar_kind": "LessonsEvents",
+      "event": {
+       "id": "2_9f1e1002",
+       "originalId": 991002,
+       "title": "Engelsk",
+       "start": "2026-11-12T08:50:00",
+       "end": "2026-11-12T09:35:00",
+       "allDay": false,
+       "location": "Lokale 3",
+       "lessonName": "Engelsk",
+       "lessonClassName": "003",
+       "staffName": "EN",
+       "Attachments": [],
+       "IsPrivate": false
+      }
+     },
+     "content_data": {
+      "title": "Engelsk",
+      "location": "Lokale 3",
+      "lessonName": "Engelsk",
+      "lessonClassName": "003",
+      "staffName": "EN",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "state_data": {
+      "calendar_kind": "LessonsEvents"
+     },
+     "raw_payload": {
+      "id": "2_9f1e1002",
+      "originalId": 991002,
+      "title": "Engelsk",
+      "start": "2026-11-12T08:50:00",
+      "end": "2026-11-12T09:35:00",
+      "allDay": false,
+      "location": "Lokale 3",
+      "lessonName": "Engelsk",
+      "lessonClassName": "003",
+      "staffName": "EN",
+      "Attachments": [],
+      "IsPrivate": false
+     },
+     "raw_hash": "b9f4812f18a98ec36a864c698cc7e193711f2bce50ddab18f4235fe562b8cd0c",
+     "content_hash": "60b133224d021861d067c89b382df1bd5714d9c8e81fa54dbc32e7f4b4315045",
+     "state_hash": "3f2bb1370fbaa185c606201f8a7b8fb7f68b28e2ee6a8616005fe6812afca150"
+    }
+   ]
+  },
+  {
+   "student_id": 9202,
+   "child": "Beta",
+   "source_type": "weekly_plan",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "weeks": 1,
+    "available_weeks": 1
+   },
+   "coverage": {
+    "kind": "record_keys",
+    "source_keys": [
+     "class:46-2026"
+    ]
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9202,
+     "child": "Beta",
+     "source_type": "weekly_plan",
+     "source_key": "class:46-2026",
+     "source_url": "{BASE_URL}/parent/9202/Betaitem/weeklyplansandhomework/item/class/46-2026",
+     "title": "Uge 46",
+     "body_html": "<p>Lektie\n: Lær ugens ord.</p>",
+     "body_text": "Lektie\n: Lær ugens ord.",
+     "dates": [
+      {
+       "kind": "source_day",
+       "value": "2026-11-12T00:00:00"
+      }
+     ],
+     "attachments": [],
+     "links": [],
+     "source_data": {
+      "schema_version": 1,
+      "source": {
+       "url": "{BASE_URL}/parent/9202/Betaitem/weeklyplansandhomework/item/class/46-2026",
+       "student_id": 9202,
+       "child": "Beta"
+      },
+      "week": {
+       "number": 46,
+       "year": 2026,
+       "label": "Uge 46",
+       "class_or_group": "3. klasse"
+      },
+      "general_plans": [],
+      "days": [
+       {
+        "weekday": "Torsdag",
+        "weekday_number": 4,
+        "date": "2026-11-12T00:00:00",
+        "formatted_date": "12. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46141,
+          "subject": "Engelsk",
+          "subject_is_general": false,
+          "lesson_number": 2,
+          "content_html": "<p>Lektie\n: Lær ugens ord.</p>",
+          "content_text": "Lektie\n: Lær ugens ord.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektie",
+            "text": "Lær ugens ord."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ],
+      "attachments": [],
+      "source_hash": "778ebfec97e0a7b8985144159e9b5e0c349dc7d3ac8934d8bf5edfab7d7cd481"
+     },
+     "content_data": {
+      "week": {
+       "number": 46,
+       "year": 2026,
+       "label": "Uge 46",
+       "class_or_group": "3. klasse"
+      },
+      "general_plans": [],
+      "days": [
+       {
+        "weekday": "Torsdag",
+        "weekday_number": 4,
+        "date": "2026-11-12T00:00:00",
+        "formatted_date": "12. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46141,
+          "subject": "Engelsk",
+          "subject_is_general": false,
+          "lesson_number": 2,
+          "content_html": "<p>Lektie\n: Lær ugens ord.</p>",
+          "content_text": "Lektie\n: Lær ugens ord.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektie",
+            "text": "Lær ugens ord."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ]
+     },
+     "state_data": {
+      "has_drafts": false
+     },
+     "raw_payload": {
+      "schema_version": 1,
+      "source": {
+       "url": "{BASE_URL}/parent/9202/Betaitem/weeklyplansandhomework/item/class/46-2026",
+       "student_id": 9202,
+       "child": "Beta"
+      },
+      "week": {
+       "number": 46,
+       "year": 2026,
+       "label": "Uge 46",
+       "class_or_group": "3. klasse"
+      },
+      "general_plans": [],
+      "days": [
+       {
+        "weekday": "Torsdag",
+        "weekday_number": 4,
+        "date": "2026-11-12T00:00:00",
+        "formatted_date": "12. nov.",
+        "timing_defaults": {
+         "homework": "complete_before_source_day",
+         "home_activity": "complete_before_source_day",
+         "bring": "needed_on_source_day",
+         "parent_action": "explicit_date_or_review",
+         "schedule_event": "occurs_on_source_day",
+         "schedule_change": "occurs_on_source_day",
+         "routine": "occurs_on_source_day",
+         "daily_program": "occurs_on_source_day",
+         "lesson_preview": "occurs_on_source_day",
+         "context": "no_derived_deadline",
+         "future_notice": "no_derived_deadline"
+        },
+        "plans": [
+         {
+          "source_plan_id": 46141,
+          "subject": "Engelsk",
+          "subject_is_general": false,
+          "lesson_number": 2,
+          "content_html": "<p>Lektie\n: Lær ugens ord.</p>",
+          "content_text": "Lektie\n: Lær ugens ord.",
+          "segments": [
+           {
+            "section_hint": "homework",
+            "heading": "Lektie",
+            "text": "Lær ugens ord."
+           }
+          ],
+          "link": null,
+          "attachments": [],
+          "snapshots": [],
+          "is_draft": false
+         }
+        ]
+       }
+      ],
+      "attachments": [],
+      "source_hash": "778ebfec97e0a7b8985144159e9b5e0c349dc7d3ac8934d8bf5edfab7d7cd481"
+     },
+     "raw_hash": "657ba3302665bd917ca43a6858ed5a66eaa518f26b91e4f467bce26a1b9dd23d",
+     "content_hash": "871149993edf68febdbee2401ffa8d2b58b2efedc8c67838f9964a83bebe7f5f",
+     "state_hash": "545cfd8d925b707140e772a8e76c6822516b84f976b5bc45d0954f8729913362"
+    }
+   ]
+  },
+  {
+   "student_id": 9202,
+   "child": "Beta",
+   "source_type": "forms",
+   "status": "ok",
+   "error": null,
+   "complete": true,
+   "metadata": {
+    "open": 1,
+    "closed": 0
+   },
+   "coverage": {
+    "kind": "full"
+   },
+   "records": [
+    {
+     "schema_version": 1,
+     "student_id": 9202,
+     "child": "Beta",
+     "source_type": "forms",
+     "source_key": "survey:610",
+     "source_url": "{BASE_URL}/parent/9202/Beta/forms/open/survey/610",
+     "title": "Tilmelding til svømning",
+     "body_html": "<div class=\"sk-white-box\">\n<h3>Tilmelding til svømning</h3>\n<p>Svømning foregår mandag i uge 48-51.</p>\n</div>",
+     "body_text": "Tilmelding til svømning\nSvømning foregår mandag i uge 48-51.",
+     "dates": [
+      {
+       "kind": "deadline",
+       "value": "16-11-2026"
+      }
+     ],
+     "attachments": [],
+     "links": [
+      "{BASE_URL}/parent/9202/Beta/forms/open/survey/610"
+     ],
+     "source_data": {
+      "creator": "Klasselærer (NT)",
+      "type": "Tilmelding",
+      "order_date": "",
+      "results_link": null,
+      "open_in_new_tab": false,
+      "is_app": false,
+      "questions": []
+     },
+     "content_data": {
+      "creator": "Klasselærer (NT)",
+      "type": "Tilmelding",
+      "questions": []
+     },
+     "state_data": {
+      "list_state": "open",
+      "status": "Besvaret"
+     },
+     "raw_payload": {
+      "list_item": {
+       "Name": "Tilmelding til svømning",
+       "CreatedBy": "Klasselærer (NT)",
+       "Status": "Besvaret",
+       "Deadline": "16-11-2026",
+       "Type": "Tilmelding",
+       "Url": "/parent/9202/Beta/forms/open/survey/610",
+       "ResultsLink": null,
+       "OpenInNewTab": false,
+       "IsApp": false
+      },
+      "detail_html": "<div class=\"sk-white-box\">\n<h3>Tilmelding til svømning</h3>\n<p>Svømning foregår mandag i uge 48-51.</p>\n</div>",
+      "questions": []
+     },
+     "raw_hash": "2b2c184555c810717edd170bf37340947ee7d3a25eafa1b4f3ee24860e218402",
+     "content_hash": "60dc6a79d5f997226aa85e02073d16279a6faa95e978de3ce2cc046b950ac972",
+     "state_hash": "24ef3c3cc00df5f738b279eff71bc215fef64027ecef4bec0e4528902feb538c"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,321 @@
+{
+  "type": "object",
+  "properties": {
+    "state": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "enum": [
+            2
+          ]
+        },
+        "week_label": {
+          "type": "string"
+        },
+        "updated_label": {
+          "type": "string"
+        },
+        "freshness": {
+          "type": "object",
+          "properties": {
+            "source_updated_at": {
+              "type": "string"
+            },
+            "composed_at": {
+              "type": "string"
+            },
+            "expires_at": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "fresh",
+                "stale",
+                "partial",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "source_updated_at",
+            "composed_at",
+            "expires_at",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        "hero": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string"
+            },
+            "day": {
+              "type": "string"
+            },
+            "children": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "heading": {
+                    "type": "string"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 5
+                  }
+                },
+                "required": [
+                  "name",
+                  "heading",
+                  "lines"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "state",
+            "day",
+            "children"
+          ],
+          "additionalProperties": false
+        },
+        "weekend": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "day": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "day",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 2
+        },
+        "weekend_overflow": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
+        },
+        "horizon_label": {
+          "type": "string"
+        },
+        "past_summary": {
+          "type": "string"
+        },
+        "weekdays": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "day": {
+                "type": "string"
+              },
+              "children": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "heading": {
+                      "type": "string"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "maxItems": 3
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "heading",
+                    "lines"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 2
+              },
+              "shared": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "summary": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "date",
+              "day",
+              "children",
+              "shared",
+              "summary"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "footer": {
+          "type": "string"
+        },
+        "messages": {
+          "type": "object",
+          "properties": {
+            "checked": {
+              "type": "boolean"
+            },
+            "bodies_retained": {
+              "type": "integer",
+              "enum": [
+                0
+              ]
+            },
+            "unread_count": {
+              "type": "integer"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "participant": {
+                    "type": "string"
+                  },
+                  "children": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 2
+                  },
+                  "activity": {
+                    "type": "string"
+                  },
+                  "unread": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "participant",
+                  "children",
+                  "activity",
+                  "unread"
+                ],
+                "additionalProperties": false
+              },
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "checked",
+            "bodies_retained",
+            "unread_count",
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "week_label",
+        "updated_label",
+        "freshness",
+        "hero",
+        "weekend",
+        "weekend_overflow",
+        "horizon_label",
+        "past_summary",
+        "weekdays",
+        "footer",
+        "messages"
+      ],
+      "additionalProperties": false
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "source_updated_at": {
+          "type": "string"
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "string"
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "displayed",
+                  "merged",
+                  "omitted"
+                ]
+              },
+              "location": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ref",
+              "decision",
+              "location",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "source_updated_at",
+        "facts",
+        "limitations"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "state",
+    "audit"
+  ],
+  "additionalProperties": false
+}

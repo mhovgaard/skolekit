@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "device_id": "family-primary-iphone",
+  "manifest_id": "20260825T183142Z-a7f31c102938",
+  "applied_stable_keys": [
+    "event:rita:museum:2026-08-26",
+    "bring:rita:book:2026-08-26"
+  ],
+  "failed": [],
+  "finished_at": "2026-08-25T20:00:14+02:00"
+}

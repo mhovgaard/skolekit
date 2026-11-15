@@ -1,0 +1,12 @@
+[
+  {
+    "pagings": {"news": "7002", "skoleintra-pin": "3101"},
+    "view": "showmore-page-2.html",
+    "HasMoreItems": true
+  },
+  {
+    "pagings": {"news": "7001", "skoleintra-pin": "3100"},
+    "view": "showmore-page-3.html",
+    "HasMoreItems": false
+  }
+]

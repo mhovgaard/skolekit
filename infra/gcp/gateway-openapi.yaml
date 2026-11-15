@@ -1,0 +1,213 @@
+swagger: "2.0"
+info:
+  title: agskoleintra-delivery-api
+  description: Private Skoleklar iPhone delivery edge
+  version: "1.0.0"
+schemes:
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: x-api-key
+    in: header
+security:
+  - api_key: []
+x-google-backend:
+  address: __BACKEND_URL__
+  jwt_audience: __BACKEND_URL__
+  deadline: 30.0
+x-google-management:
+  metrics:
+    - name: delivery-requests
+      displayName: Delivery requests
+      valueType: INT64
+      metricKind: DELTA
+  quota:
+    limits:
+      - name: delivery-requests-per-minute
+        metric: delivery-requests
+        unit: "1/min/{project}"
+        values:
+          STANDARD: 30
+paths:
+  /v1/probe:
+    post:
+      operationId: probe
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Probe succeeded
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Rate limited
+  /v1/sync:
+    post:
+      operationId: sync
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Current delivery manifest
+        "204":
+          description: Manifest unchanged
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Rate limited
+        "503":
+          description: Manifest unavailable
+  /v1/receipts:
+    post:
+      operationId: receipts
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Duplicate receipt accepted
+        "202":
+          description: Receipt accepted
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "409":
+          description: Receipt conflicts with manifest
+        "429":
+          description: Rate limited
+  /v1/refresh:
+    post:
+      operationId: triggerRefresh
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "202":
+          description: Refresh accepted
+        "200":
+          description: Existing idempotent request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Credential has no refresh permission
+        "409":
+          description: Refresh already in progress
+        "503":
+          description: Dispatch unavailable or uncertain; retry the same request ID
+  /v1/refresh/{identifier}:
+    get:
+      operationId: refreshStatus
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          type: string
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Status of the caller's request
+  /v1/display/status:
+    get:
+      operationId: displayStatus
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Authenticated device connection status and available publication metadata
+        "401":
+          description: Invalid device credential
+        "403":
+          description: Credential has no display permission
+  /v1/display/current:
+    get:
+      operationId: displayCurrent
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Current display metadata
+  /v1/display/frame:
+    get:
+      operationId: displayFrame
+      produces:
+        - application/octet-stream
+      parameters:
+        - name: version
+          in: query
+          required: true
+          type: string
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Version-matched native Spectra 6 frame
+          schema:
+            type: string
+            format: binary
+        "304":
+          description: Frame has not changed
+        "401":
+          description: Invalid device credential
+        "403":
+          description: Credential has no display permission
+        "409":
+          description: Publication changed; fetch current metadata again
+        "503":
+          description: No valid current publication
+  /v1/display/image:
+    get:
+      operationId: displayImage
+      produces:
+        - image/png
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "200":
+          description: Current display PNG
+          schema:
+            type: string
+            format: binary
+  /v1/display/receipt:
+    post:
+      operationId: displayReceipt
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "202":
+          description: Display receipt recorded independently of iPhone workflow
+  /v1/display/device-status:
+    post:
+      operationId: displayDeviceStatus
+      x-google-quota:
+        metricCosts:
+          delivery-requests: 1
+      responses:
+        "202":
+          description: Latest board status report stored for the private dashboard
+        "400":
+          description: Invalid report
+        "401":
+          description: Invalid device credential
+        "403":
+          description: Credential has no display permission
+        "503":
+          description: Status storage unavailable

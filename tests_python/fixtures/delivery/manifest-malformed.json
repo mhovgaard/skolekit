@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "manifest_id": "malformed",
+  "generated_at": "not-a-date",
+  "calendar": "not-an-array"
+}

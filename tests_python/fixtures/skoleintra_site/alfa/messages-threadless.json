@@ -1,0 +1,14 @@
+{
+  "950": {
+    "Id": 950,
+    "Subject": "Nyt fra skolekontoret",
+    "BaseText": "<p>Skolen holder lukket mandag den 7. december.</p>",
+    "SenderName": "Skolekontoret",
+    "SentReceivedDateText": "9. nov. 2026 08:00",
+    "AttachmentsLinks": [{"Name": "kalender.pdf", "Url": "/files/synthetic/kalender.pdf"}],
+    "Recipients": {"": [{"Name": "Alle forældre"}], "Cc": [], "Bcc": [{"Name": "Ledelsen"}]},
+    "IsSystemMessage": true,
+    "IsOutbox": false,
+    "ShowUnreadIndication": false
+  }
+}

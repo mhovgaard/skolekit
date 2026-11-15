@@ -1,0 +1,46 @@
+{
+  "SelectedPlan": {
+    "FormattedWeek": "Uge 47",
+    "ClassOrGroup": "1. klasse",
+    "GeneralPlan": {
+      "LessonPlans": [
+        {
+          "WeeklyPlanId": 47001,
+          "Subject": {"Title": "Fælles", "IsGeneralSubject": true},
+          "Content": "<p>Onsdag går vi i skoven. Se opslaget på forsiden.</p>",
+          "IsDraft": false
+        }
+      ]
+    },
+    "DailyPlans": [
+      {
+        "Day": "Mandag",
+        "DayOfWeek": 1,
+        "Date": "2026-11-16T00:00:00",
+        "FormattedDate": "16. nov.",
+        "LessonPlans": [
+          {
+            "WeeklyPlanId": 47011,
+            "Subject": {"Title": "Dansk", "LessonNumber": 1},
+            "Content": "<p>Lektier til tirsdag: Skriv tre ord med F.</p>",
+            "IsDraft": false
+          }
+        ]
+      },
+      {
+        "Day": "Onsdag",
+        "DayOfWeek": 3,
+        "Date": "2026-11-18T00:00:00",
+        "FormattedDate": "18. nov.",
+        "LessonPlans": [
+          {
+            "WeeklyPlanId": 47031,
+            "Subject": {"Title": "Udeskole", "LessonNumber": 1},
+            "Content": "<p>Tur til skoven<br>Medbring: Madpakke, drikkedunk og regntøj.</p>",
+            "IsDraft": false
+          }
+        ]
+      }
+    ]
+  }
+}

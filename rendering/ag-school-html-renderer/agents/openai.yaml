@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skoleklar HTML Renderer"
+  short_description: "Render the school dashboard as standalone HTML"
+  default_prompt: "Use $ag-school-html-renderer. Render the prepared school dashboard as standalone HTML."

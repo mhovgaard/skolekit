@@ -1,0 +1,23 @@
+{
+  "SelectedPlan": {
+    "FormattedWeek": "Uge 46",
+    "ClassOrGroup": "3. klasse",
+    "GeneralPlan": {"LessonPlans": []},
+    "DailyPlans": [
+      {
+        "Day": "Torsdag",
+        "DayOfWeek": 4,
+        "Date": "2026-11-12T00:00:00",
+        "FormattedDate": "12. nov.",
+        "LessonPlans": [
+          {
+            "WeeklyPlanId": 46141,
+            "Subject": {"Title": "Engelsk", "LessonNumber": 2},
+            "Content": "<p>Lektie\n: Lær ugens ord.</p>",
+            "IsDraft": false
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="da">
+<head><meta charset="utf-8"><title>Besvar blanket</title></head>
+<body>
+<div class="sk-l-content">
+  <form method="post" action="/parent/{{student_id}}/{{child}}/forms/open/survey/501/answer">
+    <input type="hidden" name="__RequestVerificationToken" value="synthetic-token">
+    <label for="q1">Deltager I?</label>
+    <select id="q1" name="Answers[0].Value">
+      <option value="">Vælg</option>
+      <option value="yes" selected>Ja</option>
+      <option value="no">Nej</option>
+    </select>
+    <label for="q2">Antal voksne</label>
+    <input type="text" id="q2" name="Answers[1].Value" value="2">
+    <label for="q3">Bemærkninger</label>
+    <textarea id="q3" name="Answers[2].Value">Vi tager kage med.</textarea>
+    <input type="radio" id="q4a" name="Answers[3].Value" value="morning" checked>
+    <label for="q4a">Formiddag</label>
+    <input type="radio" id="q4b" name="Answers[3].Value" value="afternoon">
+    <label for="q4b">Eftermiddag</label>
+    <input type="checkbox" id="q5" name="Answers[4].Value" value="true">
+    <label for="q5">Jeg vil gerne hjælpe til</label>
+    <input type="checkbox" name="Answers[5].Value" value="unlabelled">
+    <button type="submit">Send svar</button>
+  </form>
+</div>
+</body>
+</html>

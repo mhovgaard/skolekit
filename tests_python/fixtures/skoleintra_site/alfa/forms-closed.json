@@ -1,0 +1,17 @@
+{
+  "Items": [
+    {
+      "Name": "Samtykke til foto",
+      "CreatedBy": "Skolekontoret",
+      "Status": "Besvaret",
+      "Deadline": "",
+      "Type": "Samtykke",
+      "OrderDate": "2026-08-12T08:00:00",
+      "Url": "/parent/{{student_id}}/{{child}}/forms/closed/consent/455",
+      "ResultsLink": null,
+      "OpenInNewTab": true,
+      "IsApp": true
+    }
+  ],
+  "PageSize": 25
+}

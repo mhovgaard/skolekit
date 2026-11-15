@@ -1,0 +1,113 @@
+{
+  "301": {
+    "headers": [{"MessageId": 3011}, {"MessageId": 3012}],
+    "messages": [
+      {
+        "Id": 3011,
+        "Subject": "Tur til skoven",
+        "BaseText": "<p>Kære forældre<br>Onsdag går vi i skoven. Husk regntøj.</p>",
+        "PreviousMessagesText": "",
+        "SenderName": "Klasselærer (KL)",
+        "SentReceivedDateText": "10. nov. 2026 13:02",
+        "AdditionalLinkUrl": "",
+        "AttachmentsLinks": [],
+        "Recipients": {"": [{"Name": "Forældre i 1. klasse"}], "Cc": [], "Bcc": []},
+        "IsSystemMessage": false,
+        "IsOutbox": false,
+        "IsCopiedToArchive": false,
+        "ShowUnreadIndication": false,
+        "AutoDeletionDateText": ""
+      },
+      {
+        "Id": 3012,
+        "Subject": "Sv: Tur til skoven",
+        "BaseText": "<p>Tak, vi husker det.</p>",
+        "PreviousMessagesText": "<p>Kære forældre<br>Onsdag går vi i skoven. Husk regntøj.</p>",
+        "SenderName": "Forælder (Alfa 1.)",
+        "SentReceivedDateText": "11. nov. 2026 07:45",
+        "AdditionalLinkUrl": "",
+        "AttachmentsLinks": [],
+        "Recipients": {"": [{"Name": "Klasselærer"}], "Cc": [], "Bcc": []},
+        "IsSystemMessage": false,
+        "IsOutbox": true,
+        "IsCopiedToArchive": false,
+        "ShowUnreadIndication": true,
+        "AutoDeletionDateText": "11. nov. 2027"
+      }
+    ]
+  },
+  "302": {
+    "headers": [{"MessageId": 3021}, {"MessageId": 3023}],
+    "messages": [
+      {
+        "Id": 3021,
+        "Subject": "Glemt madkasse",
+        "BaseText": "<p>Der står en blå madkasse i garderoben.</p>",
+        "SenderName": "Forælder til Gamma (1.)",
+        "SentReceivedDateText": "9. nov. 2026 15:10",
+        "AttachmentsLinks": {"Name": "billede.jpg", "Url": "/files/synthetic/madkasse.jpg"},
+        "Recipients": {"": [{"Name": "Forældre i 1. klasse"}]},
+        "IsSystemMessage": false,
+        "IsOutbox": false,
+        "ShowUnreadIndication": false
+      },
+      {
+        "Id": null,
+        "Subject": "Sv: Glemt madkasse",
+        "BaseText": "<p>Den er hentet. Tak!</p>",
+        "SenderName": "Forælder til Delta (1.)",
+        "SentReceivedDateText": "10. nov. 2026 08:00",
+        "AdditionalLinkUrl": "https://example.invalid/synthetic",
+        "Recipients": null,
+        "IsSystemMessage": false,
+        "IsOutbox": false,
+        "ShowUnreadIndication": false
+      },
+      {
+        "Id": 3023,
+        "Subject": "Sv: Glemt madkasse",
+        "BaseText": "<p>Arkiveret kopi.</p>",
+        "SenderName": "Forælder til Gamma (1.)",
+        "SentReceivedDateText": "10. nov. 2026 09:00",
+        "IsCopiedToArchive": true
+      }
+    ]
+  },
+  "303": {
+    "headers": [{"MessageId": 3031}, {"MessageId": 3032}],
+    "messages": [
+      {
+        "Id": 3031,
+        "Subject": "Juleklip",
+        "BaseText": "<p>Vi mangler hjælpere til juleklip.</p>",
+        "SenderName": "SFO-leder (SL)",
+        "SentReceivedDateText": "1. nov. 2026 10:00",
+        "IsOutbox": false
+      },
+      {
+        "Id": 3031,
+        "Subject": "Juleklip",
+        "BaseText": "<p>Vi mangler hjælpere til juleklip. (rettet)</p>",
+        "SenderName": "SFO-leder (SL)",
+        "SentReceivedDateText": "1. nov. 2026 10:05",
+        "IsOutbox": false
+      },
+      {
+        "Id": 3031,
+        "Subject": "Juleklip",
+        "BaseText": "<p>Vi mangler hjælpere til juleklip.</p>",
+        "SenderName": "SFO-leder (SL)",
+        "SentReceivedDateText": "1. nov. 2026 10:00",
+        "IsOutbox": false
+      },
+      {
+        "Id": 3032,
+        "Subject": "Sv: Juleklip",
+        "BaseText": "<p>Jeg kan hjælpe fra kl. 10.</p>",
+        "SenderName": "Forælder (Alfa 1.)",
+        "SentReceivedDateText": "2. nov. 2026 18:30",
+        "IsOutbox": true
+      }
+    ]
+  }
+}

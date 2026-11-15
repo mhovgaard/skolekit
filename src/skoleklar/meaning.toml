@@ -1,0 +1,22 @@
+# What a source's content means for skoleklar: today's rules, and the defaults.
+# A household's skoleklar.toml, in the private state directory and bucket next
+# to profile.toml, overrides any of them under the same [meaning] tables.
+# See docs/architecture.md, "Configuration", and docs/data-foundation.md, "Bookings".
+
+[meaning.bookings]
+# A form of one of these types is a booking: a parent conference or another
+# appointment, such as the school nurse.
+form_types = ["Samtale"]
+# The booking's kind, by a pattern in the form's title (case ignored); the
+# first that matches wins, and anything else is the default kind.
+kinds = { health = "sundhedspl" }
+default_kind = "conference"
+# A booking whose round's notice states no length lasts this many minutes.
+default_minutes = 30
+# The round is the notice whose sign-up ends on the form's deadline.
+round = "signup_until"
+
+[meaning.calendar]
+# An event that lists every code in school.toml's [classes] is school-wide, so
+# it is not the class's day that holds a booked time.
+school_wide = "every_class_code"

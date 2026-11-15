@@ -1,0 +1,10 @@
+{
+  "id": "review-check-v1",
+  "taxonomy_version": "review-check-v1",
+  "instructions": "instructions.md",
+  "semantic_layer": "semantic-layer.md",
+  "fewshots": "fewshots.json",
+  "output_schema": "output-schema.json",
+  "response_schema_name": "review_verdicts",
+  "prompt_cache_key": "ag-school-review-check-v1"
+}

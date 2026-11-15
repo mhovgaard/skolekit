@@ -1,0 +1,10 @@
+{
+  "id": "consolidate-v1",
+  "taxonomy_version": "school-items-v1",
+  "instructions": "instructions.md",
+  "semantic_layer": "semantic-layer.md",
+  "fewshots": "fewshots.json",
+  "output_schema": "output-schema.json",
+  "response_schema_name": "school_item_consolidation",
+  "prompt_cache_key": "ag-school-consolidate-v1"
+}

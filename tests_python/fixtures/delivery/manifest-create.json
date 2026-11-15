@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "manifest_id": "20260825T183142Z-a7f31c102938",
+  "generated_at": "2026-08-25T18:31:42Z",
+  "expires_at": "2026-08-27T06:31:42Z",
+  "headline": "AMBER · 2 relevant items",
+  "calendar": [
+    {
+      "stable_key": "event:rita:museum:2026-08-26",
+      "revision": 1,
+      "state": "active",
+      "title": "Beta · Museum trip",
+      "start": "2026-08-26",
+      "end": "2026-08-26",
+      "all_day": true,
+      "notes": "Meet at school with a packed lunch.",
+      "source_url": "https://x.skoleintra.dk/item/1"
+    }
+  ],
+  "reminders": [
+    {
+      "stable_key": "bring:rita:book:2026-08-26",
+      "revision": 1,
+      "state": "active",
+      "list": "School · Bring home",
+      "title": "Beta · Bring mathematics book home",
+      "due": "2026-08-26",
+      "notes": "Needed for pages 42–44.",
+      "source_url": "https://x.skoleintra.dk/item/2"
+    }
+  ],
+  "review": [],
+  "brief": {
+    "title": "School brief · 2026-08-25",
+    "body": "🟠 AMBER — 2 attention",
+    "signal": "amber"
+  }
+}

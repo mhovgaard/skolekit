@@ -1,0 +1,10 @@
+# The household's [meaning] with today's rules spelled out; it changes nothing.
+[meaning.bookings]
+form_types = ["Samtale"]
+kinds = { health = "sundhedspl" }
+default_kind = "conference"
+default_minutes = 30
+round = "signup_until"
+
+[meaning.calendar]
+school_wide = "every_class_code"

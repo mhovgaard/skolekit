@@ -1,0 +1,28 @@
+{
+  "rule": [
+    {
+      "action": {
+        "type": "Delete"
+      },
+      "condition": {
+        "age": 90
+      }
+    },
+    {
+      "action": {
+        "type": "Delete"
+      },
+      "condition": {
+        "daysSinceNoncurrentTime": 30
+      }
+    },
+    {
+      "action": {
+        "type": "AbortIncompleteMultipartUpload"
+      },
+      "condition": {
+        "age": 1
+      }
+    }
+  ]
+}

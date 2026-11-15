@@ -1,0 +1,33 @@
+# An invented school's school.toml with every value spelled out. They are the
+# locale's defaults, so this file reads as the same school as its host alone;
+# the phase 4 tests check that.
+[site]
+host = "eksempel.m.skoleintra.dk"
+portal = "parent"
+locale = "da"
+timezone = "Europe/Copenhagen"
+
+[classes]
+codes = ["00", "01", "02", "03", "04", "05", "06", "07", "08", "09"]
+label = "{level}. klasse"
+broad = ["alle klasser", "hele skolen", "alle elever", "indskolingen", "mellemtrinnet"]
+
+[lessons]
+cancelled = ["aflyst"]
+
+[forms]
+booked = '(?i)^\s*Min tid:\s*{date}\s+{time}'
+answered = '(?i)^\s*Besvaret\b.*?{date}'
+
+[notices]
+signup = 'Tilmelding:\s*{from}\s+til\s+{until}(?:\n|/|$)'
+expires = 'Udløbsdato:\s*{expires}(?:\n|$)'
+days = 'Dato:\s*{dates}(?:\n|$)'
+minutes = '(?i)varer\s+ca\.?\s*{minutes}\s*min'
+
+[weekly_plan.sections]
+homework = ['Lektie(?:r)?(?:\s+til\s+[^:]+)?']
+materials = ['Materiale(?:r)?']
+bring = ['Medbring']
+activity = ['Aktivitet']
+program = ['(?:Dagens\s+)?Program(?:\s+for\s+[^:]+)?']

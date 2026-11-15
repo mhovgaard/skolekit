@@ -1,0 +1,34 @@
+# Python / uv
+/.venv/
+/.pytest_cache/
+/build/
+/dist/
+/*.egg-info/
+__pycache__/
+*.py[cod]
+/.coverage
+/htmlcov/
+
+# Local secrets and OS files
+.env*
+.DS_Store
+*.pem
+*.db
+*.db-wal
+*.db-shm
+*.log
+auth-state.json
+/Codex Image *.png
+
+# Local SkoleIntra authentication and discovery data
+/.ag-school/
+/playwright/.auth/
+
+# Private dashboard context, composed state, and generated previews
+/docs/private/
+/rendering/private/
+/rendering/*/input/
+/rendering/*/output/
+
+# Local Arduino tools, board packages, and compiled firmware
+/firmware/.toolchain/

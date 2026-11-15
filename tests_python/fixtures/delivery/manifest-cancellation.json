@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "manifest_id": "20260825T203142Z-c9f53e324150",
+  "generated_at": "2026-08-25T20:31:42Z",
+  "expires_at": "2026-08-27T08:31:42Z",
+  "headline": "AMBER · 1 relevant item",
+  "calendar": [
+    {
+      "stable_key": "event:rita:museum:2026-08-26",
+      "revision": 3,
+      "state": "cancelled",
+      "title": "Beta · Museum trip",
+      "start": "2026-08-26",
+      "end": "2026-08-26",
+      "all_day": true,
+      "notes": "Cancelled by the school.",
+      "source_url": "https://x.skoleintra.dk/item/1"
+    }
+  ],
+  "reminders": [],
+  "review": [],
+  "brief": {
+    "title": "School brief · 2026-08-25",
+    "body": "🟠 AMBER — museum trip cancelled",
+    "signal": "amber"
+  }
+}

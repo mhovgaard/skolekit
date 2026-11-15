@@ -1,0 +1,34 @@
+{
+  "size": [
+    680,
+    400
+  ],
+  "crop_focus": [
+    0.5,
+    0.35
+  ],
+  "sources": {
+    "spring-dry": "imgs/house/spring-dry.png",
+    "spring-rain": "imgs/house/spring-rain.png",
+    "summer-dry": "imgs/house/summer-dry.png",
+    "summer-rain": "imgs/house/summer-rain.png",
+    "autumn-dry": "imgs/house/autumn-dry.png",
+    "autumn-rain": "imgs/house/autumn-rain.png",
+    "winter-dry": "imgs/house/winter-dry.png",
+    "winter-rain": "imgs/house/winter-rain.png",
+    "winter-snow": "imgs/house/winter-snow.png"
+  },
+  "source_sha256": {
+    "spring-dry": "249ab1756f5c4ef77ca0d8ae87931929ecef2cbf9a671bed70c2ec83a39da47d",
+    "spring-rain": "9e2c1d5dc2557de251e6cac82b1200813f3d65f0076faaf100758c3667d00135",
+    "summer-dry": "8cce1e588f530ba13ed702c2cc98060b3e2e0c6b09921aa7e45a0c8526e6bb8c",
+    "summer-rain": "2cad971f24db755acdfaffc5e9ea7a54a24afee0c92c4c8219cc0d36d58493b6",
+    "autumn-dry": "44e107ea6c30a9e4e7988632800f8d06a605ba80af5758c830ee46ce7a6e72cf",
+    "autumn-rain": "dbf570c9e62f92238512f8551721d5c2182135d595e50b2d16d95a006b934827",
+    "winter-dry": "be419add7b9012d6c6f7b7325de4ebfc3d610aa6ea0b07f26019e08a34da1fc2",
+    "winter-rain": "eeaf24b167e587f2d962c93e1a3087daddfa45a623e96a28a2821006dc88462a",
+    "winter-snow": "afc3dde25e5d6b510465bfbb33e0305f0799b9babf9db6179f22869f225664ad"
+  },
+  "generation": "imgs/house/generation.json",
+  "conversion": "WebP quality 88; e-ink resized to 340x200 before six-pigment diffusion"
+}

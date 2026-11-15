@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Another class's event, a missing time slot, and a conflict a specific fact settles",
+    "input": {
+      "today": "2026-11-07",
+      "children": [{"name": "{{child_2}}", "class_level": "0. klasse"}, {"name": "{{child_1}}", "class_level": "2. klasse"}],
+      "items": [
+        {"id": "1", "child": "{{child_1}}", "type": "event", "title": "Skole-hjem-samtaler for 0. klasse",
+         "summary": "Der er skole-hjem-samtaler for 0. klasse mandag kl. 14.00-20.00.", "date": "2026-11-09",
+         "review_reason": "{{child_1}} er angivet i 2. klasse, mens arrangementet er mærket 0. klasse.",
+         "evidence": ["Skole hjem samtaler, 0. Kl."], "source_excerpt": "Skole hjem samtaler, 0. Kl. Mandag, 9. nov. 14:00 - 20:00",
+         "same_day": []},
+        {"id": "2", "child": "{{child_1}}", "type": "event", "title": "Skolehjemssamtale",
+         "summary": "Der er skolehjemssamtaler for 2. klasse den 9. november.", "date": "2026-11-09",
+         "review_reason": "Det fremgår ikke, hvilket tidspunkt {{child_1}} får.",
+         "evidence": ["Skolehjemssamtaler 2. klasse"], "source_excerpt": "Mandag 9. nov.: Skolehjemssamtaler 2. klasse",
+         "same_day": []},
+        {"id": "3", "child": "{{child_2}}", "type": "event", "title": "Skole-hjem-samtaler i 0. klasse",
+         "summary": "Kilderne angiver kl. 14.00-19.00 og kl. 14.00-20.00.", "date": "2026-11-09",
+         "review_reason": "Kilderne angiver forskellige sluttidspunkter.",
+         "evidence": ["14:00 - 20:00", "kl. 14-19"], "source_excerpt": "",
+         "same_day": [{"child": "{{child_2}}", "title": "Skole-hjem-samtale for {{child_2}}",
+                       "summary": "{{child_2}} har skole-hjem-samtale mandag kl. 15.00.", "flagged": false}]}
+      ]
+    },
+    "output": {"verdicts": [
+      {"id": "1", "verdict": "drop", "note": null, "reason": "The event is for 0. klasse; {{child_1}} is in 2. klasse."},
+      {"id": "2", "verdict": "show", "note": "tid ikke oplyst", "reason": "{{child_1}}'s class has conferences that day; only her slot is unknown."},
+      {"id": "3", "verdict": "drop", "note": null, "reason": "{{child_2}}'s own conference at 15.00 is already a fact for that day."}
+    ]}
+  }
+]

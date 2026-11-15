@@ -1,0 +1,88 @@
+{
+  "SelectedPlan": {
+    "FormattedWeek": "Uge 46",
+    "ClassOrGroup": "1. klasse",
+    "Attachments": [
+      {"Name": "ugeplan-46.pdf", "Url": "/files/synthetic/ugeplan-46.pdf"}
+    ],
+    "GeneralPlan": {
+      "LessonPlans": [
+        {
+          "WeeklyPlanId": 46001,
+          "Subject": {"Title": "Fælles", "FormattedTitle": "Fælles info", "IsGeneralSubject": true},
+          "Content": "<p>Kære forældre<br>I denne uge arbejder vi med efteråret.</p><p>Medbring: Gummistøvler hver dag.</p>",
+          "Attachments": [{"Name": "efteraar.pdf", "Url": "/files/synthetic/efteraar.pdf"}],
+          "IsDraft": false
+        }
+      ]
+    },
+    "DailyPlans": [
+      {
+        "Day": "Mandag",
+        "DayOfWeek": 1,
+        "Date": "2026-11-09T00:00:00",
+        "FormattedDate": "9. nov.",
+        "LessonPlans": [
+          {
+            "WeeklyPlanId": 46011,
+            "Subject": {"Title": "Dansk", "LessonNumber": 1},
+            "Content": "<p>Lektie: Læs side 12 i læsebogen.</p><p>Materialer: Læsebog og blyant.</p>",
+            "Link": "/link/synthetic/laesebog",
+            "Attachments": [{"Name": "arbejdsark.pdf", "Url": "/files/synthetic/arbejdsark.pdf"}],
+            "Snapshots": [],
+            "IsDraft": false
+          }
+        ]
+      },
+      {
+        "Day": "Tirsdag",
+        "DayOfWeek": 2,
+        "Date": "2026-11-10T00:00:00",
+        "FormattedDate": "10. nov.",
+        "LessonPlans": []
+      },
+      {
+        "Day": "Onsdag",
+        "DayOfWeek": 3,
+        "Date": "2026-11-11T00:00:00",
+        "FormattedDate": "11. nov.",
+        "LessonPlans": [
+          {
+            "WeeklyPlanId": 46031,
+            "Subject": {"Title": "Natur/teknologi", "LessonNumber": 3},
+            "Content": "<p>Aktivitet:</p><p>Vi samler blade i skolegården.</p><p>Medbring: En pose.</p>",
+            "IsDraft": false
+          }
+        ]
+      },
+      {
+        "Day": "Torsdag",
+        "DayOfWeek": 4,
+        "Date": "2026-11-12T00:00:00",
+        "FormattedDate": "12. nov.",
+        "LessonPlans": [
+          {
+            "WeeklyPlanId": 46041,
+            "Subject": {"Title": "Matematik", "LessonNumber": 2},
+            "Content": "<p>Vi øver plus til 20.</p>",
+            "IsDraft": true
+          }
+        ]
+      },
+      {
+        "Day": "Fredag",
+        "DayOfWeek": 5,
+        "Date": "2026-11-13T00:00:00",
+        "FormattedDate": "13. nov.",
+        "LessonPlans": [
+          {
+            "WeeklyPlanId": 46051,
+            "Subject": {"Title": "Idræt", "LessonNumber": 4},
+            "Content": "<p>Dagens program: Boldspil i hallen.<br>Medbring idrætstøj.</p>",
+            "IsDraft": false
+          }
+        ]
+      }
+    ]
+  }
+}

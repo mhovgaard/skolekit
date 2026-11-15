@@ -1,0 +1,68 @@
+[
+  {
+    "name": "Forældresvar til afsluttet arrangement",
+    "input": {
+      "as_of": "2026-09-12",
+      "policy_version": "archive-v1",
+      "candidates": [
+        {
+          "item_id": 10,
+          "stable_key": "key-10",
+          "candidate_reason": "expired_action_or_reminder",
+          "child": "{{child_1}}",
+          "type": "parent_action",
+          "actionability": "required",
+          "title": "Svar om deltagelse i sommerfest",
+          "summary": "Svar senest 20. august, om {{child_1}} deltager i sommerfesten 21. august.",
+          "effective_date": "2026-08-20",
+          "end_date": "2026-08-20",
+          "first_seen_at": "2026-08-17T08:00:00+00:00",
+          "needs_review": false,
+          "review_reason": ""
+        }
+      ]
+    },
+    "output": {
+      "decisions": [
+        {
+          "stable_key": "key-10",
+          "decision": "archive",
+          "reason": "Svarfristen og det tilknyttede arrangement er passeret."
+        }
+      ]
+    }
+  },
+  {
+    "name": "Uafklaret betaling beholdes",
+    "input": {
+      "as_of": "2026-09-12",
+      "policy_version": "archive-v1",
+      "candidates": [
+        {
+          "item_id": 11,
+          "stable_key": "key-11",
+          "candidate_reason": "stale_without_end_date",
+          "child": "{{child_2}}",
+          "type": "parent_action",
+          "actionability": "required",
+          "title": "Betal for materialer",
+          "summary": "Forældrene skal betale for klassens materialer.",
+          "effective_date": null,
+          "end_date": null,
+          "first_seen_at": "2026-07-01T08:00:00+00:00",
+          "needs_review": false,
+          "review_reason": ""
+        }
+      ]
+    },
+    "output": {
+      "decisions": [
+        {
+          "stable_key": "key-11",
+          "decision": "retain",
+          "reason": "Der er ingen frist eller oplysning om, at betalingen er afsluttet."
+        }
+      ]
+    }
+  }
+]

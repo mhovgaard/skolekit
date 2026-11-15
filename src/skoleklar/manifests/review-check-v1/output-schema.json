@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "verdict": {"type": "string", "enum": ["show", "drop", "unclear"]},
+          "note": {"type": ["string", "null"], "maxLength": 40},
+          "reason": {"type": "string", "maxLength": 200}
+        },
+        "required": ["id", "verdict", "note", "reason"]
+      }
+    }
+  },
+  "required": ["verdicts"]
+}

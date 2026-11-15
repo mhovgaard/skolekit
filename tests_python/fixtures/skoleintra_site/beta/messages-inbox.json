@@ -1,0 +1,12 @@
+{
+  "Conversations": [],
+  "DataProviderSettings": {
+    "ExpandThreadMessagesUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/expandthreadmessages",
+    "GetMessageForThreadlessConversationUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/getmessageforthreadlessconversation",
+    "GetNewConversationsUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/getnewconversations",
+    "LoadMessagesForSelectedConversationUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/loadmessagesforselectedconversation",
+    "ChangeMessageReadStatusUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/changemessagereadstatus",
+    "BatchDeleteConversationUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/batchdeleteconversation",
+    "SearchRequest": ""
+  }
+}

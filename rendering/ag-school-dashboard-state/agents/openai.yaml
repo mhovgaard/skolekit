@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skoleklar Dashboard State"
+  short_description: "Compose fresh school facts for HTML and e-ink"
+  default_prompt: "Use $ag-school-dashboard-state. Summarize the current local school data into shared dashboard state."

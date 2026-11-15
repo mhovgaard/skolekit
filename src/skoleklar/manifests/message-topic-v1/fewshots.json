@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Ordinary school messages, illness and a staff change show",
+    "input": {"subjects": [
+      {"id": "1", "subject": "Husk underskrevet samtykke til turen torsdag"},
+      {"id": "2", "subject": "Lusetjek i 3.b efter efterårsferien"},
+      {"id": "3", "subject": "Ny lærer i matematik fra uge 47"},
+      {"id": "4", "subject": "Invitation til {{other_2}}s fødselsdag lørdag"}
+    ]},
+    "output": {"topics": [
+      {"id": "1", "topic": "Samtykke tur", "hide": false},
+      {"id": "2", "topic": "Lusetjek", "hide": false},
+      {"id": "3", "topic": "Ny mattelærer", "hide": false},
+      {"id": "4", "topic": "Fødselsdag", "hide": false}
+    ]}
+  },
+  {
+    "name": "Wellbeing, relations between children and payments are hidden",
+    "input": {"subjects": [
+      {"id": "1", "subject": "Ang. trivslen i frikvartererne"},
+      {"id": "2", "subject": "Uenighed mellem nogle af pigerne"},
+      {"id": "3", "subject": "Mangler betaling for lejrskolen"},
+      {"id": "4", "subject": "Influenza i klassen"}
+    ]},
+    "output": {"topics": [
+      {"id": "1", "topic": null, "hide": true},
+      {"id": "2", "topic": null, "hide": true},
+      {"id": "3", "topic": null, "hide": true},
+      {"id": "4", "topic": "Influenza", "hide": false}
+    ]}
+  }
+]

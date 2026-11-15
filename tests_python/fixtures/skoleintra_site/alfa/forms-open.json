@@ -1,0 +1,30 @@
+{
+  "Items": [
+    {
+      "Name": "Tilmelding til juleklip",
+      "CreatedBy": "Klasselærer (KL)",
+      "Status": "Ikke besvaret",
+      "Deadline": "20-11-2026",
+      "Type": "Tilmelding",
+      "OrderDate": "2026-11-10T09:00:00",
+      "Url": "/parent/{{student_id}}/{{child}}/forms/open/survey/501",
+      "ResultsLink": null,
+      "OpenInNewTab": false,
+      "IsApp": false
+    },
+    {
+      "Name": "Skole-hjem-samtaler i 1. klasse",
+      "CreatedBy": "Skolekontoret",
+      "Status": "Min tid",
+      "Deadline": "13-11-2026",
+      "Type": "Samtaler",
+      "OrderDate": "2026-10-20T12:00:00",
+      "Url": "/parent/{{student_id}}/{{child}}/forms/open/conversations/812/edit",
+      "ResultsLink": "/parent/{{student_id}}/{{child}}/forms/results/conversations/812",
+      "OpenInNewTab": false,
+      "IsApp": false
+    },
+    null
+  ],
+  "PageSize": 25
+}

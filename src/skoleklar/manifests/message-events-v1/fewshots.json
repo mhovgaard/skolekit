@@ -1,0 +1,33 @@
+[
+  {
+    "name": "Dated event keeps only calendar facts",
+    "input": {
+      "child": "Child",
+      "body_text": "Klassen mødes på biblioteket den 18. september."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "class-event-2026-09-18",
+          "event_kind": "event",
+          "effective_date": "2026-09-18",
+          "end_date": null,
+          "all_day": true,
+          "cancellation_state": "active",
+          "necessary_location": "biblioteket",
+          "confidence": 0.98,
+          "needs_review": false,
+          "evidence_quote": "Klassen mødes på biblioteket den 18. september."
+        }
+      ]
+    }
+  },
+  {
+    "name": "Private discussion without an event is discarded",
+    "input": {
+      "child": "Child",
+      "body_text": "Tak for en god og fortrolig samtale."
+    },
+    "output": {"items": []}
+  }
+]

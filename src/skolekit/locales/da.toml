@@ -1,0 +1,50 @@
+# Danish: how SkoleIntra's Danish pages write dates, and the wording seen so far.
+#
+# The wording comes from one school so far, so nobody can yet tell
+# which of it is SkoleIntra's own and which is that school's staff. A school's
+# school.toml overrides only what differs; a second school shows which is which
+# (docs/data-sources.md, "Extending an adapter").
+#
+# Rules are Python regular expressions. The locale fills the placeholders:
+#   {date}     a date such as '5. nov. 2026', '12. maj 2026' or '2. november 2026'
+#   {time}     a time such as '15:00' or '15.00'
+#   {minutes}  a whole number of minutes
+#   {from} {until} {expires} {dates}
+#              the text a date (or, for {dates}, every date) is read from
+# A rule starting with (?i) ignores case.
+
+[dates]
+months = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+date = '(?P<day>\d{1,2})\.\s*(?P<month>{months})[a-zæøå]*\.?\s*(?P<year>\d{4})'
+time = '(?P<hour>\d{1,2})[:.](?P<minute>\d{2})'
+# The inbox's relative days, as it shows the latest activity.
+yesterday = "i går"
+today = "i dag"
+
+[classes]
+# Words that name more than one class: a fact for them isn't for the wrong class.
+broad = ["alle klasser", "hele skolen", "alle elever", "indskolingen", "mellemtrinnet"]
+
+[lessons]
+# Words in a lesson's title that mark it as cancelled.
+cancelled = ["aflyst"]
+
+[forms]
+# What a form's status line holds.
+booked = '(?i)^\s*Min tid:\s*{date}\s+{time}'
+answered = '(?i)^\s*Besvaret\b.*?{date}'
+
+[notices]
+# What a notice's text holds.
+signup = 'Tilmelding:\s*{from}\s+til\s+{until}(?:\n|/|$)'
+expires = 'Udløbsdato:\s*{expires}(?:\n|$)'
+days = 'Dato:\s*{dates}(?:\n|$)'
+minutes = '(?i)varer\s+ca\.?\s*{minutes}\s*min'
+
+[weekly_plan.sections]
+# A weekly plan's headings, by what the section holds, in the order they are tried.
+homework = ['Lektie(?:r)?(?:\s+til\s+[^:]+)?']
+materials = ['Materiale(?:r)?']
+bring = ['Medbring']
+activity = ['Aktivitet']
+program = ['(?:Dagens\s+)?Program(?:\s+for\s+[^:]+)?']

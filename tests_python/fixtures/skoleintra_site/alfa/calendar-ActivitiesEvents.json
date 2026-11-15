@@ -1,0 +1,59 @@
+[
+  {
+    "id": "0_a1f0c104",
+    "originalId": 880104,
+    "title": "Høstfest",
+    "description": "<p>Høstfest i skolegården.</p>",
+    "start": "2026-10-08T16:00:00",
+    "end": "2026-10-08T19:00:00",
+    "allDay": false,
+    "location": "Skolegården",
+    "authorName": "Skolekontoret",
+    "invitees": "Hele skolen",
+    "Attachments": [],
+    "IsPrivate": false
+  },
+  {
+    "id": "0_a1f0c101",
+    "originalId": 880101,
+    "title": "Forældremøde 1. klasse",
+    "description": "<p>Vi mødes i klasselokalet.<br>Der er kaffe og te.</p>",
+    "start": "2026-11-17T19:00:00",
+    "end": "2026-11-17T20:30:00",
+    "allDay": false,
+    "location": "Klasselokalet",
+    "authorName": "Klasselærer (KL)",
+    "invitees": "Forældre i 1. klasse",
+    "Attachments": [{"Name": "dagsorden.pdf", "Url": "/files/synthetic/dagsorden.pdf"}],
+    "IsPrivate": false,
+    "conversationLink": "/parent/{{student_id}}/{{child}}/messages/conversations#thread-301"
+  },
+  {
+    "id": "0_a1f0c150",
+    "originalId": 880150,
+    "title": "Motionsdag",
+    "description": "",
+    "start": "2026-11-20T00:00:00",
+    "end": "2026-11-21T00:00:00",
+    "allDay": true,
+    "location": "",
+    "authorName": "Skolekontoret",
+    "invitees": "Hele skolen",
+    "Attachments": [],
+    "IsPrivate": false
+  },
+  {
+    "id": "0_a1f0c103",
+    "originalId": 880103,
+    "title": "Temauge: Rummet",
+    "description": "<p>Hele skolen arbejder med rummet.</p>",
+    "start": "2026-11-26T00:00:00",
+    "end": "2026-12-05T00:00:00",
+    "allDay": true,
+    "location": "",
+    "authorName": "Skolekontoret",
+    "invitees": "Hele skolen",
+    "Attachments": [],
+    "IsPrivate": false
+  }
+]

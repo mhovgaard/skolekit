@@ -1,0 +1,246 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "hero": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "heading": {
+                "type": "string",
+                "maxLength": 40
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "maxItems": 8
+                    },
+                    "priority": {
+                      "type": "string",
+                      "enum": [
+                        "obligation",
+                        "change",
+                        "event",
+                        "context"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 90
+                    }
+                  },
+                  "required": [
+                    "refs",
+                    "priority",
+                    "text"
+                  ]
+                },
+                "maxItems": 5
+              }
+            },
+            "required": [
+              "name",
+              "heading",
+              "lines"
+            ]
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "children"
+      ]
+    },
+    "weekdays": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "heading": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "lines": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "maxItems": 8
+                      },
+                      "priority": {
+                        "type": "string",
+                        "enum": [
+                          "obligation",
+                          "change",
+                          "event",
+                          "context"
+                        ]
+                      },
+                      "text": {
+                        "type": "string",
+                        "maxLength": 90
+                      }
+                    },
+                    "required": [
+                      "refs",
+                      "priority",
+                      "text"
+                    ]
+                  },
+                  "maxItems": 3
+                }
+              },
+              "required": [
+                "name",
+                "heading",
+                "lines"
+              ]
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 8
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "obligation",
+                      "change",
+                      "event",
+                      "context"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "maxLength": 90
+                  }
+                },
+                "required": [
+                  "refs",
+                  "priority",
+                  "text"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "date",
+          "children",
+          "shared",
+          "summary"
+        ]
+      }
+    },
+    "omitted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "outside_week",
+              "duplicate",
+              "uncertain",
+              "capacity",
+              "other_class",
+              "not_relevant",
+              "birthday_notice",
+              "weekend"
+            ]
+          },
+          "same_as": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ref",
+          "reason",
+          "same_as"
+        ]
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 160
+      },
+      "maxItems": 6
+    }
+  },
+  "required": [
+    "hero",
+    "weekdays",
+    "omitted",
+    "limitations"
+  ]
+}

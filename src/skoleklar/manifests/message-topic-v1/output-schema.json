@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "topic": {"type": ["string", "null"], "maxLength": 24},
+          "hide": {"type": "boolean"}
+        },
+        "required": ["id", "topic", "hide"]
+      }
+    }
+  },
+  "required": ["topics"]
+}

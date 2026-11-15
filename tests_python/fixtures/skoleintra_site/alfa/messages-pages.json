@@ -1,0 +1,30 @@
+{
+  "950": [
+    {
+      "ThreadId": 301,
+      "Subject": "Tur til skoven",
+      "Date": "11. nov.",
+      "MessagesCount": 2,
+      "LatestMessageId": 3012,
+      "LatestInboxMessageId": 3012,
+      "IsUnread": true,
+      "UnreadMessagesCount": 1,
+      "ThreadParticipantsString": "Klasselærer (KL)"
+    },
+    {
+      "ThreadId": 303,
+      "Subject": "Juleklip",
+      "Date": "2. nov.",
+      "MessagesCount": 3,
+      "LatestMessageId": 3032,
+      "LatestInboxMessageId": 3032,
+      "IsUnread": false,
+      "UnreadMessagesCount": 0,
+      "HasAttachments": false,
+      "IsReplied": false,
+      "ThreadParticipantsString": "SFO-leder (SL)"
+    },
+    "not a conversation"
+  ],
+  "3032": []
+}

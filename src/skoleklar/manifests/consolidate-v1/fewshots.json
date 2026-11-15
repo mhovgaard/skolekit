@@ -1,0 +1,131 @@
+[
+  {
+    "name": "To ugeplaner gentager samme klassebamse-status",
+    "input": {
+      "as_of": "2026-08-22",
+      "items": [
+        {"item_id": 10, "child": "{{child_2}}", "stream": "context", "type": "context", "title": "{{child_2}} har haft Pinny med hjemme", "summary": "{{child_2}} havde klassebamsen Pinny med hjem i ugens løb.", "effective_date": null, "end_date": null, "all_day": true, "timing_rule": "no_derived_date", "actionability": "informational", "urgency": "routine", "urgency_reason": "Klasseinformation.", "confidence": 0.9, "needs_review": false, "review_reason": "", "source_types": ["weekly_plan"]},
+        {"item_id": 11, "child": "{{child_2}}", "stream": "context", "type": "context", "title": "Pinny har været med {{child_2}} hjem", "summary": "Pinny har været med {{child_2}} hjemme i weekenden som del af klassens ordning.", "effective_date": null, "end_date": null, "all_day": true, "timing_rule": "no_derived_date", "actionability": "informational", "urgency": "routine", "urgency_reason": "Klasseinformation.", "confidence": 0.88, "needs_review": false, "review_reason": "", "source_types": ["weekly_plan"]}
+      ]
+    },
+    "output": {
+      "groups": [
+        {
+          "member_item_ids": [10, 11],
+          "resolution": "duplicate",
+          "canonical": {
+            "stream": "context",
+            "type": "context",
+            "audience": "family",
+            "child": "{{child_2}}",
+            "title": "{{child_2}} havde klassebamsen Pinny med hjem",
+            "summary": "{{child_2}} havde klassebamsen Pinny med hjem som del af klassens ordning.",
+            "effective_date": null,
+            "end_date": null,
+            "all_day": true,
+            "timing_rule": "no_derived_date",
+            "actionability": "informational",
+            "urgency": "routine",
+            "urgency_reason": "Det er én gentaget status uden familiehandling.",
+            "confidence": 0.92
+          },
+          "needs_review": false,
+          "review_reason": "",
+          "reason": "Begge items beskriver samme barn, klassebamse og hjemtagning."
+        }
+      ],
+      "unclustered_item_ids": []
+    }
+  },
+  {
+    "name": "Relateret event, tilmelding og medbringning forbliver separate",
+    "input": {
+      "as_of": "2026-08-19",
+      "items": [
+        {"item_id": 20, "child": "{{child_2}}", "stream": "calendar", "type": "event", "title": "Skolefotografering", "summary": "0. klasse fotograferes den 20. august kl. 10.00.", "effective_date": "2026-08-20", "end_date": "2026-08-20", "all_day": false, "timing_rule": "explicit", "actionability": "informational", "urgency": "routine", "urgency_reason": "Planlagt event.", "confidence": 0.95, "needs_review": false, "review_reason": "", "source_types": ["messages"]},
+        {"item_id": 21, "child": "{{child_2}}", "stream": "actions", "type": "parent_action", "title": "Tilmeld {{child_2}} til fotografering", "summary": "Forældrene skal tilmelde {{child_2}} digitalt.", "effective_date": "2026-08-20", "end_date": "2026-08-20", "all_day": true, "timing_rule": "complete_before_source_day", "actionability": "required", "urgency": "attention", "urgency_reason": "Skal klares før fotografering.", "confidence": 0.96, "needs_review": false, "review_reason": "", "source_types": ["messages"]},
+        {"item_id": 22, "child": "{{child_2}}", "stream": "actions", "type": "bring", "title": "Tag kam med", "summary": "{{child_2}} må gerne have en kam med til fotograferingen.", "effective_date": "2026-08-20", "end_date": "2026-08-20", "all_day": true, "timing_rule": "needed_on_source_day", "actionability": "recommended", "urgency": "routine", "urgency_reason": "Valgfri ting.", "confidence": 0.9, "needs_review": false, "review_reason": "", "source_types": ["weekly_plan"]}
+      ]
+    },
+    "output": {
+      "groups": [],
+      "unclustered_item_ids": [20, 21, 22]
+    }
+  },
+  {
+    "name": "Samme event med kompatible detaljer samles",
+    "input": {
+      "as_of": "2026-08-22",
+      "items": [
+        {"item_id": 30, "child": "household", "stream": "calendar", "type": "event", "title": "Arbejdslørdag", "summary": "Der er arbejdslørdag den 19. september.", "effective_date": "2026-09-19", "end_date": "2026-09-19", "all_day": true, "timing_rule": "explicit", "actionability": "informational", "urgency": "routine", "urgency_reason": "Fremtidigt event.", "confidence": 0.92, "needs_review": false, "review_reason": "", "source_types": ["messages"]},
+        {"item_id": 31, "child": "household", "stream": "calendar", "type": "event", "title": "Arbejdslørdag på skolen", "summary": "Arbejdslørdag er den 19. september kl. 9-13 på skolen.", "effective_date": "2026-09-19", "end_date": "2026-09-19", "all_day": false, "timing_rule": "explicit", "actionability": "informational", "urgency": "attention", "urgency_reason": "Familien skal planlægge dagen.", "confidence": 0.97, "needs_review": false, "review_reason": "", "source_types": ["frontpage"]}
+      ]
+    },
+    "output": {
+      "groups": [
+        {
+          "member_item_ids": [30, 31],
+          "resolution": "complementary",
+          "canonical": {
+            "stream": "calendar",
+            "type": "event",
+            "audience": "family",
+            "child": "household",
+            "title": "Arbejdslørdag på skolen",
+            "summary": "Der er arbejdslørdag på skolen den 19. september kl. 9-13.",
+            "effective_date": "2026-09-19",
+            "end_date": "2026-09-19",
+            "all_day": false,
+            "timing_rule": "explicit",
+            "actionability": "informational",
+            "urgency": "attention",
+            "urgency_reason": "Familien skal kunne planlægge det konkrete tidspunkt.",
+            "confidence": 0.97
+          },
+          "needs_review": false,
+          "review_reason": "",
+          "reason": "Samme event og dato; frontpage-itemet tilføjer tidspunkt og sted."
+        }
+      ],
+      "unclustered_item_ids": []
+    }
+  },
+  {
+    "name": "Modstridende datoer bliver review",
+    "input": {
+      "as_of": "2026-08-22",
+      "items": [
+        {"item_id": 40, "child": "{{child_1}}", "stream": "calendar", "type": "event", "title": "Forældremøde", "summary": "Forældremødet er den 3. september.", "effective_date": "2026-09-03", "end_date": "2026-09-03", "all_day": true, "timing_rule": "explicit", "actionability": "informational", "urgency": "attention", "urgency_reason": "Planlægning.", "confidence": 0.9, "needs_review": false, "review_reason": "", "source_types": ["messages"]},
+        {"item_id": 41, "child": "{{child_1}}", "stream": "calendar", "type": "event", "title": "Forældremøde", "summary": "Forældremødet er flyttet til den 4. september.", "effective_date": "2026-09-04", "end_date": "2026-09-04", "all_day": true, "timing_rule": "explicit", "actionability": "informational", "urgency": "attention", "urgency_reason": "Planlægning.", "confidence": 0.9, "needs_review": false, "review_reason": "", "source_types": ["calendar"]}
+      ]
+    },
+    "output": {
+      "groups": [
+        {
+          "member_item_ids": [40, 41],
+          "resolution": "conflict",
+          "canonical": {
+            "stream": "calendar",
+            "type": "event",
+            "audience": "parent",
+            "child": "{{child_1}}",
+            "title": "Forældremøde med modstridende datoer",
+            "summary": "Kilderne angiver både 3. og 4. september for forældremødet.",
+            "effective_date": null,
+            "end_date": null,
+            "all_day": true,
+            "timing_rule": "ambiguous",
+            "actionability": "informational",
+            "urgency": "attention",
+            "urgency_reason": "Datoen skal afklares før kalenderføring.",
+            "confidence": 0.5
+          },
+          "needs_review": true,
+          "review_reason": "Kilderne angiver forskellige datoer.",
+          "reason": "Titlen og barnet matcher, men datoerne er i konflikt."
+        }
+      ],
+      "unclustered_item_ids": []
+    }
+  }
+]

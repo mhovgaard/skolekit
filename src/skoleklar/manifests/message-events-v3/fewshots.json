@@ -1,0 +1,157 @@
+[
+  {
+    "name": "Dated event keeps only calendar facts",
+    "input": {
+      "child": "Child",
+      "message_date": "2026-09-14",
+      "observed_date": "2026-09-14",
+      "body_text": "Klassen mødes på biblioteket den 18. september."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "class-event-2026-09-18",
+          "event_kind": "event",
+          "activity_kind": "class_event",
+          "effective_date": "2026-09-18",
+          "end_date": null,
+          "all_day": true,
+          "cancellation_state": "active",
+          "necessary_location": "biblioteket",
+          "bring_items": [],
+          "requirement": null,
+          "confidence": 0.98,
+          "needs_review": false,
+          "evidence_quote": "Klassen mødes på biblioteket den 18. september."
+        }
+      ]
+    }
+  },
+  {
+    "name": "Dated bring instruction keeps only object labels",
+    "input": {
+      "child": "Child",
+      "message_date": "2026-09-14",
+      "observed_date": "2026-09-14",
+      "body_text": "Til værkstedet i morgen skal eleverne huske et syltetøjsglas og et stykke papir."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "workshop-bring-2026-09-15",
+          "event_kind": "bring",
+          "activity_kind": null,
+          "effective_date": "2026-09-15",
+          "end_date": null,
+          "all_day": true,
+          "cancellation_state": "active",
+          "necessary_location": null,
+          "bring_items": [
+            "syltetøjsglas",
+            "papir"
+          ],
+          "requirement": "required",
+          "confidence": 0.99,
+          "needs_review": false,
+          "evidence_quote": "skal eleverne huske et syltetøjsglas og et stykke papir"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Birthday party invitation is a dated activity",
+    "input": {
+      "child": "Child",
+      "message_date": "2026-10-27",
+      "observed_date": "2026-10-28",
+      "body_text": "Hej alle! {{other_1}} inviterer til fødselsdag søndag den 1. november kl. 14-17 hjemme hos os. Svar gerne inden torsdag."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "birthday-party-2026-11-01",
+          "event_kind": "event",
+          "activity_kind": "birthday_party",
+          "effective_date": "2026-11-01",
+          "end_date": null,
+          "all_day": false,
+          "cancellation_state": "active",
+          "necessary_location": null,
+          "bring_items": [],
+          "requirement": null,
+          "confidence": 0.97,
+          "needs_review": true,
+          "evidence_quote": "inviterer til fødselsdag søndag den 1. november kl. 14-17"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Parent-arranged class activity is a dated activity",
+    "input": {
+      "child": "Child",
+      "message_date": "2026-10-20",
+      "observed_date": "2026-10-20",
+      "body_text": "Forældrerådet arrangerer legeeftermiddag for hele klassen lørdag den 7. november i Dyrehaven."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "parent-play-2026-11-07",
+          "event_kind": "event",
+          "activity_kind": "social_activity",
+          "effective_date": "2026-11-07",
+          "end_date": null,
+          "all_day": true,
+          "cancellation_state": "active",
+          "necessary_location": "Dyrehaven",
+          "bring_items": [],
+          "requirement": null,
+          "confidence": 0.97,
+          "needs_review": false,
+          "evidence_quote": "arrangerer legeeftermiddag for hele klassen lørdag den 7. november i Dyrehaven"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Class trip keeps its activity kind",
+    "input": {
+      "child": "Child",
+      "message_date": "2026-10-20",
+      "observed_date": "2026-10-20",
+      "body_text": "Fredag den 23. oktober tager klassen på tur til Experimentarium."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "class-trip-2026-10-23",
+          "event_kind": "event",
+          "activity_kind": "class_trip",
+          "effective_date": "2026-10-23",
+          "end_date": null,
+          "all_day": true,
+          "cancellation_state": "active",
+          "necessary_location": "Experimentarium",
+          "bring_items": [],
+          "requirement": null,
+          "confidence": 0.98,
+          "needs_review": false,
+          "evidence_quote": "Fredag den 23. oktober tager klassen på tur til Experimentarium."
+        }
+      ]
+    }
+  },
+  {
+    "name": "Sensitive discussion without an operational fact is discarded",
+    "input": {
+      "child": "Child",
+      "message_date": "2026-09-14",
+      "observed_date": "2026-09-14",
+      "body_text": "Vi vil gerne tale fortroligt om trivsel og relationer."
+    },
+    "output": {
+      "items": []
+    }
+  }
+]

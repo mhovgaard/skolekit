@@ -1,0 +1,10 @@
+{
+  "id": "message-topic-v1",
+  "taxonomy_version": "message-topic-v1",
+  "instructions": "instructions.md",
+  "semantic_layer": "semantic-layer.md",
+  "fewshots": "fewshots.json",
+  "output_schema": "output-schema.json",
+  "response_schema_name": "message_topics",
+  "prompt_cache_key": "ag-school-message-topic-v1"
+}

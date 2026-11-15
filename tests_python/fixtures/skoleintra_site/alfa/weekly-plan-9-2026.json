@@ -1,0 +1,17 @@
+{
+  "SelectedPlan": {
+    "FormattedWeek": "Uge 9",
+    "ClassOrGroup": "1. klasse",
+    "GeneralPlan": {
+      "LessonPlans": [
+        {
+          "WeeklyPlanId": 9001,
+          "Subject": {"Title": "Fælles", "IsGeneralSubject": true},
+          "Content": "<p>Vinterferien er slut. Velkommen tilbage.</p>",
+          "IsDraft": false
+        }
+      ]
+    },
+    "DailyPlans": []
+  }
+}

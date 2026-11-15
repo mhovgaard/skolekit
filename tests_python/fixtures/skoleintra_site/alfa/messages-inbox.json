@@ -1,0 +1,60 @@
+{
+  "Conversations": [
+    {
+      "ThreadId": 301,
+      "Subject": "Tur til skoven",
+      "Date": "11. nov.",
+      "MessagesCount": 2,
+      "LatestMessageId": 3012,
+      "LatestInboxMessageId": 3012,
+      "IsUnread": true,
+      "UnreadMessagesCount": 1,
+      "HasAttachments": false,
+      "IsReplied": true,
+      "IsForwarded": false,
+      "IsSchoolBoardRelated": false,
+      "ThreadParticipantsString": "Klasselærer (KL)",
+      "ProfileImageViewModel": {"Name": "Klasselærer", "Initials": "KL", "Photo": null, "AccessAllowed": true}
+    },
+    {
+      "ThreadId": 302,
+      "Subject": "Glemt madkasse",
+      "Date": "10. nov.",
+      "MessagesCount": 3,
+      "LatestMessageId": 3023,
+      "LatestInboxMessageId": 3023,
+      "IsUnread": false,
+      "UnreadMessagesCount": 0,
+      "HasAttachments": false,
+      "IsReplied": false,
+      "IsForwarded": false,
+      "IsSchoolBoardRelated": false,
+      "ThreadParticipantsString": "Forælder til Gamma (1.)",
+      "ProfileImageViewModel": null
+    },
+    {
+      "ThreadId": 0,
+      "Subject": "Nyt fra skolekontoret",
+      "Date": "9. nov.",
+      "MessagesCount": 1,
+      "LatestMessageId": 950,
+      "LatestInboxMessageId": 950,
+      "IsUnread": false,
+      "UnreadMessagesCount": 0,
+      "HasAttachments": true,
+      "IsReplied": false,
+      "IsForwarded": false,
+      "IsSchoolBoardRelated": true,
+      "ThreadParticipantsString": "Skolekontoret"
+    }
+  ],
+  "DataProviderSettings": {
+    "ExpandThreadMessagesUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/expandthreadmessages",
+    "GetMessageForThreadlessConversationUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/getmessageforthreadlessconversation",
+    "GetNewConversationsUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/getnewconversations",
+    "LoadMessagesForSelectedConversationUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/loadmessagesforselectedconversation",
+    "ChangeMessageReadStatusUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/changemessagereadstatus",
+    "BatchDeleteConversationUrl": "/parent/{{student_id}}/{{child}}/messages/conversations/batchdeleteconversation",
+    "SearchRequest": ""
+  }
+}
