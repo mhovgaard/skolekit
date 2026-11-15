@@ -42,6 +42,7 @@ by or supported by SkoleIntra, its vendor, or any school or municipality.
 | Part | Licence |
 | --- | --- |
 | Newsreader fonts in `src/skoleklar/fonts/` | SIL Open Font License 1.1 (`OFL-Newsreader.txt`) |
+| Arimo fonts in `src/skoleklar/fonts/` | SIL Open Font License 1.1 (`OFL-Arimo.txt`) |
 | The panel register sequence in `firmware/firebeetle-cloud/panel.cpp`, adapted from Waveshare | MIT (`firmware/firebeetle-cloud/PANEL-LICENSE.txt`) |
 
 Dependencies installed from `pyproject.toml` and the Arduino libraries keep

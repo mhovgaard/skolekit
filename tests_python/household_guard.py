@@ -17,7 +17,8 @@ import tomllib
 from pathlib import Path
 
 OWNER_HOME = Path.home() / ".config" / "ag-skoleintra"
-BINARY = {".png", ".webp", ".jpg", ".ttf", ".otf", ".pyc", ".db", ".bin", ".gz"}
+# Font files included: compressed bytes can happen to look like an address.
+BINARY = {".png", ".webp", ".jpg", ".ttf", ".otf", ".woff", ".woff2", ".pyc", ".db", ".bin", ".gz"}
 MONTHS = {"January", "February", "March", "April", "May", "June", "July", "August",
           "September", "October", "November", "December"}
 

@@ -100,14 +100,16 @@ WEATHER_FIRST_HOUR, WEATHER_LAST_HOUR = 6, 21
 def font(size: int, bold: bool = False, serif: bool = False) -> ImageFont.ImageFont:
     from PIL import ImageFont
 
-    if serif:
-        # The bundled Newsreader keeps headlines identical to the HTML. Pillow reads
-        # WOFF2 when FreeType has Brotli; without it the sans face below is used.
-        bundled = Path(__file__).with_name("fonts") / f"newsreader-latin-{700 if bold else 400}.woff2"
-        try:
-            return ImageFont.truetype(str(bundled), size=size)
-        except OSError:
-            pass
+    # Bundled faces draw the same panel on a Mac, in the cloud image and on GitHub:
+    # Newsreader keeps headlines identical to the HTML, and Arimo has Arial's widths,
+    # the sans the HTML asks for. Pillow reads WOFF2 when FreeType has Brotli; without
+    # it a system sans below is used, and wider faces such as DejaVu fit less text.
+    face = "newsreader" if serif else "arimo"
+    bundled = Path(__file__).with_name("fonts") / f"{face}-latin-{700 if bold else 400}.woff2"
+    try:
+        return ImageFont.truetype(str(bundled), size=size)
+    except OSError:
+        pass
     names = ["Arial Bold.ttf", "DejaVuSans-Bold.ttf"] if bold else ["Arial.ttf", "DejaVuSans.ttf"]
     roots = (
         Path("/System/Library/Fonts/Supplemental"),
