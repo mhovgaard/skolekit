@@ -127,5 +127,8 @@ def delivery_store_from_environment() -> DeliveryStore:
     bucket = os.environ.get("AG_DELIVERY_BUCKET")
     if bucket:
         return GCSDeliveryStore(bucket)
-    root = Path(os.environ.get("AG_DELIVERY_ROOT", ".ag-school/delivery"))
+    # Locally, in the household's folder: never in a checkout of the code.
+    from skolekit.state import state_dir
+
+    root = Path(os.environ.get("AG_DELIVERY_ROOT") or state_dir() / "delivery")
     return LocalDeliveryStore(root)

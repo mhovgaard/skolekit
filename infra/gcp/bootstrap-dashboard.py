@@ -24,6 +24,9 @@ import secrets
 import sqlite3
 import subprocess
 
+from skoleklar.settings import devices_dir
+from skolekit.state import state_dir
+
 KEYCHAIN_SERVICE = 'ag-skoleintra'
 HANDLE_KEY_ACCOUNT = 'message-handle-key'
 DATABASE_FILENAME = 'school-restricted.db'
@@ -33,9 +36,8 @@ MESSAGE_TABLES = ('message_thread_state', 'message_event_facts', 'message_proces
 
 
 def household_database() -> Path:
-    """The database seed-private-state.sh uploads."""
-    home = os.environ.get('AG_SCHOOL_HOME') or str(Path.home() / '.config' / 'ag-skoleintra')
-    return Path(home).expanduser() / DATABASE_FILENAME
+    """The database seed-private-state.sh uploads: in the household's folder."""
+    return state_dir() / DATABASE_FILENAME
 
 
 def holds_message_handles(database: Path) -> bool:
@@ -99,7 +101,7 @@ def main():
            '--member=serviceAccount:'+identity+'@'+project+'.iam.gserviceaccount.com',
            '--role=roles/secretmanager.secretAccessor')
 
-    root = Path('.ag-school/devices')
+    root = devices_dir()
     root.mkdir(parents=True,exist_ok=True,mode=0o700)
     path = root/'local-controller.json'
     if not path.exists():

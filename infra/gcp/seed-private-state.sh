@@ -3,7 +3,9 @@
 set -euo pipefail
 
 PROJECT_ID="${1:-}"
-STATE_ROOT="${AG_SCHOOL_HOME:-${HOME}/.config/ag-skoleintra}"
+# The household's folder, as the code finds it: AG_SCHOOL_HOME, else ~/.config/skoleklar
+# (or ~/.config/ag-skoleintra while that older folder hasn't been moved).
+STATE_ROOT="$(uv run --quiet python -c 'import skoleklar; from skolekit.state import state_dir; print(state_dir())')"
 BUCKET="${PROJECT_ID}-ag-private-state"
 REPLACE="false"
 

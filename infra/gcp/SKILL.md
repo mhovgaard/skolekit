@@ -76,7 +76,7 @@ pass before the next step.
 | --- | --- | --- | --- |
 | 0.1 | `uv run skoleklar login`, then `uv run skoleklar check` | parent | the saved session works |
 | 0.2 | With `[runtime] where = "local"`, one local scan in the cloud's message mode: `uv run skoleklar scan --message-mode events-only --message-processor zdr` (or `--message-mode off`) | parent | it ends `complete` |
-| 0.3 | `uv run skoleklar db check --db ~/.config/ag-skoleintra/school-restricted.db` | agent | every invariant passes |
+| 0.3 | `uv run skoleklar db check --db ~/.config/skoleklar/school-restricted.db` | agent | every invariant passes |
 
 This leaves these on the Mac:
 
@@ -184,7 +184,7 @@ A new gateway route needs a new API config. The steps are in
 1. Pause the three schedules with `gcloud scheduler jobs pause JOB
    --location=REGION`.
 2. Copy the latest database and `auth-state.json` down into
-   `~/.config/ag-skoleintra/`. Ask before replacing local files.
+   `~/.config/skoleklar/`. Ask before replacing local files.
 3. Resume local scans.
 
 Deleting the project or its resources is the owner's act, not this skill's.

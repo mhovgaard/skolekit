@@ -265,9 +265,9 @@ The cloud does not hold everything. These stay local:
 | --- | --- | --- |
 | The iPhone's device token (plaintext) | Keychain, `ag-skoleintra` | `bootstrap-device-token.sh` |
 | The gateway API key | Keychain, account `family-primary-iphone-gateway-api-key` | `deploy-gateway.sh` |
-| The local controller's token | `.ag-school/devices/local-controller.json`, mode 0600 | `bootstrap-dashboard.py` |
+| The local controller's token | `~/.config/skoleklar/devices/local-controller.json`, mode 0600 | `bootstrap-dashboard.py` |
 | The message-handle key | Keychain, `ag-skoleintra` / `message-handle-key` | the first local scan with messages on, or `bootstrap-dashboard.py` when no message handle is stored |
-| The verified local database and session | `~/.config/ag-skoleintra/` | local mode |
+| The verified local database and session | `~/.config/skoleklar/` | local mode |
 
 Copy a token to the phone with `uv run python -m skoleklar.device_token copy`
 and `gateway-copy`, then clear the clipboard.

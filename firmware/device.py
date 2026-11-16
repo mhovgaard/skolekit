@@ -4,6 +4,8 @@
 Use the repository .venv/bin/python (httpx and cryptography are required for
 setup/HTTPS checks). USB control itself uses the Python standard library.
 Secrets are never accepted as command-line arguments or printed on failure.
+The board's private files live in the household's folder,
+~/.config/skoleklar/devices/ (skoleklar.settings.devices_dir), never in a checkout.
 """
 from __future__ import annotations
 
@@ -28,8 +30,11 @@ import termios
 import time
 from urllib.parse import urlparse
 
+from skoleklar.settings import devices_dir
+
 ROOT = Path(__file__).resolve().parent.parent
-PRIVATE = ROOT / '.ag-school' / 'devices' / 'firebeetle'
+DEVICES = devices_dir()
+PRIVATE = DEVICES / 'firebeetle'
 CONFIG = PRIVATE / 'device.json'
 CERT = PRIVATE / 'device-cert.pem'
 DEVICE = 'firebeetle-ag'
@@ -77,7 +82,7 @@ def gateway_access(project: str, region: str) -> tuple[str, str]:
     An older `local-controller.json` may name both. Otherwise the origin is the
     deployed gateway's own hostname and the key is the one in the Keychain.
     """
-    path = ROOT / '.ag-school/devices/local-controller.json'
+    path = DEVICES / 'local-controller.json'
     controller = json.loads(path.read_text()) if path.exists() else {}
     base_url = controller.get('base_url')
     if not base_url:

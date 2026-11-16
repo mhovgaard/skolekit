@@ -93,16 +93,16 @@ browser board at `/board-status`; PNG diagnostic routes are `/preview.png` and
 
 `bootstrap-dashboard.py` registers a `local-controller` device with the
 `refresh` and `display` scopes and keeps its token in
-`.ag-school/devices/local-controller.json`. The one-shot client uses it to ask
+`~/.config/skoleklar/devices/local-controller.json`. The one-shot client uses it to ask
 for a scan, check that request, or fetch the current board image. It takes the
 gateway key from the Keychain:
 
 ```sh
-.venv/bin/python -m skoleklar.device_client --config .ag-school/devices/local-controller.json \
+.venv/bin/python -m skoleklar.device_client --config ~/.config/skoleklar/devices/local-controller.json \
   --base-url https://GATEWAY_HOST refresh
-.venv/bin/python -m skoleklar.device_client --config .ag-school/devices/local-controller.json \
+.venv/bin/python -m skoleklar.device_client --config ~/.config/skoleklar/devices/local-controller.json \
   --base-url https://GATEWAY_HOST status REQUEST_UUID
-.venv/bin/python -m skoleklar.device_client --config .ag-school/devices/local-controller.json \
+.venv/bin/python -m skoleklar.device_client --config ~/.config/skoleklar/devices/local-controller.json \
   --base-url https://GATEWAY_HOST image --output rendering/private/current/cloud.png
 ```
 

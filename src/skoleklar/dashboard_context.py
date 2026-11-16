@@ -164,7 +164,9 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", type=Path, default=Path.home() / ".config/ag-skoleintra/school-restricted.db")
+    from skolekit.state import state_dir
+
+    parser.add_argument("--db", type=Path, default=state_dir() / "school-restricted.db")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--now", type=datetime.fromisoformat, default=None)
     parser.add_argument("--days", type=int, default=10)

@@ -1,7 +1,7 @@
 """The real household's identifiers, read from the owner's own files, never from the repository.
 
 The household's school host, children's names and student IDs live only in
-`~/.config/ag-skoleintra/school.toml` and `profile.toml` (decision 1); its cloud
+`~/.config/skoleklar/school.toml` and `profile.toml` (decision 1); its cloud
 project, the parents' addresses and its town live in `skoleklar.toml`. A guard
 test reads them there, on the owner's machine, and checks that none appears in
 the code or the fixtures. With or without those files, it also refuses a
@@ -16,7 +16,17 @@ import re
 import tomllib
 from pathlib import Path
 
-OWNER_HOME = Path.home() / ".config" / "ag-skoleintra"
+def _owner_home() -> Path:
+    """The owner's folder as skoleklar/settings.py names it, or its earlier name while it
+    hasn't been moved. Not AG_SCHOOL_HOME: the tests point that at an invented household."""
+    config = Path.home() / ".config"
+    for name in ("skoleklar", "ag-skoleintra"):
+        if (config / name).exists():
+            return config / name
+    return config / "skoleklar"
+
+
+OWNER_HOME = _owner_home()
 # Font files included: compressed bytes can happen to look like an address.
 BINARY = {".png", ".webp", ".jpg", ".ttf", ".otf", ".woff", ".woff2", ".pyc", ".db", ".bin", ".gz"}
 MONTHS = {"January", "February", "March", "April", "May", "June", "July", "August",

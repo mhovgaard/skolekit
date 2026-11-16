@@ -29,7 +29,12 @@ Choose one scope:
 | Scope | Commands | Private directory | Override |
 | --- | --- | --- | --- |
 | Toolkit only | `skolekit` | `~/.config/skolekit/` | `SKOLEKIT_HOME` |
-| Household product | `skoleklar` | `~/.config/ag-skoleintra/` | `AG_SCHOOL_HOME` |
+| Household product | `skoleklar` | `~/.config/skoleklar/` | `AG_SCHOOL_HOME` |
+
+The product's folder also holds the board's and local controller's files, under
+`devices/`; nothing private is kept in the code's own folder. An installation from
+before the rename still works from `~/.config/ag-skoleintra/` until it is moved
+with `mv ~/.config/ag-skoleintra ~/.config/skoleklar`.
 
 The two scopes have separate sessions and profiles. Product commands mount the
 same live reads using the household's files.
@@ -157,8 +162,8 @@ With the local runtime, back the database up into the private directory and
 serve that copy; repeat the backup after a scan to see the new records:
 
 ```sh
-sqlite3 ~/.config/ag-skoleintra/school-restricted.db ".backup '$HOME/.config/ag-skoleintra/mcp-copy.db'"
-uv run --extra mcp skoleklar mcp --db ~/.config/ag-skoleintra/mcp-copy.db
+sqlite3 ~/.config/skoleklar/school-restricted.db ".backup '$HOME/.config/skoleklar/mcp-copy.db'"
+uv run --extra mcp skoleklar mcp --db ~/.config/skoleklar/mcp-copy.db
 ```
 
 Register the same commands in the agent client's stdio MCP configuration.

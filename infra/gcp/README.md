@@ -216,7 +216,7 @@ Start the delivery API against local delivery objects with a SHA-256
 device-token hash in `AG_DEVICE_TOKEN_HASH`:
 
 ```bash
-AG_DELIVERY_ROOT="$HOME/.config/ag-skoleintra/delivery" \
+AG_DELIVERY_ROOT="$HOME/.config/skoleklar/delivery" \
   uv run uvicorn skoleklar.delivery_api:app \
   --host 127.0.0.1 --port 8080 --no-access-log
 ```

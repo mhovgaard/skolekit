@@ -115,6 +115,33 @@ def test_skolekit_alone_uses_its_own_names_and_the_product_sets_its_own(tmp_path
     assert product == [str((tmp_path / "product").resolve()), "ag-skoleintra", "AG_SCHOOL_USERNAME"]
 
 
+def test_the_household_folder_is_skoleklar_and_an_unmoved_one_still_works(tmp_path, monkeypatch):
+    from skoleklar.settings import devices_dir
+    from skolekit.state import keychain_service, state_dir
+
+    monkeypatch.delenv("AG_SCHOOL_HOME")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    config = tmp_path / ".config"
+    assert state_dir() == config / "skoleklar"  # a new installation
+    (config / "ag-skoleintra").mkdir(parents=True)
+    assert state_dir() == config / "ag-skoleintra"  # one from before the rename, not yet moved
+    (config / "skoleklar").mkdir()
+    assert state_dir() == config / "skoleklar"  # moved: the new folder wins
+    assert devices_dir() == config / "skoleklar" / "devices"
+    # The stored secrets keep their Keychain name.
+    assert keychain_service() == "ag-skoleintra"
+
+
+def test_no_code_keeps_private_files_in_the_checkout():
+    # Device identities, delivery files and databases live in the household's folder
+    # (skoleklar.settings), so a clone of the public code never holds one.
+    tracked = subprocess.run(["git", "ls-files", "src", "firmware", "infra"], cwd=ROOT,
+                             capture_output=True, text=True, check=True).stdout.split()
+    found = [name for name in tracked if name.endswith((".py", ".sh"))
+             and ".ag-school" in (ROOT / name).read_text(encoding="utf-8")]
+    assert found == []
+
+
 def test_the_product_command_is_skoleklar_only():
     import tomllib
 

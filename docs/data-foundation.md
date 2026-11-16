@@ -111,7 +111,7 @@ uv run skoleklar db query last-scan
 uv run skoleklar db query bookings
 uv run skoleklar db query trace SEARCH_TEXT
 uv run skoleklar db check
-uv run skoleklar week --db ~/.config/ag-skoleintra/cloud/school-restricted.db
+uv run skoleklar week --db ~/.config/skoleklar/cloud/school-restricted.db
 ```
 
 | Saved query | Answers |

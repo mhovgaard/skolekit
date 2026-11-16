@@ -13,8 +13,10 @@ ownership map, independent of any installation's deployment history.
 The project is one distribution with two import packages and two CLI entry
 points. `skolekit` can be used without the product's optional integrations.
 The old `agskoleintra` import package and `ag-school` CLI alias are absent.
-Existing `ag-skoleintra` state paths, `AG_*` settings and `agskoleintra-*`
-cloud resource names remain intentional compatibility names.
+The household's private folder is `~/.config/skoleklar`, device files
+included; one still at `~/.config/ag-skoleintra` is used until it is moved.
+The `ag-skoleintra` Keychain service, the `AG_*` settings and the
+`agskoleintra-*` cloud resource names remain intentional compatibility names.
 
 The CLI parser defines flags and imports handlers only after selection.
 Service functions use request dataclasses and `StageResult`; the scan does

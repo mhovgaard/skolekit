@@ -20,8 +20,9 @@ def helper(tmp_path, monkeypatch):
     spec = importlib.util.spec_from_file_location('firebeetle_device', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    private = tmp_path / '.ag-school/devices/firebeetle'
+    private = tmp_path / 'devices/firebeetle'
     monkeypatch.setattr(module, 'ROOT', tmp_path)
+    monkeypatch.setattr(module, 'DEVICES', private.parent)
     monkeypatch.setattr(module, 'PRIVATE', private)
     monkeypatch.setattr(module, 'CONFIG', private / 'device.json')
     monkeypatch.setattr(module, 'CERT', private / 'device-cert.pem')

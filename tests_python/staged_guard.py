@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tests_python.household_guard import BINARY, household_patterns, kinds_in
+from tests_python.household_guard import BINARY, OWNER_HOME, household_patterns, kinds_in
 
 # Its list of month names is not about anyone; the tracked-file test skips it too.
 GUARD = "tests_python/household_guard.py"
@@ -38,6 +38,11 @@ def staged_offenders(repo: Path) -> list[str]:
 def main() -> int:
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True)
     found = staged_offenders(Path(top.stdout.strip()))
+    if household_patterns() is None:
+        # Say so: on the owner's machine this means the names aren't being checked.
+        where = str(OWNER_HOME).replace(str(Path.home()), "~", 1)
+        print(f"privacy check: no household files in {where}; checking only for addresses, "
+              "home paths and gateway hosts", file=sys.stderr)
     for line in found:
         print(f"privacy check: {line}", file=sys.stderr)
     if found:

@@ -251,7 +251,9 @@ def main() -> None:
     from skoleklar.storage import SnapshotStore
 
     parser = argparse.ArgumentParser(description=main.__doc__)
-    parser.add_argument("--db", type=Path, default=Path.home() / ".config/ag-skoleintra/school-restricted.db")
+    from skolekit.state import state_dir
+
+    parser.add_argument("--db", type=Path, default=state_dir() / "school-restricted.db")
     parser.add_argument("--today", type=date.fromisoformat, default=date.today())
     args = parser.parse_args()
     with SnapshotStore(args.db, read_only=True) as store:

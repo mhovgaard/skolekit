@@ -23,21 +23,32 @@ from typing import Any
 class Settings:
     """The names the toolkit's state and secrets go under."""
 
-    # Names the default state directory (~/.config/NAME) and the Keychain service.
+    # Names the default state directory (~/.config/NAME) and, unless `keychain`
+    # says otherwise, the Keychain service.
     name: str = "skolekit"
     # The variable that moves the state directory.
     home_env: str = "SKOLEKIT_HOME"
     # The variables a scheduled run passes the school login in.
     username_env: str = "SKOLEKIT_USERNAME"
     password_env: str = "SKOLEKIT_PASSWORD"
+    # A Keychain service kept from an earlier name, so stored secrets are still found.
+    keychain: str | None = None
+    # Earlier state directory names (~/.config/OLD), used only while ~/.config/NAME
+    # doesn't exist, so an installation keeps working until its folder is moved.
+    legacy_homes: tuple[str, ...] = ()
 
     @property
     def default_home(self) -> Path:
-        return Path.home() / ".config" / self.name
+        config = Path.home() / ".config"
+        if not (config / self.name).exists():
+            for old in self.legacy_homes:
+                if (config / old).exists():
+                    return config / old
+        return config / self.name
 
     @property
     def keychain_service(self) -> str:
-        return self.name
+        return self.keychain or self.name
 
 
 _settings: list[Settings] = [Settings()]

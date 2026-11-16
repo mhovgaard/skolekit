@@ -56,7 +56,7 @@ board. Its pictures are private, like its other files, and never part of the
 repository:
 
 - put `artwork/<preset>.webp` in the household's folder
-  (`~/.config/ag-skoleintra/`), one file for each preset it wants to replace:
+  (`~/.config/skoleklar/`), one file for each preset it wants to replace:
   `spring-dry`, `spring-rain`, `summer-dry`, `summer-rain`, `autumn-dry`,
   `autumn-rain`, `winter-dry`, `winter-rain`, `winter-snow`;
 - each is a WebP of 680×400, at most 2 MB. A file of another kind or size is
@@ -69,7 +69,7 @@ private bucket, beside the household's other files, and never uploads or
 changes them:
 
 ```sh
-gcloud storage cp ~/.config/ag-skoleintra/artwork/*.webp gs://PROJECT-ag-private-state/state/artwork/
+gcloud storage cp ~/.config/skoleklar/artwork/*.webp gs://PROJECT-ag-private-state/state/artwork/
 ```
 
 The next scan draws the board with them. Only the scan needs them: the browser

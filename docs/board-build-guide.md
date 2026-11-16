@@ -133,8 +133,8 @@ Give the board its own identity, once:
 reads the gateway's hostname from the project and the gateway key from the
 Keychain, where `deploy-gateway.sh` put it. It adds a display-only entry to the
 cloud's device registry, reloads the delivery service, and creates the board's
-private files in `.ag-school/devices/firebeetle/`. Git ignores them,
-and only you can read them. They hold:
+private files in `~/.config/skoleklar/devices/firebeetle/`, outside the code,
+where only you can read them. They hold:
 
 - its token;
 - the gateway key;
@@ -208,7 +208,7 @@ warning:
 .venv/bin/python firmware/device.py certificate   # where it is, and its fingerprint
 security add-trusted-cert -r trustAsRoot -p ssl -s firebeetle-ag.local \
   -k "$HOME/Library/Keychains/login.keychain-db" \
-  "$PWD/.ag-school/devices/firebeetle/device-cert.pem"
+  "$HOME/.config/skoleklar/devices/firebeetle/device-cert.pem"
 .venv/bin/python firmware/device.py web-test       # checks the page with that exact certificate
 ```
 
