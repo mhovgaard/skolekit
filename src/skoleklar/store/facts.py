@@ -210,6 +210,7 @@ class FactRepository:
         end: date,
         weekly_plan_keys: set[str],
         limit: int,
+        today: date | None = None,
     ) -> list[dict[str, Any]]:
         """Current sources whose live facts were made under an older contract.
 
@@ -217,8 +218,10 @@ class FactRepository:
         used a prompt or filter outside `current_versions`, and it bears on the
         board: one of its facts falls between `start` and `end`, or it is a weekly
         plan in `weekly_plan_keys`. Sources are grouped as `backfill_candidates`
-        groups them, and the nearest come first.
+        groups them. Those with a fact from `today` (default `start`) on come first,
+        the soonest first; then the week's past days, the latest first.
         """
+        today_text = (today or start).isoformat()
         if limit < 1:
             return []
         placeholders = ",".join("?" for _ in current_versions)
@@ -227,7 +230,8 @@ class FactRepository:
             f"""
             SELECT r.id AS record_id, r.child, r.source_type, r.source_key, r.source_url,
                    v.id AS version_id, v.content_hash, v.payload_json,
-                   MIN(COALESCE(i.effective_date, '9999-12-31')) AS first_date
+                   MIN(CASE WHEN i.effective_date >= ? THEN i.effective_date END) AS next_date,
+                   MAX(i.effective_date) AS last_date
             FROM derivations d
             JOIN derivation_sources s ON s.derivation_id = d.id
             JOIN records r ON r.id = s.record_id AND r.current_version_id = s.version_id
@@ -245,9 +249,9 @@ class FactRepository:
               AND ((r.source_type = 'weekly_plan' AND r.source_key IN ({plan_placeholders}))
                    OR (i.effective_date <= ? AND COALESCE(i.end_date, i.effective_date) >= ?))
             GROUP BY r.id, v.id
-            ORDER BY first_date, r.child, r.source_type, r.source_key
+            ORDER BY next_date IS NULL, next_date, last_date DESC, r.child, r.source_type, r.source_key
             """,
-            [*sorted(current_versions), *sorted(weekly_plan_keys), end.isoformat(),
+            [today_text, *sorted(current_versions), *sorted(weekly_plan_keys), end.isoformat(),
              start.isoformat()],
         ).fetchall()
         run_id = self.latest_completed_run_id()
@@ -272,7 +276,7 @@ class FactRepository:
 
     def cached_derivation(self, cache_key: str) -> dict[str, Any] | None:
         row = self.connection.execute(
-            "SELECT id, status, purpose FROM derivations WHERE cache_key = ?",
+            "SELECT id, status, purpose, completed_at FROM derivations WHERE cache_key = ?",
             (cache_key,),
         ).fetchone()
         return dict(row) if row is not None else None

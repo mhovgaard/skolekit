@@ -541,7 +541,7 @@ def derive(request: DeriveRequest) -> StageResult:
             stale = [candidate for candidate in store.contract_candidates(
                 current_versions={PROMPT_VERSION, ROUTINE_CALENDAR_FILTER_VERSION},
                 start=_window_start(as_of), end=as_of + timedelta(days=MIGRATION_DAYS),
-                weekly_plan_keys=_plan_keys(as_of), limit=request.migrate_limit)
+                weekly_plan_keys=_plan_keys(as_of), limit=request.migrate_limit, today=as_of)
                 if tuple(sorted(source["version_id"] for source in candidate["sources"])) not in known]
             if request.source:
                 stale = [candidate for candidate in stale if candidate["source_type"] in request.source]

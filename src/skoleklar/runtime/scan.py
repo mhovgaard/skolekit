@@ -435,7 +435,12 @@ def _with_lookahead(frame, lookahead, at):
     """The parents' board's days ahead and later events; the board never depends on them."""
     from skoleklar.parents_board import attach_lookahead
     try:
-        return attach_lookahead(frame, lookahead(at))
+        context = lookahead(at)
+        frame = attach_lookahead(frame, context)
+        # The days ahead read their own, longer context: its facts must be current too.
+        if (context.get("contract") or {}).get("stale"):
+            frame = health.record(frame, "facts", health.degraded("old_contract"))
+        return frame
     except Exception as error:
         _event("lookahead_failed", error_type=type(error).__name__)
         return health.record(frame, "lookahead", health.degraded(error))
