@@ -65,7 +65,7 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
         frozenset({
             # derive
             "candidate_count", "failures", "contract_candidate_count", "contract_failure_count",
-            "lost_key_count",
+            "contract_backoff_count", "contract_failure_code", "lost_key_count",
             # consolidate
             "input_count", "output_count", "reduction_count", "dropped_group_count",
             "unknown_id_count", "repeated_id_count", "omitted_id_count",

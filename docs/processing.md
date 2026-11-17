@@ -41,8 +41,10 @@ is migrated, never read around: each scan re-derives the sources whose live fact
 in the board's window (this and next week's plans, anything dated from the Monday
 of the week the board shows to 18 days ahead) were made under an older one, the
 nearest first and at most 40 a scan (`derive --migrate`). A source that fails keeps
-its older facts and is tried again next scan; it never stops the scan, and the
-board's health says `facts` are missing. A lesson change's stable key does not
+its older facts and is tried again a day later (`MIGRATION_RETRY`), not every scan;
+it never stops the scan, the board's health says `facts` are missing meanwhile, and
+the scan logs a fixed failure code (`contract_failure_code`), never the error's text.
+Sources with a fact from today on are re-derived first, then the week's past days. A lesson change's stable key does not
 move with the lesson reader's version (`LESSON_KEY_VERSION`). The board's context counts any fact still on an older
 contract, and the board says so in its health line. A re-derivation that rewords
 a dedupe hint gives the fact a new stable key, and the phone's acknowledgement stays

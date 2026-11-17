@@ -14,7 +14,7 @@ import os
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -614,6 +614,7 @@ def derive(request: DeriveRequest) -> StageResult:
         # A source re-derived for a newer contract that fails keeps its older facts and
         # is tried again next scan; it never stops the scan (docs/processing.md).
         contract_failures = 0
+        contract_backoffs = 0
         aborted = False
         for candidate in candidates:
             deterministic_items = deterministic_calendar_items(candidate)
@@ -641,6 +642,14 @@ def derive(request: DeriveRequest) -> StageResult:
                         "derivation_id": cached["id"],
                     }
                 )
+                continue
+            if (candidate.get("change") == "contract" and cached and cached["status"] == "failed"
+                    and _failed_recently(cached.get("completed_at"))):
+                # A re-derivation that failed is tried again a day later, not every scan:
+                # the source keeps its older facts, and the board says so meanwhile.
+                contract_backoffs += 1
+                results.append({"source": candidate["source_type"], "source_key": candidate["source_key"],
+                                "status": "backoff", "contract": True, "derivation_id": cached["id"]})
                 continue
             if cached and cached["status"] == "running":
                 results.append(
@@ -728,6 +737,7 @@ def derive(request: DeriveRequest) -> StageResult:
                         "source_key": candidate["source_key"],
                         "status": "failed",
                         "error": str(error),
+                        **({"contract": True} if candidate.get("change") == "contract" else {}),
                     }
                 )
                 if isinstance(error, OpenRouterHTTPError) and error.status_code in {
@@ -753,6 +763,7 @@ def derive(request: DeriveRequest) -> StageResult:
             "processed_count": len(results),
             "contract_candidate_count": migrated,
             "contract_failure_count": contract_failures,
+            "contract_backoff_count": contract_backoffs,
             "failures": failures,
             "aborted": aborted,
             "results": results,
@@ -764,6 +775,20 @@ def derive(request: DeriveRequest) -> StageResult:
 
 # The board's window for facts the migration re-derives: its context's reach.
 MIGRATION_DAYS = 18
+# How long a failed re-derivation waits before the scan tries it again.
+MIGRATION_RETRY = timedelta(hours=24)
+
+
+def _failed_recently(completed_at: str | None) -> bool:
+    if not completed_at:
+        return False
+    try:
+        failed = datetime.fromisoformat(str(completed_at).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if failed.tzinfo is None:
+        failed = failed.replace(tzinfo=UTC)
+    return datetime.now(UTC) - failed < MIGRATION_RETRY
 
 
 def _window_start(as_of: date) -> date:

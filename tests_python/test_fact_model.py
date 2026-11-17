@@ -181,11 +181,14 @@ def test_a_source_on_an_older_contract_earlier_in_the_shown_week_is_rederived(tm
 def test_a_failed_rederivation_never_stops_the_scan(tmp_path, monkeypatch):
     from skoleklar import pipeline
 
+    calls = []
+
     class Failing:
         def __init__(self, **_):
             pass
 
         def derive(self, document):
+            calls.append(document)
             raise RuntimeError("the model is down")
 
     path = stored_under_an_older_contract(tmp_path)
@@ -197,3 +200,22 @@ def test_a_failed_rederivation_never_stops_the_scan(tmp_path, monkeypatch):
     assert (result.output["contract_candidate_count"], result.output["contract_failure_count"],
             result.output["failures"]) == (1, 1, 0)
     assert result.output["continuity"] == {"kept_count": 0, "lost_count": 0, "lost": []}
+    # The next scan the same day backs off: no model call, and the source still counts.
+    again = pipeline.derive(pipeline.DeriveRequest(db=path, migrate=True, as_of="2026-11-18"))
+    assert again.exit_code == 0 and len(calls) == 1
+    assert (again.output["contract_backoff_count"], again.output["contract_failure_count"]) == (1, 0)
+    # A day later it is tried again.
+    monkeypatch.setattr(pipeline, "_failed_recently", lambda completed_at: False)
+    pipeline.derive(pipeline.DeriveRequest(db=path, migrate=True, as_of="2026-11-18"))
+    assert len(calls) == 2
+
+
+def test_the_scan_logs_why_a_rederivation_failed_by_code_only():
+    from skoleklar.runtime.scan import _stage_summary
+    summary = _stage_summary("derive", {
+        "candidate_count": 3, "contract_candidate_count": 2, "contract_failure_count": 1,
+        "contract_backoff_count": 1, "failures": 0,
+        "results": [{"status": "failed", "contract": True,
+                     "error": "OpenRouter Chat Completions API returned 429: private detail"}]})
+    assert summary == {"candidate_count": 3, "contract_candidate_count": 2, "contract_failure_count": 1,
+                       "failures": 0, "contract_backoff_count": 1, "contract_failure_code": "provider_http_429"}

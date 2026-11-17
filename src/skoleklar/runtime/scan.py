@@ -128,6 +128,13 @@ def _stage_summary(stage: str, payload: dict[str, Any] | None) -> dict[str, Any]
             for key in ("candidate_count", "contract_candidate_count", "contract_failure_count", "failures")
             if isinstance(payload.get(key), int)
         }
+        if isinstance(payload.get("contract_backoff_count"), int) and payload["contract_backoff_count"]:
+            summary["contract_backoff_count"] = payload["contract_backoff_count"]
+        # Why a re-derivation for a newer contract failed, as a fixed code; never its text.
+        failed = [result for result in payload.get("results") or []
+                  if isinstance(result, dict) and result.get("contract") and result.get("status") == "failed"]
+        if failed:
+            summary["contract_failure_code"] = _safe_failure_code({"results": failed})
         # How many seen or ticked-off facts a re-derivation gave a new key; never which.
         continuity = payload.get("continuity")
         if isinstance(continuity, dict) and isinstance(continuity.get("lost_count"), int):
@@ -591,7 +598,8 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
         # What the board and the brief say is missing (skoleklar.health).
         scan_health = {
             # A source the migration could not re-derive keeps its older facts.
-            **({"facts": health.degraded("rederive_failed")} if derived.get("contract_failure_count") else {}),
+            **({"facts": health.degraded("rederive_failed")}
+               if derived.get("contract_failure_count") or derived.get("contract_backoff_count") else {}),
             "day_summaries": _generate_day_summaries(database, model=model, message_mode=message_mode,
                                                      today=target_date),
             "review_checks": _check_reviews(database, model=model, message_mode=message_mode,
