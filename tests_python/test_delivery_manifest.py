@@ -60,7 +60,7 @@ def test_builds_deterministic_valid_manifest_and_routes_native_items() -> None:
         items, target_date=date(2026, 8, 25), generated_at=generated_at
     )
 
-    validate_contract("manifest-v1", first)
+    validate_contract("manifest-v2", first)
     assert first == second
     assert first["calendar"][0]["title"] == "Beta · Museum trip"
     assert first["reminders"][0]["list"] == "School · Bring home"
@@ -163,3 +163,18 @@ def test_stale_consolidation_falls_back_to_current_derivations() -> None:
             return 9
 
     assert delivery_items_from_snapshot(Store()) == current
+
+
+def test_each_entry_says_what_it_is_in_typed_fields() -> None:
+    """The phone reads the same typed facts as the board (skoleklar.fact), never a title."""
+    bring = item(stable_key="bring-1", item_type="bring", title="Medbring gave", bring_items=["gave"],
+                 actionability="required")
+    trip = item(stable_key="trip-1", item_type="event", title="Skovdag", category="trip")
+    manifest = build_delivery_manifest([bring, trip], target_date=date(2026, 8, 24),
+                                       generated_at=datetime(2026, 8, 24, 6, tzinfo=UTC))
+    [reminder] = manifest["reminders"]
+    assert (reminder["kind"], reminder["fact"]["type"], reminder["fact"]["bring_items"]) == ("bring", "bring", ["gave"])
+    [event] = manifest["calendar"]
+    assert (event["kind"], event["fact"]["category"]) == ("trip", "trip")
+    assert "contract" not in event["fact"]
+    validate_contract("manifest-v2", manifest)

@@ -46,7 +46,8 @@ def test_subject_is_checked_before_truncation_and_never_enters_saved_state():
     row = live.display_message("ChildA", {"SenderName": "Emilie Hansen", "Subject": "Ugeplan " * 12 + "ADHD"})
     assert row.sender == "Emilie H." and row.status == "redacted"
     output = render_html(data, live_messages=[row])
-    assert "Emilie H. (redacted)" in output
+    # The parents' board names the sender by first name and never draws a subject.
+    assert ">Emilie<" in output
     assert "ADHD" not in output and "Ugeplan" not in output
     assert "ADHD" not in repr(row)
     assert json.dumps(data) == before
@@ -59,8 +60,7 @@ def test_safe_subject_is_bounded_before_html_embedding():
     row = live.display_message("ChildA", {"SenderName": "Emilie Hansen", "Subject": "Ugeplan " * 12})
     assert row.status == "safe" and len(row.text) <= 44 and row.text.endswith("…")
     output = render_html(state(), live_messages=[row])
-    assert row.text in output
-    assert "Ugeplan " * 12 not in output
+    assert "Ugeplan " * 12 not in output and ">Emilie<" in output
 
 
 def test_named_subject_uses_harmless_context_and_recipient_breadth():
@@ -135,5 +135,6 @@ def test_retrieval_failure_is_per_child_and_does_not_echo_content(monkeypatch, c
     rows = live.load_live_messages(["Alfa", "Beta"])
     assert [r.status for r in rows] == ["unavailable", "safe"]
     output = render_html(state(), live_messages=rows)
-    assert "Emne utilgængeligt" in output and "PRIVATE SUBJECT CANARY" not in output
+    # A failed inbox never echoes what failed.
+    assert "PRIVATE SUBJECT CANARY" not in output
     assert capsys.readouterr().out == ""

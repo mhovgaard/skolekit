@@ -22,7 +22,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "delivery"
 def test_valid_manifest_fixtures(name: str) -> None:
     value = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
-    validate_contract("manifest-v1", value)
+    validate_contract("manifest-v2", value)
 
 
 def test_valid_request_and_receipt_fixtures() -> None:
@@ -39,5 +39,5 @@ def test_valid_request_and_receipt_fixtures() -> None:
 def test_malformed_manifest_fixture_is_rejected() -> None:
     value = json.loads((FIXTURES / "manifest-malformed.json").read_text(encoding="utf-8"))
 
-    with pytest.raises(ValueError, match="manifest-v1 validation failed"):
-        validate_contract("manifest-v1", value)
+    with pytest.raises(ValueError, match="manifest-v2 validation failed"):
+        validate_contract("manifest-v2", value)

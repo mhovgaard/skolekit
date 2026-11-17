@@ -12,11 +12,57 @@ without meaning-bearing text are handled deterministically. Changed prose goes
 to the model as compact normalized text and relevant fields, never source HTML,
 login data or the database file.
 
-The active `derive-v9` bundle splits prose into atomic obligations, changes,
+The active `derive-v11` bundle splits prose into atomic obligations, changes,
 events and context. Its fact types (`event`, `schedule_change`, `bring`,
 `homework`, `parent_action` and others) are defined in its
-[semantic layer](../src/skoleklar/manifests/derive-v9/semantic-layer.md); the
-phone and board route by them. Timing depends on meaning: homework under a weekday is due
+[semantic layer](../src/skoleklar/manifests/derive-v11/semantic-layer.md). Each
+fact also says what it is, so nothing downstream has to guess it from the wording:
+an event's or a meeting's `category` (`trip`, `party`, `meeting`, `birthday` for a
+classmate's birth-date notice, `other`), whether a schedule change `moves_time`,
+whether an event is `recurring` (morning singing), its `school_subject`, a
+substitute's `teacher`, a bring-item's `bring_items` and whether they are
+`rain_gear`, and the `class_levels` the source says it concerns. A changed lesson
+from the timetable carries its `start_time` and `end_time`; the brief groups and
+times a lesson's changes from those, never from their sentences. Message facts say the same through their own extractor
+(`message-events-v4`: `activity_kind`, `celebrant`, `bring_items`).
+
+## The fact model
+
+[`skoleklar/fact.py`](../src/skoleklar/fact.py) defines these fields once: their
+types, the fact types each one belongs to, and how consolidation joins them. A
+value on a type it does not belong to, or of the wrong shape, becomes the field's
+empty value; it is a display hint, so a wrong one is dropped rather than sent for
+review. Every stage copies a fact by that list (the store, consolidation, the brief,
+the board's context, the week view and the MCP), so a new field is added to the
+model and its extractor and nowhere else (`tests_python/test_fact_model.py`).
+`fact.kind` is what a fact is on the board, from these fields alone; no stage reads
+a title to decide it.
+
+Every fact carries the `contract` it was made under (`fact-v1`). A contract change
+is migrated, never read around: each scan re-derives the sources whose live facts
+in the board's window (this and next week's plans, anything dated from the Monday
+of the week the board shows to 18 days ahead) were made under an older one, the
+nearest first and at most 40 a scan (`derive --migrate`). A source that fails keeps
+its older facts and is tried again a day later (`MIGRATION_RETRY`), not every scan;
+it never stops the scan, the board's health says `facts` are missing meanwhile, and
+the scan logs a fixed failure code (`contract_failure_code`), never the error's text.
+Sources with a fact from today on are re-derived first, then the week's past days. A lesson change's stable key does not
+move with the lesson reader's version (`LESSON_KEY_VERSION`). The board's context counts any fact still on an older
+contract, and the board says so in its health line. A re-derivation that rewords
+a dedupe hint gives the fact a new stable key, and the phone's acknowledgement stays
+with the old key, so run the migration on a copy first and read its `continuity`:
+
+```sh
+uv run skoleklar derive --db COPY.db --migrate --as-of YYYY-MM-DD
+```
+
+`continuity.lost` lists the seen or ticked-off facts whose key would change.
+
+The model reads each source once. A weekly plan goes as its days and general
+blocks (subject and text), without its flattened `body_text`, the repeated
+`content_data`, links, ids or code's heading guesses (`segments`): a week's plan
+is about 12,000 characters instead of 45,000. `content_data` is left out for
+every source whose `source_data` already holds it. Timing depends on meaning: homework under a weekday is due
 before that school day, bring-items are needed on that day, explicit dates win,
 and missing/uncertain dates are not guessed. Keep quantities, exceptions,
 optionality and family participation attached to their facts.
@@ -74,13 +120,25 @@ uv run skoleklar consolidation-report --db COPY.db
 
 ## Day summaries
 
-`day-summary-v1` retells a weekly plan as one child-friendly Danish paragraph
+`day-summary-v3` retells a weekly plan as one child-friendly Danish paragraph
 per school day. It keeps classroom activity separately from atomic obligations.
-Input omits child names, HTML, links and attachments. The prompt permits staff
-first names but forbids identifying children or adding sensitive matters; code
-cannot fully enforce the semantic naming policy.
+Input omits HTML, links and attachments. Where the plan names the child it is
+for, code replaces the name with `[barnet]` (whole word, genitive `-s`, as the
+profile writes it or in capitals: a name is often a word too, so `en bjørn i
+skoven` and `1. maj` stay; a name a teacher writes in lower case stays unmarked),
+so the child's own group, letters, turn or item reaches the summary as
+`du`: `Du og Emma laver en bogstavhistorie med F og H`. The prompt permits staff
+first names and the first names of classmates the plan puts with the child (their
+group or pair, a classmate the class celebrates), and forbids naming other
+children or adding sensitive matters; code cannot fully enforce the semantic
+naming policy. Each day also lists the facts derived from that day's plan, by a
+short id (`f1`), never their stable keys; the model names the ids its headline
+retells, and the store keeps their keys (`day_summaries.fact_keys_json`). The
+board's context then marks those facts `retold`, so the plan line is left out where
+a line of the day already shows one of them; no words are compared.
 
-Code validates day order, paired headline/text, length and relative-time rules.
+Code validates day order, paired headline/text, length and relative-time rules,
+and rejects `[barnet]` or the child's own name in the output.
 Summary caching includes plan version, prompt and model. A changed plan makes
 its previous summary unavailable until regenerated. The scan bounds the number
 of plans and retries failures on a later run. State statuses are `ok`,
@@ -91,13 +149,16 @@ uv run skoleklar day-summaries --db COPY.db --dry-run
 uv run skoleklar day-summaries --db COPY.db --show YYYY-MM-DD
 ```
 
-The children's view consumes summaries; they are not another source of facts
-and do not alter the composition model's fact packet.
+The children's view and the parents' board consume summaries; they are not
+another source of facts and do not alter the composition model's fact packet.
+Frames carry the summaries of the composed week and of the parents' board's
+school days ahead, which may reach into the next week.
 
 ## Review checks
 
 After summaries, the scan revisits flagged facts from today through its review
-window. Rules can reject another class's fact or a vague conference window
+window. Rules can reject another class's fact, by the `class_levels` the extractor
+gave it (never by class numbers in its words), or a vague conference window
 covered by an explicit child's appointment. Class context comes from stored
 profile/typed data, not a name hardcoded in the prompt.
 

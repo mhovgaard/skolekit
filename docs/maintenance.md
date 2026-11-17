@@ -41,7 +41,8 @@ uv run pytest -q
 ```
 
 Use focused tests during development, then the relevant full checks before a
-release. `tests_python/conftest.py` gives each test a synthetic household and
+release. `uv run pytest -m pipeline` runs the typed pipeline's core set (the fact
+model, extraction, the board's lines, structural checks and health) in seconds. `tests_python/conftest.py` gives each test a synthetic household and
 private temporary directories; do not substitute a real session. The privacy
 guard compares committed text with the owner's identifiers when available, and
 always refuses real-looking email addresses, home paths and deployed gateway

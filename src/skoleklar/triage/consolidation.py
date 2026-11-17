@@ -6,6 +6,7 @@ from collections import Counter
 from datetime import date
 from typing import Any
 
+from skoleklar import fact as fact_model
 from skoleklar.triage.derivation import (
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
@@ -68,6 +69,11 @@ def consolidation_cache_key(
             "manifest_hash": consolidation_manifest().content_hash,
             "member_stable_keys": sorted(item["stable_key"] for item in items),
             "document_hash": canonical_hash(document),
+            # What each member is (skoleklar.fact) is copied into the result, not sent
+            # to the model, so a member that now says more must not reuse an older result.
+            "member_meaning": sorted(json.dumps([item["stable_key"], fact_model.meaning(item)],
+                                                sort_keys=True, ensure_ascii=False)
+                                     for item in items),
         }
     )
 
@@ -242,6 +248,7 @@ def _materialize_group(
     item_type = canonical.pop("type")
     return {
         **canonical,
+        **_group_shape(item_type, members),
         "item_type": item_type,
         "stable_key": stable_key,
         "resolution": resolution,
@@ -267,32 +274,14 @@ def _materialize_group(
     }
 
 
+def _group_shape(item_type: str, members: list[dict[str, Any]]) -> dict[str, Any]:
+    """What a merged item is, from its members (`skoleklar.fact.merge`)."""
+    return fact_model.merge(item_type, members)
+
+
 def _materialize_unchanged(item: dict[str, Any]) -> dict[str, Any]:
-    return {
-        key: item[key]
-        for key in (
-            "stable_key",
-            "stream",
-            "item_type",
-            "audience",
-            "child",
-            "title",
-            "summary",
-            "effective_date",
-            "end_date",
-            "all_day",
-            "timing_rule",
-            "actionability",
-            "urgency",
-            "urgency_reason",
-            "confidence",
-            "needs_review",
-            "review_reason",
-            "source_urls",
-            "source_types",
-            "harvest_run_id",
-        )
-    } | {
+    return {key: item[key] for key in (*fact_model.CORE, *fact_model.PROVENANCE)} \
+        | fact_model.meaning(item) | {
         "resolution": "unchanged",
         "member_item_ids": [int(item["id"])],
         "reason": "No semantic duplicate was identified.",

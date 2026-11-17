@@ -48,7 +48,8 @@ def message_texts() -> list[str]:
     return sorted(text for text in texts if len(text) >= 12 and "<" not in text and text not in published)
 
 
-def test_a_harvest_with_message_processing_stores_no_message_text(monkeypatch, tmp_path):
+def harvest(monkeypatch, tmp_path, answer):
+    """A whole harvest with message processing; `answer(document)` is the stand-in model's items."""
     monkeypatch.setattr(calendar_source, "datetime", frozen_datetime())
     site = SyntheticSite()
     SessionStore().save({"cookies": []})
@@ -65,19 +66,54 @@ def test_a_harvest_with_message_processing_stores_no_message_text(monkeypatch, t
 
         def generate(self, document, **_kwargs):
             seen.append(json.dumps(document, ensure_ascii=False))
-            return {"response_id": "synthetic", "usage": {}, "output": {"items": []}}
+            return {"response_id": "synthetic", "usage": {}, "output": {"items": answer(document)}}
 
     monkeypatch.setattr("skoleklar.triage.message_events.OpenRouterClient", Model)
     database = tmp_path / "school-restricted.db"
     request = HarvestRequest(db=database, mode="initialize", message_mode="events-only",
                              message_processor="zdr", progress="off")
     result = asyncio.run(pipeline.harvest(request))
-
     assert result.exit_code == 0, result.output
+    durable = b"".join(path.read_bytes() for path in sorted(Path(tmp_path).glob("school-restricted.db*")))
+    return seen, durable, database
+
+
+def test_a_harvest_with_message_processing_stores_no_message_text(monkeypatch, tmp_path):
+    seen, durable, _ = harvest(monkeypatch, tmp_path, lambda document: [])
     texts = message_texts()
     assert len(texts) >= 3
     # The extraction saw the messages, in memory.
     assert any(text in document for document in seen for text in texts)
-    durable = b"".join(path.read_bytes() for path in sorted(Path(tmp_path).glob("school-restricted.db*")))
     stored = [text for text in texts if text.encode("utf-8") in durable]
+    assert stored == [], f"{len(stored)} message text(s) in the database"
+
+
+def test_a_birthday_invitation_stores_the_birthday_childs_first_name_and_no_text(monkeypatch, tmp_path):
+    """restricted-messages-v5: one first name per birthday party, and still no message text."""
+    import re
+    import sqlite3
+
+    from skoleklar.dashboard_events import CELEBRANT
+
+    named = set()
+
+    def answer(document):
+        # Every message 'invites' to a party, named after a capitalised word of its own text.
+        body = document["body_text"].strip()
+        word = next((w for w in re.findall(r"[A-ZÆØÅ][a-zæøå]{3,}", body) if CELEBRANT.fullmatch(w)), None)
+        if not body or word is None:
+            return []
+        named.add(word)
+        return [{"dedupe_hint": "party", "event_kind": "event", "activity_kind": "birthday_party",
+                 "celebrant": word, "effective_date": document["message_date"], "end_date": None,
+                 "all_day": True, "cancellation_state": "active", "necessary_location": None,
+                 "bring_items": [], "requirement": None, "confidence": 0.9, "needs_review": False,
+                 "evidence_quote": body[:24]}]
+
+    _, durable, database = harvest(monkeypatch, tmp_path, answer)
+    with sqlite3.connect(database) as connection:
+        kept = {row[0] for row in connection.execute(
+            "SELECT celebrant FROM message_event_facts WHERE celebrant IS NOT NULL")}
+    assert kept and kept <= named
+    stored = [text for text in message_texts() if text.encode("utf-8") in durable]
     assert stored == [], f"{len(stored)} message text(s) in the database"

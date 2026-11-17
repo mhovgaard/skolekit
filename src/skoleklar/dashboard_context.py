@@ -11,34 +11,49 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from skoleklar import fact as fact_model
 from skoleklar.brief import build_brief_range
 from skoleklar.dashboard_timing import dashboard_focus, new_messages_since
-from skoleklar.dashboard_events import ACTIVITY_LABELS, birthday_notice, confirmed_activity, event_confirmations
+from skoleklar.dashboard_events import (ACTIVITY_LABELS, activity_title, birthday_notice, confirmed_activity,
+                                        event_confirmations)
 from skoleklar.delivery_manifest import delivery_items_from_snapshot
 from skoleklar.triage.review_checks import apply_verdicts
 from skoleklar.storage import SnapshotStore
 
 ZONE = ZoneInfo("Europe/Copenhagen")
-FIELDS = ("type", "child", "title", "summary", "effective_date", "end_date",
-          "actionability", "urgency", "confidence", "needs_review")
+# What the board's context shows of a fact's columns (skoleklar.fact.BOARD_CORE).
+FIELDS = fact_model.BOARD_CORE
 # Facts that are the same thing for the board: everything but their reference.
 _SAME_FACT = ("type", "child", "title", "effective_date", "end_date", "actionability",
               "private_message_fact", "cancelled", "activity_kind", "confirmed_activity_kind",
               "message_thread", "birthday_notice")
 
 
+def meaning(item):
+    """What a fact is (skoleklar.fact), leaving out what is empty for it."""
+    return {key: value for key, value in fact_model.meaning(item).items()
+            if key != "contract" and value not in (None, [], False)}
+
+
 def collapse_duplicates(items):
     """One fact per distinct thing; repeats of the same fact add to its `repeats` count.
 
     Five identical substitute periods or a notice published to both classes under
-    one child become one fact, so the layout step never has to find them.
+    one child become one fact, so the layout step never has to find them. What
+    the fact is joins as consolidation joins it (`skoleklar.fact.merge`).
     """
     kept = {}
     result = []
     for item in items:
         key = tuple(re.sub(r"\s+", " ", str(item.get(k) or "")).strip().casefold() for k in _SAME_FACT)
         if key in kept:
-            kept[key]["repeats"] = kept[key].get("repeats", 1) + 1
+            first = kept[key]
+            first["repeats"] = first.get("repeats", 1) + 1
+            joined = fact_model.merge(first.get("type"), [{**first, "contract": fact_model.CONTRACT},
+                                                         {**item, "contract": fact_model.CONTRACT}])
+            for field in fact_model.names():
+                first.pop(field, None)
+            first.update(meaning(joined))
             continue
         kept[key] = item
         result.append(item)
@@ -98,14 +113,24 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
     # neutral per-export number instead of the opaque thread handle.
     thread_of = {item["stable_key"]: item["message_thread_ref"]
                  for item in items if item.get("message_thread_ref")}
+    # Facts a day summary's headline retells (day-summary-v3), so the board says them once.
+    retold_keys = store.retold_fact_keys()
+    retold = {item["stable_key"] for item in items
+              if retold_keys & {item["stable_key"], *(item.get("source_fact_keys") or [])}}
     thread_numbers = {}
     context_items = []
+    # Facts made under an older contract than the board reads; the scan re-derives them.
+    stale_contract = 0
     for index, item in enumerate(brief["items"], 1):
         fact = {"ref": f"fact-{index}", **{k: item[k] for k in FIELDS},
-                              "private_message_fact": item["stable_key"].startswith("message-event:"),
-                              "grouped": bool(item.get("grouped"))}
+                "private_message_fact": item["stable_key"].startswith("message-event:"),
+                "grouped": bool(item.get("grouped")), **meaning(item)}
+        if not fact_model.current(item):
+            stale_contract += 1
         if item.get("state") == "cancelled":
             fact["cancelled"] = True
+        if retold & {item["stable_key"], *(item.get("member_stable_keys") or [])}:
+            fact["retold"] = True
         thread = thread_of.get(item["stable_key"])
         if thread:
             fact["message_thread"] = thread_numbers.setdefault(thread, len(thread_numbers) + 1)
@@ -114,14 +139,13 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
         kind = confirmed_activity(item, confirmations)
         if kind:
             fact["confirmed_activity_kind"] = kind
-            fact["title"] = ACTIVITY_LABELS[kind]
+            fact["title"] = activity_title(kind, item.get("celebrant"))
             fact["summary"] = "Brugerbekræftet aktivitet; tidspunkt er ikke bekræftet."
         elif item.get("type") == "event" and item.get("activity_kind") in ACTIVITY_LABELS:
             # Extracted bounded category; a weekend activity the family should see.
             fact["activity_kind"] = item["activity_kind"]
-            fact["title"] = ACTIVITY_LABELS[item["activity_kind"]]
-        if fact.get("cancelled") and (kind or fact.get("activity_kind")):
-            fact["title"] += " aflyst"
+            # 'Emmas fødselsdag' when the invitation names the birthday child.
+            fact["title"] = activity_title(item["activity_kind"], item.get("celebrant"))
         context_items.append(fact)
     context_items = collapse_duplicates(context_items)
     children = sorted({row["child"] for row in checks})
@@ -158,7 +182,7 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
                       "expires_at": (updated + timedelta(hours=stale_hours)).isoformat(), "status": status},
         "harvest_run_id": run["id"], "source_checks": source_checks, "weekly_plans": weekly_plans,
         "items": context_items, "atomic_item_count": brief["atomic_item_count"],
-        "messages": messages,
+        "messages": messages, "contract": {"current": fact_model.CONTRACT, "stale": stale_contract},
     }
 
 

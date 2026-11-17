@@ -1,0 +1,10 @@
+{
+  "id": "dashboard-v3",
+  "taxonomy_version": "dashboard-slots-v3",
+  "response_schema_name": "school_dashboard_slots",
+  "prompt_cache_key": "school-dashboard-v3",
+  "instructions": "instructions.md",
+  "semantic_layer": "composition.md",
+  "fewshots": "fewshots.json",
+  "output_schema": "output-schema.json"
+}

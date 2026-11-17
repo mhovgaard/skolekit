@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any
 
+from skoleklar import fact as fact_model
 
 DAY_SCOPED_TYPES = {
     "homework",
@@ -178,19 +178,16 @@ def _compact_schedule_changes(
     return result
 
 
-def _schedule_group_key(item: dict[str, Any]) -> tuple[str, str, str] | None:
-    if item.get("type") != "schedule_change":
-        return None
-    # Restricted message facts intentionally have generic titles. Keep them
-    # separate because two private threads on one day need not describe one event.
-    if str(item.get("stable_key") or "").startswith("message-event:"):
+def _schedule_group_key(item: dict[str, Any]) -> tuple[Any, ...] | None:
+    """Changes of one lesson on one day, by what they say (`skoleklar.fact`): the
+    timetable's changes carry their times; other facts are never grouped."""
+    if item.get("type") != "schedule_change" or not item.get("start_time"):
         return None
     child = str(item.get("child") or "").strip()
     effective_date = str(item.get("effective_date") or "").strip()
-    title = _normalized_label(item.get("title"))
-    if not child or not effective_date or not title:
+    if not child or not effective_date:
         return None
-    return child, effective_date, title
+    return child, effective_date, item.get("school_subject"), item.get("teacher")
 
 
 def _schedule_group(members: list[dict[str, Any]]) -> dict[str, Any]:
@@ -206,11 +203,13 @@ def _schedule_group(members: list[dict[str, Any]]) -> dict[str, Any]:
         member_ids.append(member["id"])
         urls = {str(url) for url in member.get("source_urls") or []}
         source_urls.update(urls)
-        detail_key = _normalized_label(member.get("summary")) or stable_key
+        # The same lesson period twice is one detail: overlapping source lines.
+        detail_key = f"{member.get('start_time')}–{member.get('end_time')}"
         detail = details_by_summary.get(detail_key)
         if detail is None:
             details_by_summary[detail_key] = {
                 "summary": str(member.get("summary") or ""),
+                "time": detail_key,
                 "member_count": 1,
                 "member_ids": [member["id"]],
                 "member_stable_keys": [stable_key],
@@ -225,13 +224,7 @@ def _schedule_group(members: list[dict[str, Any]]) -> dict[str, Any]:
     details = list(details_by_summary.values())
     title = str(first.get("title") or "Skemaændring")
     effective_date = str(first["effective_date"])
-    times = sorted(
-        {
-            time_range
-            for detail in details
-            for time_range in _summary_time_ranges(detail["summary"])
-        }
-    )
+    times = sorted(detail["time"] for detail in details)
     change_count = len(times) if times else len(details)
     summary = (
         f"{title}: {change_count} "
@@ -274,6 +267,9 @@ def _schedule_group(members: list[dict[str, Any]]) -> dict[str, Any]:
         "seen": all(bool(item.get("seen")) for item in members),
         "completed": all(bool(item.get("completed")) for item in members),
         "source_urls": sorted(source_urls),
+        # What the group is: what its members say together (skoleklar.fact).
+        **fact_model.public({"type": "schedule_change",
+                             **fact_model.merge("schedule_change", members)}),
         "grouped": True,
         "group_kind": "adaptive_schedule",
         "member_count": len(members),
@@ -283,20 +279,6 @@ def _schedule_group(members: list[dict[str, Any]]) -> dict[str, Any]:
         "member_stable_keys": member_stable_keys,
         "details": details,
     }
-
-
-def _normalized_label(value: Any) -> str:
-    return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
-
-
-def _summary_time_ranges(value: str) -> list[str]:
-    return [
-        f"{start}–{end}"
-        for start, end in re.findall(
-            r"\bkl\.\s*(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})",
-            value,
-        )
-    ]
 
 
 def _strongest_value(
@@ -416,23 +398,13 @@ def _headline(signal: dict[str, Any], selected: list[dict[str, Any]]) -> str:
 
 def _public_item(item: dict[str, Any]) -> dict[str, Any]:
     return {
-        "id": item["id"],
-        "stable_key": item["stable_key"],
-        "type": item["item_type"],
-        "stream": item["stream"],
-        "child": item["child"],
-        "title": item["title"],
-        "summary": item["summary"],
-        "effective_date": item["effective_date"],
-        "end_date": item["end_date"],
-        "actionability": item["actionability"],
-        "urgency": item["urgency"],
-        "confidence": item["confidence"],
-        "needs_review": item["needs_review"],
+        # The columns the brief shows (skoleklar.fact.BRIEF_CORE).
+        **{key: item[key] for key in fact_model.BRIEF_CORE},
         "seen": bool(item.get("first_delivered_at") or item.get("acknowledged_at")),
         "completed": bool(item.get("completed_at")),
         "source_urls": item.get("source_urls", []),
-        **({"activity_kind": item["activity_kind"]} if item.get("activity_kind") else {}),
+        # What the item is (skoleklar.fact), as its extractor said it.
+        **fact_model.public(item),
         **({"state": "cancelled"} if item.get("state") == "cancelled" else {}),
     }
 

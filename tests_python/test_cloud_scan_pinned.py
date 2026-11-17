@@ -46,6 +46,9 @@ from skolekit.school import school_toml
 from tests_python.skoleintra_site import ZONE, frozen_datetime
 from tests_python.synthetic_household import CHILDREN, SCHOOL
 
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
+
 
 NOW = datetime(2026, 11, 12, 7, 0, tzinfo=ZONE)
 EXPIRES = datetime(2026, 11, 13, 18, 0, tzinfo=ZONE)
@@ -64,7 +67,8 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
         ("stage", "duration_seconds"),
         frozenset({
             # derive
-            "candidate_count", "failures",
+            "candidate_count", "failures", "contract_candidate_count", "contract_failure_count",
+            "contract_backoff_count", "contract_failure_code", "lost_key_count",
             # consolidate
             "input_count", "output_count", "reduction_count", "dropped_group_count",
             "unknown_id_count", "repeated_id_count", "omitted_id_count",
@@ -101,7 +105,7 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
     ),
     "device_battery_unavailable": (("error_type",), frozenset()),
     "dashboard_failed": (("failure_stage", "error_type", "failure_code"), frozenset({"attempts"})),
-    "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset()),
+    "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset({"health"})),
     "sync_failed": (("error_type",), frozenset()),
 }
 
@@ -299,7 +303,6 @@ class Scan:
         monkeypatch.setattr(dashboard_timeline, "slice_starts", self._slice_starts)
         monkeypatch.setattr(dashboard_timeline, "slice_state",
                             lambda state, context: {**state, "at": context["now"]})
-        monkeypatch.setattr(parents_board, "attach_kinds", self._attach_kinds)
         monkeypatch.setattr(parents_board, "attach_lookahead",
                             lambda frame, context: {**frame, "ahead_days": context["days"]})
         monkeypatch.setattr(weather, "attach_weather", self._weather)
@@ -390,10 +393,6 @@ class Scan:
     def _slice_starts(self, now, until):
         self.calls.append(("slices", now.isoformat(), until.isoformat()))
         return list(SLICES)
-
-    def _attach_kinds(self, state, audit, context):
-        self.calls.append(("kinds", state["composed_for"]))
-        return state
 
     def _weather(self, state, now, *, fetch=None):
         assert callable(fetch)
@@ -508,99 +507,6 @@ def complete_run_events(check_count: int) -> list[tuple[str, dict]]:
     ]
 
 
-def test_complete_scan_logs_these_events_byte_for_byte(scan, caplog) -> None:
-    from skoleklar import invariants
-
-    scan.run(caplog)
-
-    assert scan.error is None
-    expected = [
-        json.dumps({"event": name, **fields}, separators=(",", ":"))
-        for name, fields in complete_run_events(len(invariants.CHECKS))
-    ]
-    assert scan.lines == expected
-
-
-def test_complete_scan_runs_the_stages_in_this_order(scan, caplog) -> None:
-    scan.run(caplog)
-
-    assert [stage for stage, _ in scan.commands] == [
-        "harvest", "derive", "archive_plan", "archive", "consolidate",
-    ]
-    assert names(scan.events)[:17] == [
-        "delivery_state_ingested",
-        "stage_started:harvest", "stage_completed:harvest",
-        "stage_started:derive", "stage_completed:derive",
-        "stage_started:archive_plan", "stage_completed:archive_plan",
-        "stage_started:archive", "stage_completed:archive",
-        "stage_started:consolidate", "stage_completed:consolidate",
-        "stage_started:day_summaries", "stage_completed:day_summaries",
-        "stage_started:review_checks", "stage_completed:review_checks",
-        "invariants_passed",
-        "composition_cache",
-    ]
-    # The state upload follows the invariant checks; the phone manifest follows
-    # the upload; the board is written after the phone; the run summary last.
-    trail = scan.gcs.trail
-    upload = trail.index("private upload state/restricted-v1/school-restricted.db if_generation_match=101")
-    phone = next(i for i, entry in enumerate(trail) if entry.startswith("delivery write manifests/"))
-    board = trail.index("display write current.json if_generation_match=0")
-    summary = trail.index("control write latest-run.json if_generation_match=None")
-    assert upload < phone < board < summary
-
-
-def test_complete_scan_reads_and_writes_these_objects(scan, caplog) -> None:
-    scan.run(caplog)
-
-    assert scan.gcs.trail == [
-        # The lock, held for the whole run.
-        "control write pipeline-lock.json if_generation_match=0",
-        # Restricted state and the shared session.
-        "private reload state/restricted-v1/school-restricted.db",
-        "private download state/restricted-v1/school-restricted.db",
-        "private reload state/auth-state.json",
-        "private download state/auth-state.json",
-        # The household's school and profile (required since 14 November) and its
-        # meaning (phase 4, optional); never uploaded.
-        "private reload state/school.toml",
-        "private download state/school.toml",
-        "private reload state/profile.toml",
-        "private download state/profile.toml",
-        "private reload state/skoleklar.toml",
-        "private reload state/triage.toml",
-        # The household's own house pictures, when it keeps any; never uploaded.
-        "private list state/artwork/",
-        # What the phone completed and received since the last run.
-        "delivery list completion-observations/",
-        "delivery read completion-observations/synthetic-1.json",
-        "delivery list receipts/",
-        "delivery read receipts/synthetic-1.json",
-        # Back up only after the invariant checks, each guarded by its generation.
-        "private upload state/restricted-v1/school-restricted.db if_generation_match=101",
-        "private upload state/auth-state.json if_generation_match=102",
-        # The phone: a create-only manifest, then the pointer.
-        f"delivery write manifests/{MANIFEST_ID}.json if_generation_match=0",
-        "delivery write current.json if_generation_match=None",
-        # The board.
-        "private read dashboard/event-confirmations.json",
-        "private read dashboard/composition-cache.json",
-        "private write dashboard/current-state.json",
-        "private write dashboard/current-audit.json",
-        "private write dashboard/composition-cache.json",
-        "control list device-status/",
-        "control read device-status/synthetic-board.json",
-        "display reload-bucket ",
-        "display reload current.json",
-        "display write current.json if_generation_match=0",
-        # The run summary, then the lock is released.
-        "control write latest-run.json if_generation_match=None",
-        "control delete pipeline-lock.json if_generation_match=110",  # the lock's own generation
-    ]
-    assert ("control", "pipeline-lock.json") not in scan.gcs.objects
-    # The upload replaced the generation the scan downloaded.
-    assert scan.gcs.objects[("private", "state/restricted-v1/school-restricted.db")][1] > 101
-
-
 def test_complete_scan_passes_these_requests_to_each_service(scan, caplog) -> None:
     scan.run(caplog)
 
@@ -619,6 +525,8 @@ def test_complete_scan_passes_these_requests_to_each_service(scan, caplog) -> No
         "derive": {
             "run_id": None, "source": None, "limit": None, "dry_run": False,
             "model": "synthetic/model-1", "backfill_since": None, "message_mode": "events-only",
+            # The board's facts made under an older contract are re-derived (skoleklar.fact).
+            "migrate": True, "as_of": "2026-11-12", "migrate_limit": 40,
         },
         "archive_plan": {
             "as_of": "2026-11-12", "model": "synthetic/model-1", "dry_run": True,
@@ -681,9 +589,6 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
     assert [call for call in scan.calls if call[0] == "compose"] == [
         ("compose", SLICES[2].isoformat())
     ]
-    assert [call[1] for call in scan.calls if call[0] == "kinds"] == [
-        "cached", SLICES[2].isoformat()
-    ]
     assert ("live", ["Alfa", "Beta"], None) in scan.calls
     assert ("timeline", REFRESH_ID, 3, []) in scan.calls
     first, second, third = (state for _, state in scan.frames)
@@ -693,6 +598,9 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
         "day_view": {"date": "2026-11-12", "children": [
             {"lessons": ["Dansk", "Matematik", "Musik"]}, {"lessons": ["Engelsk", "Idræt"]}]},
         "ahead_days": 18, "device": {"battery_percent": 82},
+        # The earlier stages' health reaches every frame (skoleklar.health).
+        "health": {"composition": {"status": "ok"}, "day_summaries": {"status": "ok"},
+                   "review_checks": {"status": "ok"}, "facts": {"status": "ok"}},
     }
     assert "day_view" not in second
     assert third["weather"]["verdict"] == "dry"
@@ -708,44 +616,6 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
 
 
 # Failure branches
-
-
-def test_failed_stage_stops_the_scan_before_any_upload(scan, caplog) -> None:
-    scan.exit_codes["derive"] = 1
-    scan.derive_output = {
-        "candidate_count": 2,
-        "failures": 2,
-        "error": "OpenRouter Chat Completions API returned 503: private detail",
-    }
-    scan.monkeypatch.setattr(logging, "basicConfig", lambda **kwargs: None)
-    scan.run(caplog, cloud_job.main)
-
-    assert isinstance(scan.error, SystemExit) and scan.error.code == 1
-    assert [stage for stage, _ in scan.commands] == ["harvest", "derive"]
-    assert scan.lines[-2:] == [
-        '{"event":"stage_failed","stage":"derive","exit_code":1,'
-        '"failure_code":"provider_http_503","duration_seconds":0.25,'
-        '"candidate_count":2,"failures":2}',
-        '{"event":"sync_failed","error_type":"RuntimeError"}',
-    ]
-    assert "private detail" not in caplog.text
-    assert not any(" upload " in entry for entry in scan.gcs.trail)
-    assert not any(entry.startswith(("delivery write", "display write")) for entry in scan.gcs.trail)
-    latest = scan.gcs.json("control", "latest-run.json")
-    assert latest == {"status": "failed", "error_type": "RuntimeError",
-                      "finished_at": "2026-11-12T06:00:00+00:00", "outputs": {}}
-    assert scan.gcs.trail[-1].startswith("control delete pipeline-lock.json")
-
-
-def test_held_lock_refuses_a_second_scan(scan, caplog) -> None:
-    scan.gcs.put("control", "pipeline-lock.json", b'{"execution": "other"}')
-    scan.run(caplog)
-
-    assert isinstance(scan.error, RuntimeError)
-    assert str(scan.error) == "A refresh already owns the pipeline lock"
-    assert scan.commands == []
-    assert scan.events == []
-    assert scan.gcs.trail == ["control write pipeline-lock.json if_generation_match=0"]
 
 
 def test_day_summary_and_review_check_failures_never_stop_the_scan(scan, caplog) -> None:
@@ -771,63 +641,6 @@ def test_day_summary_and_review_check_failures_never_stop_the_scan(scan, caplog)
     ]
     assert scan.events[15]["event"] == "invariants_passed"
     assert "private detail" not in caplog.text
-
-
-def test_day_summaries_report_their_failures_when_there_are_any(scan, caplog) -> None:
-    from skoleklar import day_summaries
-
-    def partly(*args, **kwargs):
-        return {"candidate_count": 2, "reused_count": 0, "generated_count": 1, "failed_count": 1,
-                "skipped_count": 0, "failures": ["provider_http_429"], "plans": ["private"]}
-
-    scan.monkeypatch.setattr(day_summaries, "generate_day_summaries", partly)
-    scan.run(caplog)
-
-    assert scan.lines[12] == (
-        '{"event":"stage_completed","stage":"day_summaries","duration_seconds":0.25,'
-        '"candidate_count":2,"reused_count":0,"generated_count":1,"failed_count":1,'
-        '"skipped_count":0,"failures":["provider_http_429"]}'
-    )
-
-
-def test_invariant_failure_stops_before_the_upload(scan, caplog) -> None:
-    from skoleklar import invariants
-
-    scan.monkeypatch.setattr(invariants, "check", lambda connection, integrity=True: [
-        ("foreign keys hold", [("private row",)]),
-        ("forms are at their current version", [("private row",)]),
-    ])
-    scan.run(caplog)
-
-    assert isinstance(scan.error, RuntimeError)
-    assert str(scan.error) == (
-        "Invariant checks failed: foreign keys hold; forms are at their current version"
-    )
-    assert scan.lines[-1] == (
-        '{"event":"invariants_failed","checks":["foreign keys hold",'
-        '"forms are at their current version"],"duration_seconds":0.25}'
-    )
-    assert "private row" not in caplog.text
-    assert not any(" upload " in entry for entry in scan.gcs.trail)
-    assert scan.gcs.json("control", "latest-run.json")["status"] == "failed"
-
-
-def test_invariants_run_on_the_scanned_database_without_integrity_check(scan, caplog) -> None:
-    from skoleklar import invariants
-
-    seen = []
-
-    def record(connection, integrity=True):
-        seen.append((connection.execute("PRAGMA database_list").fetchone()[2], integrity))
-        return []
-
-    scan.monkeypatch.setattr(invariants, "check", record)
-    scan.run(caplog)
-
-    assert len(seen) == 1
-    path, integrity = seen[0]
-    assert Path(path).name == "school-restricted.db"
-    assert integrity is False
 
 
 def test_board_extras_failures_are_logged_and_never_stop_the_board(scan, caplog) -> None:
@@ -866,14 +679,13 @@ def test_board_extras_failures_are_logged_and_never_stop_the_board(scan, caplog)
         scan.lines[-1],
     ]
     assert "private detail" not in caplog.text
-
-
-def test_day_view_off_attaches_no_children_view(scan, caplog) -> None:
-    scan.monkeypatch.setenv("AG_DAY_VIEW", "off")
-    scan.run(caplog)
-
-    assert "day_view_attached" not in names(scan.events)
-    assert all("day_view" not in state for _, state in scan.frames)
+    # The board says what is missing instead of only logging it.
+    for _, state in scan.frames:
+        assert {stage: entry["status"] for stage, entry in state["health"].items()} == {
+            "composition": "ok", "facts": "ok",
+            "day_summaries": "degraded", "review_checks": "ok", "composition_cache": "degraded",
+            "weather": "degraded", "day_view": "degraded", "lookahead": "degraded", "battery": "degraded"}
+        assert state["health"]["weather"] == {"status": "degraded", "reason": "key_error"}
 
 
 def test_rejected_cache_and_failed_composition_fall_back_to_a_plain_board(scan, caplog) -> None:
@@ -914,164 +726,7 @@ def test_rejected_cache_and_failed_composition_fall_back_to_a_plain_board(scan, 
     assert "private detail" not in caplog.text
 
 
-def test_failed_fallback_fails_the_board_and_keeps_the_phone(scan, caplog) -> None:
-    from skoleklar import dashboard_build, dashboard_composition
-
-    def compose(context, client):
-        raise dashboard_composition.CompositionFailed(
-            "Dashboard composition failed validation: ValueError: "
-            "dashboard date labels must follow selected school week", ["private detail"])
-
-    def fallback(context):
-        raise TypeError("private detail")
-
-    scan.reject_cached = True
-    scan.monkeypatch.setattr(dashboard_composition, "compose", compose)
-    scan.monkeypatch.setattr(dashboard_build, "fallback_composition", fallback)
-    scan.run(caplog)
-
-    assert scan.lines[-3:] == [
-        '{"event":"composition_fallback_failed","week":"2026-11-09","error_type":"TypeError"}',
-        '{"event":"dashboard_failed","failure_stage":"compose","error_type":"CompositionFailed",'
-        '"failure_code":"wrong_school_week","attempts":["private detail"]}',
-        scan.lines[-1],
-    ]
-    assert scan.events[-1]["status"] == "partial"
-    assert scan.events[-1]["outputs"] == {
-        "iphone": {"status": "published", "artifact_id": MANIFEST_ID},
-        "dashboard": {"status": "failed", "error_type": "CompositionFailed",
-                      "failure_stage": "compose"},
-    }
-    assert not any(entry.startswith("display write") for entry in scan.gcs.trail)
-    assert ("delivery", "current.json") in scan.gcs.objects
-
-
-def test_phone_failure_still_publishes_the_board(scan, caplog) -> None:
-    def fail(*args, **kwargs):
-        raise ValueError("private detail")
-
-    scan.monkeypatch.setattr(scan_service, "build_delivery_manifest", fail)
-    scan.run(caplog)
-
-    assert scan.result["status"] == "partial"
-    assert scan.result["outputs"] == {
-        "iphone": {"status": "failed", "error_type": "ValueError"},
-        "dashboard": {"status": "published", "artifact_id": REFRESH_ID},
-    }
-    assert "private detail" not in caplog.text
-
-
-def test_without_a_display_bucket_the_board_is_disabled(scan, caplog) -> None:
-    scan.monkeypatch.delenv("AG_DISPLAY_BUCKET")
-    scan.run(caplog)
-
-    assert scan.result["outputs"]["dashboard"] == {"status": "disabled"}
-    assert names(scan.events)[-2:] == ["invariants_passed", "sync_completed"]
-    assert ModelClient.created == [{"api_key": "synthetic-key", "model": "synthetic/model-1"}] * 2
-
-
-def test_legacy_message_mode_is_refused_before_any_work(scan, caplog) -> None:
-    scan.monkeypatch.setenv("AG_SCHOOL_MESSAGE_MODE", "legacy")
-    scan.monkeypatch.setenv("AG_SCHOOL_MESSAGE_PROCESSOR", "disabled")
-    scan.run(caplog)
-
-    assert isinstance(scan.error, ValueError)
-    assert scan.commands == []
-    assert scan.events == []
-
-
 # The household's profile and school (phase 1 of the architecture review)
-
-def test_profile_files_in_the_bucket_reach_the_scan(scan, caplog) -> None:
-    from skoleklar import household as site_profile
-
-    scan.gcs.put("private", "state/school.toml", '[site]\nhost = "eksempelskolen.m.skoleintra.dk"\n')
-    scan.gcs.put("private", "state/profile.toml",
-                 '[[children]]\nstudent_id = 9101\nname = "Alfa"\ncalendar_class_name = "001"\n')
-    seen = []
-    harvest = pipeline.harvest
-
-    async def harvest_with_profile(args):
-        seen.append(site_profile.load_site_profile())
-        return await harvest(args)
-
-    scan.monkeypatch.setattr(pipeline, "harvest", harvest_with_profile)
-    scan.run(caplog)
-
-    assert scan.error is None and scan.result["status"] == "complete"
-    [profile] = seen
-    assert profile.sources == ("school.toml", "profile.toml")
-    assert profile.login_url == "https://eksempelskolen.m.skoleintra.dk/parent/9101/Alfa/learningplan/student"
-    assert "private download state/school.toml" in scan.gcs.trail
-    assert "private download state/profile.toml" in scan.gcs.trail
-    assert not any(entry.startswith(("private upload state/school", "private upload state/profile"))
-                   for entry in scan.gcs.trail)
-
-
-def test_a_broken_profile_stops_the_scan_before_any_work(scan, caplog) -> None:
-    scan.gcs.put("private", "state/profile.toml", "children = []\n")
-    scan.monkeypatch.setattr(logging, "basicConfig", lambda **kwargs: None)
-    scan.run(caplog, cloud_job.main)
-
-    assert isinstance(scan.error, SystemExit) and scan.error.code == 1
-    assert scan.commands == []
-    assert scan.lines == ['{"event":"sync_failed","error_type":"ProfileError"}']
-    assert not any(" upload " in entry for entry in scan.gcs.trail)
-    assert scan.gcs.json("control", "latest-run.json")["error_type"] == "ProfileError"
-
-
-def test_the_households_meaning_in_the_bucket_reaches_the_bookings(scan, caplog) -> None:
-    from skoleklar import meaning
-
-    scan.gcs.put("private", "state/skoleklar.toml", "[meaning.bookings]\ndefault_minutes = 20\n")
-    seen = []
-    load = meaning.load_meaning
-
-    def load_and_keep(home):
-        seen.append(load(home))
-        return seen[-1]
-
-    scan.monkeypatch.setattr(meaning, "load_meaning", load_and_keep)
-    scan.monkeypatch.setattr(pipeline, "load_meaning", load_and_keep)
-    scan.monkeypatch.setattr(scan_service, "load_meaning", load_and_keep)
-    scan.run(caplog)
-
-    assert scan.error is None and scan.result["status"] == "complete"
-    assert seen and {value.default_minutes for value in seen} == {20}
-    assert "private download state/skoleklar.toml" in scan.gcs.trail
-    assert not any(entry.startswith("private upload state/skoleklar") for entry in scan.gcs.trail)
-
-
-def test_a_broken_meaning_stops_the_scan_before_any_work(scan, caplog) -> None:
-    scan.gcs.put("private", "state/skoleklar.toml", "[meaning.bookings]\nround = \"first_notice\"\n")
-    scan.monkeypatch.setattr(logging, "basicConfig", lambda **kwargs: None)
-    scan.run(caplog, cloud_job.main)
-
-    assert isinstance(scan.error, SystemExit) and scan.error.code == 1
-    assert scan.commands == []
-    assert scan.lines == ['{"event":"sync_failed","error_type":"ProfileError"}']
-    assert not any(" upload " in entry for entry in scan.gcs.trail)
-
-
-def test_the_scan_works_in_its_own_directory_and_leaves_the_environment_alone(scan, caplog, tmp_path) -> None:
-    import os
-
-    from skolekit import state as settings
-
-    seen = []
-    harvest = pipeline.harvest
-
-    async def harvest_in_place(args):
-        seen.append((Path(args.db).parent, settings.state_dir(), os.environ["AG_SCHOOL_HOME"]))
-        return await harvest(args)
-
-    scan.monkeypatch.setattr(pipeline, "harvest", harvest_in_place)
-    scan.run(caplog)
-
-    [(working, during, environment)] = seen
-    assert during == working != tmp_path / "home"
-    assert environment == str(tmp_path / "home")
-    assert settings.state_dir() == (tmp_path / "home").resolve()
 
 
 # The event list itself

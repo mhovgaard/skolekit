@@ -137,12 +137,12 @@ class SummaryRepository:
             self.connection.execute("DELETE FROM day_summaries WHERE run_id = ?", (run_id,))
             self.connection.executemany(
                 """
-                INSERT INTO day_summaries(run_id, date, headline, text, general_used)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO day_summaries(run_id, date, headline, text, general_used, fact_keys_json)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (run_id, day["date"], day["headline"], day["text"],
-                     int(bool(day["general_used"])))
+                     int(bool(day["general_used"])), json.dumps(day.get("fact_keys") or []))
                     for day in days
                 ],
             )
@@ -208,6 +208,43 @@ class SummaryRepository:
             (run["id"],),
         ).fetchall()
         return {"days": {row["date"]: dict(row) for row in rows}}
+
+    def plan_facts(self, version_id: int) -> list[dict[str, Any]]:
+        """The current facts derived from one weekly-plan version: what its summary may retell."""
+        rows = self.connection.execute(
+            """
+            SELECT DISTINCT f.stable_key, f.item_type, f.title, f.effective_date
+            FROM v_current_facts f JOIN derived_item_sources s ON s.item_id = f.id
+            WHERE s.version_id = ? AND f.effective_date IS NOT NULL
+            ORDER BY f.effective_date, f.stable_key
+            """,
+            (version_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def retold_fact_keys(self) -> set[str]:
+        """Stable keys of facts a current day summary's headline retells (day-summary-v3)."""
+        try:
+            rows = self.connection.execute(
+                """
+                SELECT d.fact_keys_json FROM day_summaries d
+                JOIN day_summary_runs run ON run.id = d.run_id
+                JOIN records r ON r.id = run.record_id
+                JOIN record_versions v ON v.id = r.current_version_id
+                WHERE d.headline IS NOT NULL
+                  -- Only the run the board displays: the latest complete one for the
+                  -- plan's current content (`day_summary_days`).
+                  AND run.id = (
+                      SELECT latest.id FROM day_summary_runs latest
+                      WHERE latest.record_id = r.id AND latest.content_hash = v.content_hash
+                        AND latest.status = 'complete'
+                      ORDER BY latest.completed_at DESC, latest.id DESC LIMIT 1)
+                """
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # A read-only database from before 0007 has no such column.
+            return set()
+        return {key for row in rows for key in json.loads(row[0] or "[]")}
 
     def lesson_slots(self, day: str) -> list[tuple[str, dict[str, Any]]]:
         """(child, calendar event) for each lesson slot the latest harvest saw on `day`.

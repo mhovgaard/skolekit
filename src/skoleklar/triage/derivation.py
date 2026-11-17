@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from skoleklar import fact as fact_model
 from skoleklar.triage.prompt_manifest import DEFAULT_SLOTS, PromptManifest, load_prompt_manifest
 from skolekit.records import canonical_hash
 from skolekit.items import read_lesson
@@ -20,16 +21,20 @@ PROVIDER = "openrouter"
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 # What doesn't depend on the household's names is read once; the filled manifest
 # (its hash and its few-shots) is read when a stage runs (prompt_manifest.py).
-_PACK = load_prompt_manifest("derive-v9", slots=DEFAULT_SLOTS)
+_PACK = load_prompt_manifest("derive-v11", slots=DEFAULT_SLOTS)
 PROMPT_VERSION = _PACK.manifest_id
 TAXONOMY_VERSION = _PACK.taxonomy_version
 DERIVATION_SCHEMA = _PACK.output_schema
-ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v3"
+# The deterministic lesson-change reader; its version moves with the fact contract.
+ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v6"
+# A lesson change's identity, which must not move with the reader's version: a new
+# key would bring back every substitute and cancelled lesson the family ticked off.
+LESSON_KEY_VERSION = "routine-calendar-v3"
 
 
 def derivation_manifest() -> PromptManifest:
     """The derivation's manifest with the household's names in its slots."""
-    return load_prompt_manifest("derive-v9")
+    return load_prompt_manifest("derive-v11")
 
 
 DROP_KEYS = {
@@ -90,13 +95,44 @@ def _compact(value: Any) -> Any:
     return value
 
 
+# A weekly plan's block, as the model reads it: no link, id or code's heading guesses.
+_PLAN_BLOCK_DROP = {"segments", "link", "source_plan_id"}
+
+
+def _contained(part: Any, whole: Any) -> bool:
+    """Whether every key and value of `part` is also in `whole`, recursively."""
+    if isinstance(part, dict):
+        return isinstance(whole, dict) and all(
+            key in whole and _contained(value, whole[key]) for key, value in part.items())
+    if isinstance(part, list):
+        return isinstance(whole, list) and len(part) == len(whole) and all(
+            _contained(a, b) for a, b in zip(part, whole))
+    return part == whole
+
+
+def _one_copy(compact: dict[str, Any]) -> dict[str, Any]:
+    """The source once: `content_data` repeats `source_data`, and a weekly plan's
+    `body_text` is its blocks flattened, so neither goes to the model twice."""
+    if "content_data" in compact and _contained(compact["content_data"], compact.get("source_data")):
+        compact.pop("content_data")
+    if compact.get("source_type") == "weekly_plan" and isinstance(compact.get("source_data"), dict):
+        compact.pop("body_text", None)
+        data = compact["source_data"]
+        blocks = [*data.get("general_plans", []), *(block for day in data.get("days", [])
+                                                    for block in day.get("plans", []))]
+        for block in blocks:
+            for key in _PLAN_BLOCK_DROP:
+                block.pop(key, None)
+    return compact
+
+
 def candidate_document(
     candidate: dict[str, Any], *, class_labels: Mapping[str, str]
 ) -> dict[str, Any]:
     """The model's input for one candidate; `class_labels` come from the household's profile."""
     sources = candidate["sources"]
     primary = json.loads(sources[0]["payload_json"])
-    compact = _compact(primary)
+    compact = _one_copy(_compact(primary))
     children = sorted({source["child"] for source in sources})
     compact["children"] = children
     compact["child"] = children[0] if len(children) == 1 else "household"
@@ -206,16 +242,23 @@ def _deterministic_lesson_change(
         )
     stable_key = canonical_hash(
         {
-            "filter_version": ROUTINE_CALENDAR_FILTER_VERSION,
+            "filter_version": LESSON_KEY_VERSION,
             "source_key": source_key,
             "child": child,
             "type": item_type,
         }
     )
-    return {
+    return fact_model.normalize({
         "dedupe_hint": f"{source_key}:{item_type}",
         "stream": "schedule",
         "type": item_type,
+        # A lesson slot never moves the day's times on its own: never yellow.
+        "moves_time": False,
+        "school_subject": lesson,
+        "teacher": substitute or None,
+        "lesson_class": class_name or None,
+        "start_time": start_time or None,
+        "end_time": end_time or None,
         "audience": "child",
         "child": child,
         "title": title,
@@ -238,7 +281,7 @@ def _deterministic_lesson_change(
             }
         ],
         "stable_key": stable_key,
-    }
+    })
 
 
 def _response_text(payload: dict[str, Any]) -> str:
@@ -451,6 +494,7 @@ def validate_items(
         if item["timing_rule"] == "no_derived_date":
             item["effective_date"] = None
             item["end_date"] = None
+        fact_model.normalize(item)
         evidence_valid = bool(item["evidence"])
         for evidence in item["evidence"]:
             if not _evidence_present(evidence["quote"], evidence_haystack):

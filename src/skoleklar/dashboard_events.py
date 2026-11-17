@@ -10,14 +10,29 @@ ACTIVITY_LABELS = {
 }
 
 
+# The one name a message fact keeps: the birthday child's capitalised first name.
+CELEBRANT = re.compile(r"[A-ZÆØÅ][a-zæøåäöüé]{1,23}(?:-[A-ZÆØÅ][a-zæøåäöüé]{1,23})?")
+
+
+def possessive(name):
+    """Danish genitive: 'Emmas', but 'Mads'' and 'Felix''."""
+    return name + ("'" if name[-1:].casefold() in {"s", "x", "z"} else "s")
+
+
+def activity_title(kind, celebrant=None):
+    """'Emmas fødselsdag' for a birthday whose child is known; else the category's label."""
+    if (kind == "birthday_party" and isinstance(celebrant, str) and len(celebrant) <= 24
+            and CELEBRANT.fullmatch(celebrant)):
+        return f"{possessive(celebrant)} fødselsdag"
+    return ACTIVITY_LABELS[kind]
+
+
 def birthday_notice(item):
-    """A calendar birth date establishes no invitation or family attendance."""
+    """A calendar notice of a classmate's birthday, which establishes no invitation or
+    family attendance: its extractor says so (`category` `birthday`)."""
     return (item.get("type", item.get("item_type")) == "event"
             and not item.get("private_message_fact")
-            and item.get("actionability") == "informational"
-            and bool(re.search(r"\bhar fødselsdag\b", str(item.get("title", "")), re.I))
-            and not re.search(r"\b(invitation|inviter|fest|fødselsdagsfest|fejring)\b",
-                              str(item.get("title", "")) + " " + str(item.get("summary", "")), re.I))
+            and item.get("category") == "birthday")
 
 
 def event_confirmations(document):

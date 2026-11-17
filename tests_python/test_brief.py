@@ -244,6 +244,8 @@ def test_compact_range_adaptively_groups_new_schedule_topics() -> None:
                 "kl. 09:00-09:45."
             ),
             source_urls=["https://x.skoleintra.dk/calendar/a"],
+            # The timetable's change says its lesson and times; the brief reads those.
+            school_subject="ROBOTVÆRKSTED", start_time="09:00", end_time="09:45",
         ),
         derived_item(
             id=22,
@@ -256,6 +258,7 @@ def test_compact_range_adaptively_groups_new_schedule_topics() -> None:
                 "kl. 09:00-09:45."
             ),
             source_urls=["https://x.skoleintra.dk/calendar/b"],
+            school_subject="ROBOTVÆRKSTED", start_time="09:00", end_time="09:45",
         ),
         derived_item(
             id=23,
@@ -268,6 +271,7 @@ def test_compact_range_adaptively_groups_new_schedule_topics() -> None:
                 "kl. 10:00-10:45."
             ),
             source_urls=["https://x.skoleintra.dk/calendar/c"],
+            school_subject="ROBOTVÆRKSTED", start_time="10:00", end_time="10:45",
         ),
     ]
 

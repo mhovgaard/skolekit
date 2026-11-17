@@ -14,7 +14,7 @@ import os
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -130,6 +130,11 @@ class DeriveRequest:
     model: str = DEFAULT_MODEL
     backfill_since: str | None = None
     message_mode: str | None = None
+    # Also re-derive the sources whose facts on the board were made under an older
+    # contract (skoleklar.fact), from `as_of` (default today) through the board's window.
+    migrate: bool = False
+    as_of: str | None = None
+    migrate_limit: int = 40
 
 
 @dataclass(frozen=True)
@@ -505,6 +510,14 @@ def derive(request: DeriveRequest) -> StageResult:
             )
             return StageResult(2)
     purpose = "validation" if backfill_since is not None else "live"
+    if request.migrate and backfill_since is not None:
+        print("--migrate re-derives live facts; it does not combine with a backfill.", file=sys.stderr)
+        return StageResult(2)
+    try:
+        as_of = date.fromisoformat(request.as_of) if request.as_of else date.today()
+    except ValueError:
+        print("--as-of must be an ISO date such as 2026-11-17.", file=sys.stderr)
+        return StageResult(2)
     with SnapshotStore(
         database
     ) as store:
@@ -518,6 +531,23 @@ def derive(request: DeriveRequest) -> StageResult:
             candidates = store.derivation_candidates(
                 request.run_id, source_types=request.source, limit=request.limit
             )
+        migrated = 0
+        before: dict[str, dict[str, Any]] = {}
+        if request.migrate:
+            # Facts the board reads must carry the current contract: re-derive the
+            # rest in its window, the nearest first (docs/processing.md).
+            known = {tuple(sorted(source["version_id"] for source in candidate["sources"]))
+                     for candidate in candidates}
+            stale = [candidate for candidate in store.contract_candidates(
+                current_versions={PROMPT_VERSION, ROUTINE_CALENDAR_FILTER_VERSION},
+                start=_window_start(as_of), end=as_of + timedelta(days=MIGRATION_DAYS),
+                weekly_plan_keys=_plan_keys(as_of), limit=request.migrate_limit, today=as_of)
+                if tuple(sorted(source["version_id"] for source in candidate["sources"])) not in known]
+            if request.source:
+                stale = [candidate for candidate in stale if candidate["source_type"] in request.source]
+            candidates = [*candidates, *stale]
+            migrated = len(stale)
+            before = _workflow_keys(store, as_of)
         if request.dry_run:
             deterministic_count = sum(
                 deterministic_calendar_items(candidate) is not None
@@ -535,6 +565,7 @@ def derive(request: DeriveRequest) -> StageResult:
                 "taxonomy_version": TAXONOMY_VERSION,
                 "prompt_manifest_hash": derivation_manifest().content_hash,
                 "candidate_count": len(candidates),
+                "contract_candidate_count": migrated,
                 "llm_candidate_count": len(candidates) - deterministic_count,
                 "deterministic_candidate_count": deterministic_count,
                 "candidates": [
@@ -580,6 +611,10 @@ def derive(request: DeriveRequest) -> StageResult:
             )
         results: list[dict[str, Any]] = []
         failures = 0
+        # A source re-derived for a newer contract that fails keeps its older facts and
+        # is tried again next scan; it never stops the scan (docs/processing.md).
+        contract_failures = 0
+        contract_backoffs = 0
         aborted = False
         for candidate in candidates:
             deterministic_items = deterministic_calendar_items(candidate)
@@ -607,6 +642,14 @@ def derive(request: DeriveRequest) -> StageResult:
                         "derivation_id": cached["id"],
                     }
                 )
+                continue
+            if (candidate.get("change") == "contract" and cached and cached["status"] == "failed"
+                    and _failed_recently(cached.get("completed_at"))):
+                # A re-derivation that failed is tried again a day later, not every scan:
+                # the source keeps its older facts, and the board says so meanwhile.
+                contract_backoffs += 1
+                results.append({"source": candidate["source_type"], "source_key": candidate["source_key"],
+                                "status": "backoff", "contract": True, "derivation_id": cached["id"]})
                 continue
             if cached and cached["status"] == "running":
                 results.append(
@@ -683,7 +726,10 @@ def derive(request: DeriveRequest) -> StageResult:
                     }
                 )
             except Exception as error:
-                failures += 1
+                if candidate.get("change") == "contract":
+                    contract_failures += 1
+                else:
+                    failures += 1
                 store.fail_derivation(derivation_id, str(error))
                 results.append(
                     {
@@ -691,6 +737,7 @@ def derive(request: DeriveRequest) -> StageResult:
                         "source_key": candidate["source_key"],
                         "status": "failed",
                         "error": str(error),
+                        **({"contract": True} if candidate.get("change") == "contract" else {}),
                     }
                 )
                 if isinstance(error, OpenRouterHTTPError) and error.status_code in {
@@ -714,11 +761,79 @@ def derive(request: DeriveRequest) -> StageResult:
             "llm_candidate_count": len(candidates) - deterministic_count,
             "deterministic_candidate_count": deterministic_count,
             "processed_count": len(results),
+            "contract_candidate_count": migrated,
+            "contract_failure_count": contract_failures,
+            "contract_backoff_count": contract_backoffs,
             "failures": failures,
             "aborted": aborted,
             "results": results,
         }
+        if request.migrate:
+            summary["continuity"] = _continuity(before, _workflow_keys(store, as_of))
     return StageResult(2 if failures else 0, summary)
+
+
+# The board's window for facts the migration re-derives: its context's reach.
+MIGRATION_DAYS = 18
+# How long a failed re-derivation waits before the scan tries it again.
+MIGRATION_RETRY = timedelta(hours=24)
+
+
+def _failed_recently(completed_at: str | None) -> bool:
+    if not completed_at:
+        return False
+    try:
+        failed = datetime.fromisoformat(str(completed_at).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if failed.tzinfo is None:
+        failed = failed.replace(tzinfo=UTC)
+    return datetime.now(UTC) - failed < MIGRATION_RETRY
+
+
+def _window_start(as_of: date) -> date:
+    """Where the board's window starts: the Monday of the week it shows, as its
+    context does (`dashboard_context.export_context`), or `as_of` when that is earlier."""
+    from datetime import time
+
+    from skoleklar.dashboard_timing import ZONE, dashboard_focus
+    focus = dashboard_focus(datetime.combine(as_of, time(12), ZONE)).school_date
+    return min(as_of, focus - timedelta(days=focus.weekday()))
+
+
+def _plan_keys(as_of: date) -> set[str]:
+    """This week's and next week's weekly-plan source keys, in either week spelling."""
+    keys = set()
+    for day in (as_of, as_of + timedelta(days=7)):
+        year, week, _ = day.isocalendar()
+        keys |= {f"class:{week}-{year}", f"class:{week:02d}-{year}"}
+    return keys
+
+
+def _workflow_keys(store: Any, as_of: date) -> dict[str, dict[str, Any]]:
+    """The current facts from `as_of` on that the family has already seen or ticked off."""
+    start, end = _window_start(as_of).isoformat(), (as_of + timedelta(days=MIGRATION_DAYS)).isoformat()
+    result = {}
+    for item in store.current_derived_items():
+        seen = {"delivered": bool(item.get("first_delivered_at")),
+                "acknowledged": bool(item.get("acknowledged_at")),
+                "completed": bool(item.get("completed_at") or item.get("dismissed_at"))}
+        day = item.get("effective_date") or ""
+        if any(seen.values()) and start <= day <= end:
+            result[item["stable_key"]] = {"child": item["child"], "type": item["item_type"],
+                                          "effective_date": day, "title": item["title"], **seen}
+    return result
+
+
+def _continuity(before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Which seen or ticked-off facts kept their stable key through a re-derivation.
+
+    A re-derivation that rewords a fact's dedupe hint gives it a new key, and the
+    phone's acknowledgement stays with the old one. Run `derive --migrate` on a
+    copy first and read `lost` before the live scan does it.
+    """
+    lost = [{"stable_key": key, **value} for key, value in before.items() if key not in after]
+    return {"kept_count": len(before) - len(lost), "lost_count": len(lost), "lost": lost}
 
 
 def archive(request: ArchiveRequest) -> StageResult:

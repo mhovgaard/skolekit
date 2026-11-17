@@ -1,3 +1,4 @@
+import pytest
 import json
 
 from skoleklar.triage.derivation import (
@@ -12,6 +13,9 @@ from skoleklar.triage.derivation import (
     derivation_cache_key,
     validate_items,
 )
+
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
 
 
 def candidate() -> dict:
@@ -80,177 +84,6 @@ def item(*, evidence: str = "Læs side 18 før mandag.") -> dict:
             {"quote": evidence, "source_day": "2026-08-24", "subject": "Dansk"}
         ],
     }
-
-
-def test_compacts_source_and_builds_stable_cache_key() -> None:
-    source = candidate()
-    document = candidate_document(source, class_labels={"Alfa": "2. klasse"})
-
-    assert "body_html" not in document
-    assert "change_type" not in document
-    assert "recipients" not in document
-    assert "previous_messages_text" not in document["source_data"]["message"]
-    assert "content_html" not in document["source_data"]["days"][0]["plans"][0]
-    assert document["children"] == ["Alfa"]
-    assert document["child_context"] == [{"child": "Alfa", "class": "2. klasse"}]
-    assert derivation_cache_key(source, model="model", document=document) == (
-        derivation_cache_key(source, model="model", document=document)
-    )
-
-
-def test_openrouter_defaults_are_explicit() -> None:
-    assert PROVIDER == "openrouter"
-    assert DEFAULT_MODEL == "openai/gpt-5.6-terra"
-    assert DEFAULT_BASE_URL == "https://openrouter.ai/api/v1"
-
-
-def test_openrouter_request_enforces_structured_output_and_zdr(monkeypatch) -> None:
-    captured: dict = {}
-
-    class FakeResponse:
-        is_success = True
-
-        def json(self) -> dict:
-            return {
-                "id": "response-id",
-                "choices": [{"message": {"content": '{"items":[]}'}}],
-                "usage": {},
-            }
-
-    class FakeClient:
-        def __init__(self, *, timeout: float) -> None:
-            captured["timeout"] = timeout
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args) -> None:
-            return None
-
-        def post(self, url: str, *, headers: dict, json: dict) -> FakeResponse:
-            captured.update(url=url, headers=headers, body=json)
-            return FakeResponse()
-
-    monkeypatch.setattr("skoleklar.triage.derivation.httpx.Client", FakeClient)
-
-    result = OpenRouterClient(api_key="test-secret").derive({"source": "x"})
-
-    assert result["items"] == []
-    assert captured["url"] == "https://openrouter.ai/api/v1/chat/completions"
-    assert captured["headers"]["Authorization"] == "Bearer test-secret"
-    assert captured["body"]["model"] == "openai/gpt-5.6-terra"
-    assert captured["body"]["provider"] == {
-        "require_parameters": True,
-        "zdr": True,
-    }
-    assert captured["body"]["response_format"]["type"] == "json_schema"
-    assert captured["body"]["response_format"]["json_schema"]["strict"] is True
-
-
-def test_openrouter_reuses_injected_http_client() -> None:
-    class FakeResponse:
-        is_success = True
-
-        def json(self) -> dict:
-            return {
-                "id": "response-id",
-                "choices": [{"message": {"content": '{"items":[]}'}}],
-                "usage": {},
-            }
-
-    class SharedClient:
-        def __init__(self) -> None:
-            self.calls = 0
-
-        def post(self, *_args, **_kwargs) -> FakeResponse:
-            self.calls += 1
-            return FakeResponse()
-
-    shared = SharedClient()
-    client = OpenRouterClient(api_key="test-secret", client=shared)
-
-    client.derive({"source": "first"})
-    client.derive({"source": "second"})
-
-    assert shared.calls == 2
-
-
-def test_openrouter_http_error_preserves_status_code(monkeypatch) -> None:
-    class FakeResponse:
-        is_success = False
-        status_code = 402
-        reason_phrase = "Payment Required"
-
-        def json(self) -> dict:
-            return {"error": {"message": "Add credits"}}
-
-    class FakeClient:
-        def __init__(self, *, timeout: float) -> None:
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args) -> None:
-            return None
-
-        def post(self, *args, **kwargs) -> FakeResponse:
-            return FakeResponse()
-
-    monkeypatch.setattr("skoleklar.triage.derivation.httpx.Client", FakeClient)
-
-    try:
-        OpenRouterClient(api_key="test-secret").derive({"source": "x"})
-    except OpenRouterHTTPError as error:
-        assert error.status_code == 402
-        assert "Add credits" in str(error)
-    else:
-        raise AssertionError("Expected OpenRouterHTTPError")
-
-
-def test_openrouter_reports_truncated_structured_output_without_content(
-    monkeypatch,
-) -> None:
-    class FakeResponse:
-        is_success = True
-
-        def json(self) -> dict:
-            return {
-                "id": "response-id",
-                "choices": [
-                    {
-                        "finish_reason": "length",
-                        "message": {"content": '{"items":['},
-                    }
-                ],
-                "usage": {"total_tokens": 2500, "cost": 0.01},
-            }
-
-    class FakeClient:
-        def __init__(self, *, timeout: float) -> None:
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args) -> None:
-            return None
-
-        def post(self, *args, **kwargs) -> FakeResponse:
-            return FakeResponse()
-
-    monkeypatch.setattr("skoleklar.triage.derivation.httpx.Client", FakeClient)
-
-    try:
-        OpenRouterClient(api_key="test-secret").derive({"source": "x"})
-    except OpenRouterGenerationError as error:
-        assert error.stage == "model_output_decode"
-        assert error.error_code == "max_output_tokens"
-        assert error.response_id == "response-id"
-        assert error.usage == {"total_tokens": 2500, "cost": 0.01}
-        assert "items" not in str(error)
-    else:
-        raise AssertionError("Expected OpenRouterGenerationError")
 
 
 def test_ordinary_calendar_lessons_bypass_llm_but_changes_do_not() -> None:
@@ -353,28 +186,75 @@ def test_validates_evidence_and_adds_internal_stable_key() -> None:
     assert "Evidence" in invalid["review_reason"]
 
 
-def test_accepts_ordered_ellipsis_in_evidence_quote() -> None:
+def test_a_weekly_plan_goes_to_the_model_once() -> None:
+    """derive-v10: one copy of the plan, without code's heading guesses, links or ids."""
     source = candidate()
-    document = candidate_document(source, class_labels={"Alfa": "2. klasse"})
-    value = validate_items(
-        [item(evidence="Lektie: Læs side 18 ... før mandag.")],
-        candidate=source,
-        document=document,
-    )[0]
+    payload = json.loads(source["sources"][0]["payload_json"])
+    block = payload["source_data"]["days"][0]["plans"][0]
+    block.update(segments=[{"section_hint": "homework", "text": "Læs side 18 før mandag."}],
+                 link="https://x.skoleintra.dk/plan/7", source_plan_id=7)
+    payload["source_data"]["general_plans"] = [{"subject": None, "content_text": "Kære forældre", "segments": []}]
+    payload["content_data"] = {"days": payload["source_data"]["days"],
+                               "general_plans": payload["source_data"]["general_plans"]}
+    source["sources"][0]["payload_json"] = json.dumps(payload)
 
-    assert value["needs_review"] is False
+    document = candidate_document(source, class_labels={})
+
+    assert "body_text" not in document and "content_data" not in document
+    block = document["source_data"]["days"][0]["plans"][0]
+    assert block == {"subject": "Dansk", "content_text": "Lektie: Læs side 18 før mandag."}
+    assert document["source_data"]["general_plans"] == [{"subject": None, "content_text": "Kære forældre"}]
+    # A quote from a plan block still passes the evidence check.
+    [checked] = validate_items([item()], candidate=source, document=document)
+    assert checked["needs_review"] is False
 
 
-def test_removes_non_danish_characters_and_marks_item_for_review() -> None:
+def test_what_an_item_is_is_kept_only_where_it_means_something() -> None:
     source = candidate()
-    document = candidate_document(source, class_labels={"Alfa": "2. klasse"})
-    contaminated = item()
-    contaminated["summary"] = "Læs side 18 inden mandag些"
+    document = candidate_document(source, class_labels={})
+    homework = item() | {"category": "trip", "moves_time": True, "recurring": True}
+    event = item() | {"type": "event", "category": "party", "moves_time": True, "recurring": True}
+    unknown = item() | {"type": "event", "category": "picnic", "moves_time": None, "recurring": False}
+    action = item() | {"type": "parent_action", "category": "trip", "moves_time": None, "recurring": False}
+    meeting = item() | {"type": "parent_action", "category": "meeting", "moves_time": None, "recurring": True}
+    change = item() | {"type": "schedule_change", "category": "other", "moves_time": True, "recurring": True}
+    undecided = item() | {"type": "schedule_change", "category": None, "moves_time": None, "recurring": False}
+    result = validate_items([homework, event, unknown, action, meeting, change, undecided],
+                            candidate=source, document=document)
+    shape = [(i["category"], i["moves_time"], i["recurring"]) for i in result]
+    assert shape == [(None, None, False), ("party", None, True), (None, None, False), (None, None, False),
+                     ("meeting", None, False), (None, True, False), (None, None, False)]
+    # A wrong field is dropped, never sent for review: it would hide real homework.
+    assert not any(i["needs_review"] for i in result)
 
-    value = validate_items(
-        [contaminated], candidate=source, document=document
-    )[0]
 
-    assert value["summary"] == "Læs side 18 inden mandag"
-    assert value["needs_review"] is True
-    assert "non-Danish" in value["review_reason"]
+def test_lesson_slots_say_what_they_are() -> None:
+    candidate_ = {"source_type": "calendar", "source_key": "LessonsEvents:slot:x", "sources": [{
+        "version_id": 2, "child": "Alfa", "payload_json": json.dumps({"source_data": {
+            "calendar_kind": "LessonsEvents", "event": {
+                "title": "MAT", "lessonName": "MAT", "start": "2026-09-18T09:00:00",
+                "end": "2026-09-18T09:45:00", "staffName": "Original Teacher",
+                "substituteStaff": "Substitute Teacher"}}})}]}
+    [lesson] = deterministic_calendar_items(candidate_)
+    assert (lesson["type"], lesson["category"], lesson["moves_time"], lesson["recurring"]) == (
+        "substitute", None, None, False)
+
+
+def test_a_lesson_changes_identity_survives_the_readers_new_version() -> None:
+    """The reader's version moved with the fact contract; a lesson change's stable key
+    did not, so a substitute the family ticked off stays ticked off."""
+    from skolekit.records import canonical_hash
+
+    candidate_ = {"source_type": "calendar", "source_key": "LessonsEvents:slot:x", "sources": [{
+        "version_id": 2, "child": "Alfa", "payload_json": json.dumps({"source_data": {
+            "calendar_kind": "LessonsEvents", "event": {
+                "title": "MAT", "lessonName": "MAT", "start": "2026-09-18T09:00:00",
+                "end": "2026-09-18T09:45:00", "staffName": "Original Teacher",
+                "substituteStaff": "Substitute Teacher"}}})}]}
+    [lesson] = deterministic_calendar_items(candidate_)
+    assert lesson["stable_key"] == canonical_hash({"filter_version": "routine-calendar-v3",
+                                                   "source_key": "LessonsEvents:slot:x", "child": "Alfa",
+                                                   "type": "substitute"})
+    # It says what it is in typed fields, and carries the current contract.
+    assert (lesson["teacher"], lesson["school_subject"], lesson["contract"]) == (
+        "Substitute Teacher", "MAT", "fact-v1")

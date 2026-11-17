@@ -29,7 +29,7 @@ def test_failure_code_redacts_provider_error_detail() -> None:
 def test_dashboard_failure_code_never_needs_model_content() -> None:
     assert _dashboard_failure_code(ValueError(
         "Dashboard composition failed validation: ValueError: "
-        "dashboard date labels must follow selected school week"
+        "dashboard dates must follow the selected school week"
     )) == "wrong_school_week"
     assert _dashboard_failure_code(ValueError(
         "Dashboard composition failed validation: ValueError: unexpected"

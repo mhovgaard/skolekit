@@ -10,19 +10,24 @@ band can still include the closing weekend of the displayed school week.
 Composition receives exact permitted weekend dates, and validation checks each
 selected fact against its particular row's date.
 
-A calendar notice that somebody `har fødselsdag` states a birth date. It does not
-establish an invitation, party, or family attendance. The context tags these
-notices and composition always omits them; the validator rejects any
+A calendar notice that somebody has a birthday states a birth date. It does not
+establish an invitation, party, or family attendance. Its extractor says so
+(`category` `birthday`); the context tags these notices and composition always
+omits them; the validator rejects any
 composition that displays one. Source records, derivations, and birthday dates
 remain intact.
 
-Private-message event extraction (`message-events-v3`) assigns each event a
+Private-message event extraction (`message-events-v4`) assigns each event a
 bounded `activity_kind`: `birthday_party`, `class_trip`, `class_event`,
 `social_activity` (arranged by parents) or null. Dated invitations and
 parent-arranged activities count as events even when the message also asks for
-a reply. The board shows a categorized event on its weekend as an event, such
-as `ChildA: Fødselsdagsfest`, without the `Besked:` prefix that other message
-facts carry, and keeps the category visible. No message prose is retained. An owner may
+a reply. The board shows a categorized event on its weekend as an event in its
+category's box, such as `FEST Fødselsdagsfest`. When the invitation names the
+birthday child, the title says whose party it is, `FEST Claras fødselsdag` (see
+[message privacy](message-harvesting.md#extraction-and-validation) for the one
+name a fact may keep, which the fact carries as `celebrant`). A cancellation is a
+label, `FEST Aflyst Claras fødselsdag`, so a name never crowds it out. No message
+prose is retained. An owner may
 confirm an existing event's activity category without retrieving or retaining
 message prose. Cloud composition optionally reads the private object
 `dashboard/event-confirmations.json` from `AG_PRIVATE_BUCKET`:
@@ -53,14 +58,17 @@ The same rules apply to the HTML page and the e-ink frame, because both draw one
 validated state. Code builds the weekend rows from the facts
 (`dashboard_rules.weekend_selection`) instead of taking the model's: activities
 first, preferring one with a bring-item from its own message thread when there
-are more activities than rows; then cancelled activities as `aflyst`; then other
-weekend facts. Each timeline slice rebuilds them and recalculates overflow.
+are more activities than rows; then cancelled activities, labelled `Aflyst`; then
+other weekend facts. A row is its day, whose it is (a child or `Begge`) and its
+lines: the activity, then what to bring (`Medbring` and the message's own
+`bring_items`) and what may come along (`Valgfrit`). Each timeline slice rebuilds
+them and recalculates overflow.
 
 - **Cancellations.** A fact stored as cancelled keeps `state: cancelled` through
-  the brief. In the context it is `cancelled: true`, and an activity title gains
-  `aflyst`. A cancelled activity, or one with the same child, date and message
-  thread as a cancellation, must not be shown as a plan. The composition should
-  omit it or show it as `ChildA: Fødselsdagsfest aflyst`. Enforcement
+  the brief. In the context it is `cancelled: true`. A cancelled activity, or one
+  with the same child, date and message thread as a cancellation, must not be
+  shown as a plan: its line is `cancelled` and labelled `Aflyst`, which the
+  validator checks on the line, not in its words. Enforcement
   currently covers categorized weekend activities; see the review limits below.
 - **One row per activity.** Facts report the same activity when they share child,
   date and `message_thread`, a neutral per-export number that replaces the opaque
@@ -80,13 +88,13 @@ controlled composition and renders both outputs.
 
 ### Known limits
 
-Cancellation enforcement currently covers categorized weekend activities;
-weekday cancellations can still be displayed as active. The class-event
-identity heuristic can group separate events for one child/date too broadly.
-The narrow school-week e-ink band can also truncate a final cancellation marker:
-`Fødselsdagsfest aflyst` fits without a prefix, but longer activity names may not.
-These are limitations to test and fix, not proof that an initial validated
-composition preserves every event meaning in every layout.
+A line whose facts are all stored as cancelled is labelled `Aflyst` wherever it
+shows, weekdays included. A cancellation that arrives as a separate message is
+joined to its activity only in the weekend rows (same child, date and thread); on a
+weekday the activity's own line is not marked by it. The class-event identity
+heuristic can group separate events for one child/date too broadly. These are
+limitations to test and fix, not proof that an initial validated composition
+preserves every event meaning in every layout.
 
 Weekend rollover selection is already rebuilt from facts. Keep the
 Saturday-to-Sunday refill/overflow regression when changing that code, along

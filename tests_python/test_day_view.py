@@ -10,6 +10,7 @@ from skoleklar.day_view import attach_day_view, build_day_view, clothing, day_le
 from skolekit.records import SourceCheck, SourceRecord, calendar_source_key
 from skoleklar.storage import SnapshotStore
 from tests_python.test_dashboard_browser_layout import CHROME
+from tests_python.board_lines import line
 from tests_python.test_dashboard_rendering import dashboard, weekday_grid_state
 
 
@@ -87,8 +88,11 @@ def test_clothes_follow_the_school_day_weather(weather, expected):
 
 def view_state(composed="2026-09-21T07:00:00+02:00"):
     state = weekday_grid_state(composed)
-    state["hero"]["children"][0]["lines"] = ["Medbring: idrætstøj", "Vikar: Mette H. · DAN 1.B"]
-    state["hero"]["children"][1]["lines"] = ["Medbring: idrætstøj", "Lektie: læs s. 4"]
+    day = state["hero"]["date"]
+    state["hero"]["children"][0]["lines"] = [line("idrætstøj", "bring", day=day),
+                                             line("Mette H. · DAN 1.B", "substitute", day=day)]
+    state["hero"]["children"][1]["lines"] = [line("idrætstøj", "bring", day=day),
+                                             line("læs s. 4", "homework", day=day)]
     return state
 
 
@@ -105,9 +109,11 @@ def test_view_is_attached_only_in_its_window_and_for_the_hero_day():
     assert "day_view" not in attach_day_view(view_state("2026-09-21T10:00:00+02:00"), lookup)
     assert "day_view" not in attach_day_view(view_state(), lambda day: {})
     # At 15:00 the view shows Tuesday; a hero still on Monday would list the wrong things.
-    assert "day_view" not in attach_day_view(view_state("2026-09-21T16:00:00+02:00"), lookup)
+    still_monday = view_state("2026-09-21T16:00:00+02:00")
+    still_monday["hero"].update(day="Mandag 21. sep.", date="2026-09-21")
+    assert "day_view" not in attach_day_view(still_monday, lookup)
     tuesday = view_state("2026-09-21T16:00:00+02:00")
-    tuesday["hero"]["day"] = "Tirsdag 22. sep."
+    assert tuesday["hero"]["date"] == "2026-09-22"
     assert attach_day_view(tuesday, lookup)["day_view"]["label"] == "I morgen"
 
 
@@ -254,3 +260,47 @@ def test_the_panel_keeps_long_days_inside_their_tiles():
     assert all(edges[i][1] < edges[i + 1][0] for i in range(len(edges) - 1))
     state["day_view"] = copy.deepcopy(view)
     dashboard.validate_panel_image(dashboard.render_png(state))
+
+
+def test_the_childs_own_part_leads_the_summary_and_is_never_cut(monkeypatch):
+    """A day-summary-v2 text puts the child's own group first; the panel cuts only its end."""
+    from skoleklar import day_view_render
+
+    state = rendered_state()
+    own = "Du og Emma laver en bogstavhistorie med bogstaverne F og H."
+    long_text = own + " Først læser du i din egen bog. I engelsk synger I en sang om dyr og tæller til " \
+        "tyve, og i matematik bygger I figurer af tændstikker og tæller, hvor mange I har brugt. " \
+        "Husk: læs side 12 og 13 i læsebogen."
+    assert 250 <= len(long_text) <= 480
+    for entry in state["day_summaries"]:
+        entry["children"][1].update(status="ok", headline="Bogstavhistorie med Emma: F og H", text=long_text)
+    dashboard.validate(state)
+    drawn = []
+    original = day_view_render.board.draw_text
+    monkeypatch.setattr(day_view_render.board, "draw_text",
+                        lambda draw, xy, text, *rest, **kw: drawn.append(text) or original(draw, xy, text, *rest, **kw))
+    dashboard.render_png(state)
+    joined = " ".join(drawn)
+    assert "Bogstavhistorie med Emma: F og H" in drawn
+    assert own in joined  # The first sentence is drawn whole, whatever is cut after it.
+    assert own in dashboard.render_html(state)
+
+
+def test_the_remember_list_reads_each_lines_kind():
+    """'(hvis du vil)', 'Lektie:' and what is left out come from the kinds, not the words."""
+    from skoleklar.day_view_render import remember_items
+
+    state = rendered_state()
+    child = state["hero"]["children"][0]
+    # The repeated line is dropped, and each line reads as its kind says.
+    child["lines"] = [line("idrætstøj", "bring"), line("hinkesten", "optional"), line("Mette · DAN", "substitute"),
+                      line("Læs s. 4", "homework"), line("Fødselsdagsfest", "party", cancelled=True)]
+    state["hero"]["children"][1].update(lines=[line("idrætstøj", "bring")])
+    for day in state["weekdays"]:
+        day.update(shared=[line("Morgensang", "routine")])
+    dashboard.validate(state)
+    items = [what for who, what in remember_items(state) if who != "Tøj"]
+    assert items == ["Idrætstøj", "Hinkesten (hvis du vil)", "Lektie: Læs s. 4", "Fødselsdagsfest er aflyst"]
+    child["lines"] = [line("s. 4", "homework", school_subject="Matematik")]
+    state["hero"]["children"][1].update(lines=[])
+    assert [what for who, what in remember_items(state) if who != "Tøj"] == ["Lektie: Mat. s. 4"]

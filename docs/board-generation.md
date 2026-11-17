@@ -10,20 +10,31 @@ Use the shared [rendering workflows](../rendering/README.md) for agent previews.
    source time. Exact duplicate display facts are collapsed with a repeat
    count. Message facts use sanitized stored wording; raw message text,
    evidence, source URLs and opaque handles stay out of composition context.
-2. The active `dashboard-v2` bundle asks for per-child/day slots containing
-   fact references, short Danish text and a priority tag. Each omitted fact
-   gets a reason. The strict schema is the contract.
-3. `dashboard_build.build_state` supplies dates, day/week labels, update stamps,
-   required markers, inbox metadata, weekend selection and overflow. It drops
-   references placed outside their dates, checks omission reasons and restores
-   facts whose omission is unjustified. Excess lines become a visible count.
-4. `dashboard_validation.validate_composition` checks dates, reference/audit
-   accounting, required provenance and event/bring semantics. A rule failure
-   gets bounded retries with fixed reason feedback.
+2. The active `dashboard-v3` bundle asks for per-child/day slots containing
+   fact references, short Danish text and a priority tag. The text is content
+   only: no `Medbring`, `Valgfrit`, `Frist`, `Vikar`, `Aflyst`, `Besked` or `Lektie`,
+   no box word and no subject for one subject's homework. Each omitted fact gets a
+   reason. The strict schema is the contract.
+3. `dashboard_build.build_state` writes the board state (schema 3). Every line is
+   an object: the model's `text` as written, the `refs` of the facts it shows, and
+   the presentation `present.present` computes from those facts: `kind`, the bold
+   `label`, the category `chip`, the homework `box` and its `subject`, `cancelled`,
+   `hidden` (a weekly routine), `rain_gear` and the `urgent` window. Code supplies
+   dates, day/week labels, update stamps, inbox metadata, weekend rows and
+   overflow; where it writes a line itself (weekend rows, the days ahead, the plain
+   board) it words it from the fact's typed fields (`dashboard_rules.fact_text`).
+   It drops references placed outside their dates, checks omission reasons and
+   restores facts whose omission is unjustified. Excess lines become `+N punkter mere`.
+4. `dashboard_validation.validate_composition` checks structure, never wording:
+   every reference names a context fact, every fact is accounted for once and sits
+   on the line its audit names, each line looks as its facts say, a shown fact's
+   date fits its row, a classmate's birth date never shows, a shown message event
+   shows its bring-item, and every weekend activity is shown, shown cancelled or
+   counted. A structural failure gets bounded retries with fixed reason feedback.
 5. If composition cannot validate, `fallback_composition` builds a plain board
-   from facts, marked `· enkel visning`. Fallback weeks are not cached, so a
-   later scan can retry the model. If fallback also fails, publication fails
-   explicitly and the previous timeline remains.
+   from facts; its `health` says so (`enkel visning`). Fallback weeks are not
+   cached, so a later scan can retry the model. If fallback also fails, publication
+   fails explicitly and the previous timeline remains.
 
 The model must not invent dates, obligations or a child's involvement. An
 uncertain fact remains uncertain; a composition audit is not new evidence.
@@ -42,9 +53,25 @@ Review verdicts are applied before composition as described in
 | `not_relevant` | Informational context rather than an obligation/change/event |
 | `birthday_notice`, `weekend` | Code handles placement/exclusion itself |
 
-Classmate birth-date notices are not invitations or plans. Marker prefixes
-such as `Besked:`, `Medbring:`, `Valgfrit:`, `Lektie:` and `Vikar:` are derived
-from the line's facts, not freely authored by the model.
+Classmate birth-date notices (`category` `birthday`) are not invitations or plans.
+Labels such as `Medbring`, `Valgfrit`, `Frist`, `Vikar` and `Aflyst` are drawn from
+the line's facts by `present`; they are never in the text.
+
+## Health
+
+A stage that fails without stopping the scan records a health entry in every frame
+(`skoleklar/health.py`): the review checks, the day summaries (generated or
+attached), the children's view, the weather, the days ahead, the battery, the
+composition cache, the plain board and facts on an older contract. Each is `ok`, or
+`degraded` with a fixed reason (an exception's type, never its message). The
+status line of every view then names what is missing, `Mangler: vejret, dagene frem
+· Opdateret 08/11 19.30`, in bold (`Mangler 3 dele` when more than two are missing,
+so it fits its corner); the phone brief starts with the same line for the stages
+that ran before it, and the run summary lists the degraded ones. Health belongs to
+the scan: the composition and facts entries are set on every frame, never cached
+with a week's composition. A review check whose model call failed is degraded too.
+The composition cache is recorded but not named on the board: a missing cache only
+costs a model call.
 
 ## Frame construction and verification
 

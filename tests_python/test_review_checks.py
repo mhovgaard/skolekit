@@ -42,11 +42,15 @@ def with_items(monkeypatch, items):
 
 
 def test_another_class_is_dropped_unless_it_is_for_everyone():
-    assert rc.rule_verdict(item("a", "Beta", "Skole-hjem-samtaler for 0. klasse"), [], CLASSES)[0] == "drop"
-    assert rc.rule_verdict(item("b", "Beta", "Skole-hjem-samtaler", quotes=("5. Klasse samtaler",)), [],
+    """The extractor says which class levels a fact concerns; the words are never read."""
+    beta = CLASSES["Beta"]
+    other = beta - 1 if beta else beta + 1
+    assert rc.rule_verdict(item("a", "Beta", "Skole-hjem-samtaler") | {"class_levels": [other]}, [],
                            CLASSES)[0] == "drop"
-    assert rc.rule_verdict(item("c", "Beta", "Skolehjem i 2. klasse"), [], CLASSES) is None
-    assert rc.rule_verdict(item("d", "Beta", "Juleklip for 0. klasse og hele skolen"), [], CLASSES) is None
+    assert rc.rule_verdict(item("c", "Beta", "Skolehjem") | {"class_levels": [beta]}, [], CLASSES) is None
+    assert rc.rule_verdict(item("d", "Beta", "Juleklip") | {"class_levels": [other, beta]}, [], CLASSES) is None
+    # A class named only in the words decides nothing.
+    assert rc.rule_verdict(item("e", "Beta", f"Skole-hjem-samtaler for {other}. klasse"), [], CLASSES) is None
 
 
 def test_a_vague_fact_is_covered_only_by_a_specific_one_naming_the_child():
@@ -58,7 +62,7 @@ def test_a_vague_fact_is_covered_only_by_a_specific_one_naming_the_child():
 
 
 def test_verdicts_are_stored_reused_and_rechecked_when_the_fact_changes(store, monkeypatch):
-    other_class = item("k1", "Beta", "Skole-hjem-samtaler for 0. klasse")
+    other_class = item("k1", "Beta", "Skole-hjem-samtaler") | {"class_levels": [CLASSES["Beta"] + 1]}
     slot = item("k2", "Beta", "Skolehjemssamtale", reason="Det fremgår ikke, hvilket tidspunkt Beta får.")
     no_evidence = item("k3", "Alfa", "Fødselsdagsfest", quotes=())
     later = item("k4", "Beta", "Skolefest", day="2026-12-20")
@@ -79,7 +83,7 @@ def test_verdicts_are_stored_reused_and_rechecked_when_the_fact_changes(store, m
 
 def test_the_board_applies_show_drop_and_unclear(store, monkeypatch):
     shown = item("k1", "Beta", "Skolehjemssamtale")
-    dropped = item("k2", "Beta", "Skole-hjem-samtaler for 0. klasse")
+    dropped = item("k2", "Beta", "Skole-hjem-samtaler for 0. klasse") | {"class_levels": [CLASSES["Beta"] + 1]}
     unclear = item("k3", "Beta", "Skolefest")
     untouched = item("k4", "Alfa", "Klassetur", flagged=False)
     with_items(monkeypatch, [shown, dropped, unclear, untouched])
@@ -96,7 +100,8 @@ def test_the_phone_manifest_follows_the_same_verdicts(store, monkeypatch):
     def publishable(fact, kind):
         return {**fact, "item_type": kind, "confidence": 0.9, "all_day": True, "summary": "Kilde."}
     shown = publishable(item("k1", "Beta", "Skolehjemssamtale"), "event")
-    dropped = publishable(item("k2", "Beta", "Skole-hjem-samtaler for 0. klasse"), "event")
+    dropped = publishable(item("k2", "Beta", "Skole-hjem-samtaler for 0. klasse")
+                          | {"class_levels": [CLASSES["Beta"] + 1]}, "event")
     unclear = publishable(item("k3", "Beta", "Medbring gummistøvler"), "bring")
     with_items(monkeypatch, [shown, dropped, unclear])
     rc.check_reviews(store, today=TODAY, client=Client([
@@ -111,7 +116,8 @@ def test_the_phone_manifest_follows_the_same_verdicts(store, monkeypatch):
 
 
 def test_a_failing_model_keeps_the_rules_verdicts_and_retries_later(store, monkeypatch):
-    with_items(monkeypatch, [item("k1", "Beta", "Skole-hjem-samtaler for 0. klasse"),
+    with_items(monkeypatch, [item("k1", "Beta", "Skole-hjem-samtaler for 0. klasse")
+                             | {"class_levels": [CLASSES["Beta"] + 1]},
                              item("k2", "Beta", "Skolehjemssamtale")])
     counts = rc.check_reviews(store, today=TODAY, client=Client(error=RuntimeError("down")))
     assert counts["rule"] == 1 and counts["model_failed"] == 1 and counts["unchecked"] == 1

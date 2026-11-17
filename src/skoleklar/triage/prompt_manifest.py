@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_MANIFEST_ID = "derive-v9"
+DEFAULT_MANIFEST_ID = "derive-v11"
 _MANIFEST_ID = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 SLOT = re.compile(r"\{\{(child_[12]|other_[1-9])\}\}")
 TRIAGE_FILE = "triage.toml"

@@ -179,7 +179,7 @@ def attach_day_view(state: dict[str, Any], lookup) -> dict[str, Any]:
     The moment is the frame's `composed_at`. The view needs the hero to show the
     same school day, so the remember list is that day's own.
     """
-    if state.get("schema_version") != 2 or "weather" in state:
+    if "weather" in state:
         return state
     composed = state.get("freshness", {}).get("composed_at")
     if not composed:
@@ -188,11 +188,7 @@ def attach_day_view(state: dict[str, Any], lookup) -> dict[str, Any]:
     day = view_date(at)
     if day is None:
         return state
-    from skoleklar.dashboard_validation import _display_date
-    try:
-        if _display_date(state["hero"]["day"], day) != day:
-            return state
-    except ValueError:
+    if state["hero"]["date"] != day.isoformat():
         return state
     names = [child["name"] for child in state["hero"]["children"]]
     label = "I dag" if day == at.astimezone(ZONE).date() else "I morgen"

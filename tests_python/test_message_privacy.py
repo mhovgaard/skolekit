@@ -542,6 +542,7 @@ def test_event_projection_discards_evidence_body_and_full_surname(
                 "dedupe_hint": "library-event-2026-09-18",
                 "event_kind": "event",
                 "activity_kind": None,
+                "celebrant": None,
                 "effective_date": "2026-09-18",
                 "end_date": None,
                 "all_day": True,
@@ -626,6 +627,7 @@ def test_timed_event_is_retained_as_reviewable_date_fact(tmp_path: Path) -> None
                 "dedupe_hint": "library-event-2026-09-18",
                 "event_kind": "event",
                 "activity_kind": None,
+                "celebrant": None,
                 "effective_date": "2026-09-18",
                 "end_date": None,
                 "all_day": False,
@@ -679,6 +681,7 @@ def test_bring_projection_retains_only_operational_objects(tmp_path: Path) -> No
                 "dedupe_hint": "workshop-bring-2026-09-15",
                 "event_kind": "bring",
                 "activity_kind": None,
+                "celebrant": None,
                 "effective_date": "2026-09-15",
                 "end_date": None,
                 "all_day": True,
@@ -723,7 +726,8 @@ def test_bring_projection_retains_only_operational_objects(tmp_path: Path) -> No
     assert b"John Brown" not in durable
 
 
-def test_birthday_invitation_keeps_only_its_activity_kind(tmp_path: Path) -> None:
+def test_birthday_invitation_keeps_its_kind_and_only_the_birthday_childs_first_name(tmp_path: Path) -> None:
+    """restricted-messages-v5: a birthday party keeps whose party it is, and nothing else."""
     message = {
         **_message(),
         "body_text": "CANARY_PRIVATE_BODY Clara inviterer til fødselsdag søndag den 1. november.",
@@ -740,6 +744,7 @@ def test_birthday_invitation_keeps_only_its_activity_kind(tmp_path: Path) -> Non
         "dedupe_hint": "birthday-party-2026-11-01",
         "event_kind": "event",
         "activity_kind": "birthday_party",
+        "celebrant": "Clara",
         "effective_date": "2026-11-01",
         "end_date": None,
         "all_day": True,
@@ -752,26 +757,68 @@ def test_birthday_invitation_keeps_only_its_activity_kind(tmp_path: Path) -> Non
         "evidence_quote": "inviterer til fødselsdag søndag den 1. november",
     }
     facts = project_event_facts({"items": [item]}, thread=thread, message=message, key=KEY)
-    assert facts[0]["activity_kind"] == "birthday_party"
+    assert facts[0]["activity_kind"] == "birthday_party" and facts[0]["celebrant"] == "Clara"
 
     with SnapshotStore(tmp_path / "school.db") as store:
         store.complete_message_event_extraction(
             thread_ref=thread.thread_ref,
             message_ref=thread.latest_message_ref,
             facts=facts,
-            extractor_version="message-events-v3",
+            extractor_version="message-events-v4",
             policy_version=MESSAGE_POLICY_VERSION,
         )
         stored = store.message_event_items()[0]
-    assert stored["title"] == "Fødselsdagsfest"
-    assert stored["activity_kind"] == "birthday_party"
+        assert store.connection.execute(
+            "SELECT celebrant FROM message_event_facts").fetchone()[0] == "Clara"
+    assert stored["title"] == "Claras fødselsdag"
+    assert stored["activity_kind"] == "birthday_party" and stored["celebrant"] == "Clara"
     durable = b"".join(path.read_bytes() for path in tmp_path.glob("school.db*"))
     assert b"CANARY_PRIVATE_BODY" not in durable
-    assert b"Clara" not in durable
+    assert b"inviterer" not in durable and b"1. november" not in durable
 
-    bring = {**item, "event_kind": "bring", "bring_items": ["gave"], "requirement": "required"}
+    bring = {**item, "event_kind": "bring", "celebrant": None, "bring_items": ["gave"], "requirement": "required"}
     with pytest.raises(MessageEventExtractionError, match="activity_kind_on_non_event_fact"):
         project_event_facts({"items": [bring]}, thread=thread, message=message, key=KEY)
+    trip = {**item, "activity_kind": "class_trip"}
+    with pytest.raises(MessageEventExtractionError, match="celebrant_on_non_birthday_fact"):
+        project_event_facts({"items": [trip]}, thread=thread, message=message, key=KEY)
+
+
+@pytest.mark.parametrize("body, celebrant, kept", [
+    ("Emma inviterer til fødselsdag søndag den 1. november.", "Emma", "Emma"),
+    ("Kom til Emmas fødselsdag søndag den 1. november.", "Emma", "Emma"),
+    ("Kom til Ella-Rose fødselsdag søndag den 1. november.", "Ella-Rose", "Ella-Rose"),
+    # Not in the message: the model made it up.
+    ("Der er fødselsdag søndag den 1. november.", "Emma", None),
+    # Not one capitalised first name.
+    ("emma inviterer til fødselsdag søndag den 1. november.", "emma", None),
+    ("Emma2 inviterer til fødselsdag søndag den 1. november.", "Emma2", None),
+    ("Emma Hansen inviterer til fødselsdag søndag den 1. november.", "Emma Hansen", None),
+    ("Emma Hansen inviterer til fødselsdag søndag den 1. november.", "Emma", "Emma"),
+    # The birthday child's surname is the surname half of a full name.
+    ("Emma Hansen inviterer til fødselsdag søndag den 1. november.", "Hansen", None),
+    ("Kom til Emma Hansens fødselsdag søndag den 1. november.", "Hansen", None),
+    ("Kom til Emma\nHansens fødselsdag søndag den 1. november.", "Hansen", None),
+    # A greeting is no name: 'Kære Emma' still names Emma.
+    ("Kære Emma. Du inviteres til fødselsdag søndag den 1. november.", "Emma", "Emma"),
+    # A surname of a participant, the sender (an adult), or the family's own child.
+    ("Familien Brown inviterer til fødselsdag søndag den 1. november.", "Brown", None),
+    ("Mvh John: Emma inviterer til fødselsdag søndag den 1. november.", "John", None),
+    ("Child inviterer til fødselsdag søndag den 1. november.", "Child", None),
+])
+def test_only_a_plain_birthday_childs_name_is_kept(body, celebrant, kept) -> None:
+    message = {**_message(), "body_text": body}
+    thread = EphemeralThread(student_id=1, child="Child", thread_ref="thr_aaaaaaaaaaaaaaaa",
+                             latest_message_ref="msg_bbbbbbbbbbbbbbbb", conversation=_conversation(),
+                             messages=[message])
+    item = {"dedupe_hint": "birthday-party-2026-11-01", "event_kind": "event",
+            "activity_kind": "birthday_party", "celebrant": celebrant, "effective_date": "2026-11-01",
+            "end_date": None, "all_day": True, "cancellation_state": "active", "necessary_location": None,
+            "bring_items": [], "requirement": None, "confidence": 0.97, "needs_review": False,
+            "evidence_quote": "fødselsdag søndag den 1. november"}
+    [fact] = project_event_facts({"items": [item]}, thread=thread, message=message, key=KEY)
+    # A refused name costs only the name: the party stays, with its plain title.
+    assert fact["activity_kind"] == "birthday_party" and fact["celebrant"] == kept
 
 
 def test_bring_projection_rejects_full_participant_surname() -> None:
@@ -793,6 +840,7 @@ def test_bring_projection_rejects_full_participant_surname() -> None:
                 "dedupe_hint": "bring-folder-2026-09-15",
                 "event_kind": "bring",
                 "activity_kind": None,
+                "celebrant": None,
                 "effective_date": "2026-09-15",
                 "end_date": None,
                 "all_day": True,
@@ -847,6 +895,7 @@ def test_new_extractor_supersedes_prior_facts_for_same_message(tmp_path: Path) -
         "child": "Child",
         "event_kind": "event",
         "activity_kind": None,
+        "celebrant": None,
         "effective_date": "2026-09-15",
         "end_date": None,
         "all_day": True,
@@ -865,6 +914,7 @@ def test_new_extractor_supersedes_prior_facts_for_same_message(tmp_path: Path) -
         "stable_key": "message-event:" + "b" * 64,
         "event_kind": "bring",
         "activity_kind": None,
+        "celebrant": None,
         "bring_items": ["jam jar", "paper"],
         "requirement": "required",
         "template_key": "private_bring",
@@ -915,6 +965,7 @@ def test_evidence_validation_accepts_unicode_punctuation_equivalents() -> None:
                 "dedupe_hint": "meeting-2026-09-18",
                 "event_kind": "event",
                 "activity_kind": None,
+                "celebrant": None,
                 "effective_date": "2026-09-18",
                 "end_date": None,
                 "all_day": False,
@@ -942,7 +993,7 @@ def test_zdr_processor_retries_truncated_output_and_records_safe_attempt(
             pass
 
         def generate(self, _document, *, manifest, max_output_tokens):
-            assert manifest.manifest_id == "message-events-v3"
+            assert manifest.manifest_id == "message-events-v4"
             self.calls.append(max_output_tokens)
             if len(self.calls) == 1:
                 raise OpenRouterGenerationError(
@@ -1028,6 +1079,7 @@ def test_zdr_processor_retries_invalid_evidence_without_persisting_content(
                             "dedupe_hint": "library-event-2026-09-18",
                             "event_kind": "event",
                             "activity_kind": None,
+                            "celebrant": None,
                             "effective_date": "2026-09-18",
                             "end_date": None,
                             "all_day": True,
@@ -1095,6 +1147,7 @@ def test_zdr_processor_persists_only_content_free_final_failure(
                             "dedupe_hint": "library-event-2026-09-18",
                             "event_kind": "event",
                             "activity_kind": None,
+                            "celebrant": None,
                             "effective_date": "2026-09-18",
                             "end_date": None,
                             "all_day": True,
@@ -1276,3 +1329,29 @@ def test_cli_exposes_privacy_message_controls() -> None:
     assert latest_child.child == "Beta"
     assert latest_child.latest is True
     assert review.verdict == "missed_event"
+
+
+def test_re_extraction_under_v4_keeps_the_partys_identity_and_workflow(tmp_path: Path) -> None:
+    """The stable key comes from the thread, kind and hint, not the prompt: acknowledgements survive."""
+    message = {**_message(), "body_text": "Clara inviterer til fødselsdag søndag den 1. november."}
+    thread = EphemeralThread(student_id=1, child="Child", thread_ref="thr_aaaaaaaaaaaaaaaa",
+                             latest_message_ref="msg_bbbbbbbbbbbbbbbb", conversation=_conversation(),
+                             messages=[message])
+    item = {"dedupe_hint": "birthday-party-2026-11-01", "event_kind": "event", "activity_kind": "birthday_party",
+            "celebrant": None, "effective_date": "2026-11-01", "end_date": None, "all_day": True,
+            "cancellation_state": "active", "necessary_location": None, "bring_items": [], "requirement": None,
+            "confidence": 0.97, "needs_review": False, "evidence_quote": "inviterer til fødselsdag"}
+    before = project_event_facts({"items": [item]}, thread=thread, message=message, key=KEY)
+    after = project_event_facts({"items": [{**item, "celebrant": "Clara"}]}, thread=thread, message=message,
+                                key=KEY)
+    assert before[0]["stable_key"] == after[0]["stable_key"]
+    with SnapshotStore(tmp_path / "school.db") as store:
+        refs = {"thread_ref": thread.thread_ref, "message_ref": thread.latest_message_ref,
+                "policy_version": MESSAGE_POLICY_VERSION}
+        store.complete_message_event_extraction(facts=before, extractor_version="message-events-v3:old", **refs)
+        store.connection.execute("UPDATE item_workflow SET acknowledged_at = '2026-10-28T08:00:00Z'")
+        store.connection.commit()
+        store.complete_message_event_extraction(facts=after, extractor_version="message-events-v4:new", **refs)
+        [party] = store.message_event_items()
+    assert party["title"] == "Claras fødselsdag" and party["stable_key"] == before[0]["stable_key"]
+    assert party["acknowledged_at"] == "2026-10-28T08:00:00Z"

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "manifest_id": "20260825T203142Z-c9f53e324150",
   "generated_at": "2026-08-25T20:31:42Z",
   "expires_at": "2026-08-27T08:31:42Z",
@@ -14,7 +14,11 @@
       "end": "2026-08-26",
       "all_day": true,
       "notes": "Cancelled by the school.",
-      "source_url": "https://x.skoleintra.dk/item/1"
+      "source_url": "https://x.skoleintra.dk/item/1",
+      "kind": "event",
+      "fact": {
+        "type": "event"
+      }
     }
   ],
   "reminders": [],

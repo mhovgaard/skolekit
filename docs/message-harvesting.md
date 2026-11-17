@@ -81,11 +81,31 @@ fallback for the other.
 ## Extraction and validation
 
 Message content exists in memory during processing. The active
-[`message-events-v3`](../src/skoleklar/manifests/message-events-v3/) contract
+[`message-events-v4`](../src/skoleklar/manifests/message-events-v4/) contract
 allows bounded operational facts such as dates, activity categories, generic
 places and bring-items. Schema/evidence checks run before persistence; evidence
 quotes are checked against the in-memory text and discarded, not stored.
 Participant surnames and sensitive/free-form locations are refused or reduced.
+
+One name is kept on purpose (`restricted-messages-v5`): a `birthday_party` fact's
+`celebrant`, the first name of the child whose party the family's child is invited
+to, so the family can see whose party it is (`Emmas fødselsdag`). Code keeps it only
+when it is one capitalised first name (a hyphen allowed, at most 24 characters)
+that occurs as a word in the message, and is not a participant's surname, the
+first name of the sender or another participant (the adults), or one of the
+family's own children; otherwise the name is dropped and the party keeps its plain
+title, `Fødselsdagsfest`. A `celebrant` on any other kind of fact is refused. The
+name is stored in `message_event_facts.celebrant` (migration 0006) and travels in
+the fact's title: the phone manifest, the brief JSON (which also has it as its own
+`celebrant` key) and the skoleklar MCP, the board's context, state, frames and
+caches, and the composition and review-check model inputs. A name that only ever
+follows another capitalised name (`Hansen` in `Emma Hansen`) is a surname and is
+dropped. It is never a separate field of the board context, and no other name,
+sentence or reason from the message is kept.
+
+The fact's stable key comes from its thread, kind and the model's dedupe hint, not
+from the prompt, so a party re-extracted under a new prompt with the same hint keeps
+its acknowledgement and owner confirmation.
 Uncertain facts retain their review requirement. A timed event is kept as a
 date-level fact with forced review; its clock time is available only through a
 live read.
