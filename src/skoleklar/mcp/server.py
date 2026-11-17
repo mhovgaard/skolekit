@@ -65,11 +65,7 @@ READ = types.ToolAnnotations(read_only_hint=True, destructive_hint=False, idempo
 # What a fact is comes from the one fact model (skoleklar.fact), so a new field
 # reaches the MCP's schema without an edit here.
 WeekFact = TypedDict("WeekFact", {
-    "stable_key": str, "child": str | None, "item_type": str | None, "title": str | None,
-    "summary": str | None, "effective_date": str | None, "end_date": str | None, "all_day": bool,
-    "actionability": str | None, "urgency": str | None, "needs_review": bool,
-    "acknowledged_at": str | None, "completed_at": str | None, "from": str,
-    **fact_model.annotations()})
+    **fact_model.core_annotations(fact_model.WEEK_CORE), "from": str, **fact_model.annotations()})
 
 
 class WeekBooking(TypedDict):
@@ -112,10 +108,8 @@ class WeeklyPlanWeek(TypedDict):
 
 
 BoardFact = TypedDict("BoardFact", {
-    "ref": str, "type": str | None, "child": str | None, "title": str | None,
-    "summary": str | None, "effective_date": str | None, "end_date": str | None,
-    "actionability": str | None, "urgency": str | None, "confidence": float | str | None,
-    "needs_review": bool | int | None, "private_message_fact": bool, "grouped": bool,
+    "ref": str, **fact_model.core_annotations(fact_model.BOARD_CORE),
+    "private_message_fact": bool, "grouped": bool,
     "cancelled": NotRequired[bool], "message_thread": NotRequired[int],
     "birthday_notice": NotRequired[bool], "confirmed_activity_kind": NotRequired[str],
     "repeats": NotRequired[int],

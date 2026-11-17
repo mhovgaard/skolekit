@@ -107,7 +107,7 @@ class Model:
     shared_days: list[tuple[str, list[Item], bool]]
     shared_later: list[tuple[str, Item]]
     shared_folded: int
-    unread: str
+    unread: Total
     tight: bool = False
 
 
@@ -213,12 +213,19 @@ def _message(data: dict[str, Any], name: str, live_messages) -> Message | None:
     return None
 
 
-def _unread(data: dict[str, Any], live_messages) -> str:
+@dataclass(frozen=True)
+class Total:
+    """The unread total's words, and whether they are a count (drawn with an envelope)."""
+    text: str
+    counted: bool
+
+
+def _unread(data: dict[str, Any], live_messages) -> Total:
     messages = data.get("messages", {})
     if not messages.get("checked") or board.is_stale(data):
-        return "Beskeder ikke tjekket"
+        return Total("Beskeder ikke tjekket", False)
     count = int(messages.get("unread_count", 0))
-    return f"{count} ulæste i alt" if count else "Ingen ulæste"
+    return Total(f"{count} ulæste i alt", True) if count else Total("Ingen ulæste", False)
 
 
 def _status(data: dict[str, Any]) -> str:
@@ -788,7 +795,8 @@ def draw_status(draw, data: dict[str, Any], *, bottom: bool = False) -> None:
         x -= 29
         _battery(draw, round(x), y + 3, battery)
         x -= 14
-    status = _status(data)
+    # The status fits the right half; a longer one is shortened, never run into the left.
+    status = board.fit(draw, _status(data), int(x - RIGHT_X), face(style)[0])
     _text(draw, x - text_width(status, style), y, status, style, board.BLACK)
 
 
@@ -825,7 +833,7 @@ def weekend_activities(data: dict[str, Any]) -> list[tuple[str, str, list[Item]]
     return result
 
 
-def message_lines(data: dict[str, Any], live_messages=None) -> tuple[list[tuple[str, Message]], str]:
+def message_lines(data: dict[str, Any], live_messages=None) -> tuple[list[tuple[str, Message]], Total]:
     """Each child's latest message, as on the parents' board, and the unread total."""
     lines = []
     for child in data["hero"]["children"]:
@@ -859,10 +867,10 @@ def message_html(message: Message, who: str = "") -> str:
             ).replace("@INK@", board.HTML_PALETTE["INK"])
 
 
-def total_html(total: str) -> str:
+def total_html(total: Total) -> str:
     """The unread total, with an envelope when there is a count."""
-    icon = _ENVELOPE.format(_ENVELOPE_OPEN) if total.endswith("i alt") else ""
-    return f'<p class="pb-total">{icon}{_esc(total)}</p>'
+    icon = _ENVELOPE.format(_ENVELOPE_OPEN) if total.counted else ""
+    return f'<p class="pb-total">{icon}{_esc(total.text)}</p>'
 
 
 def draw_parents_board(draw, data: dict[str, Any], live_messages=None) -> None:
@@ -890,9 +898,9 @@ def draw_parents_board(draw, data: dict[str, Any], live_messages=None) -> None:
     draw.rectangle((SPLIT, top, WIDTH - 1, top + DIVIDER - 1), fill=board.BLACK)
     y = top + DIVIDER + BEGGE_PAD[0]
     _text(draw, LEFT_X, y, "Begge", "begge", board.WHITE)
-    width = text_width(model.unread, "msg_b")
-    _text(draw, LEFT_END - width, y + 2, model.unread, "msg_b", board.WHITE)
-    if model.unread.endswith("i alt"):
+    width = text_width(model.unread.text, "msg_b")
+    _text(draw, LEFT_END - width, y + 2, model.unread.text, "msg_b", board.WHITE)
+    if model.unread.counted:
         _envelope(draw, round(LEFT_END - width - 23), y + 6, board.WHITE, board.BLACK, False)
     shared = right_rows(model.shared_days, model.shared_later, model.shared_folded, 0, model.tight)
     draw_right_rows(draw, shared, y, model.tight)
@@ -1029,9 +1037,9 @@ def body_html(data: dict[str, Any], live_messages=None) -> str:
         parts.append(f'<section class="pb-cell pb-dark pb-left">{left_html(kid, model.tight)}</section>')
         parts.append(f'<section class="pb-cell pb-right">{rows_html(rows, model.tight)}</section>')
     shared = right_rows(model.shared_days, model.shared_later, model.shared_folded, 0, model.tight)
-    envelope = _ENVELOPE.format(_ENVELOPE_OPEN) if model.unread.endswith("i alt") else ""
+    envelope = _ENVELOPE.format(_ENVELOPE_OPEN) if model.unread.counted else ""
     parts.append(f'<section class="pb-cell pb-dark pb-begge-l"><span class="pb-begge-name">Begge</span>'
-                 f'<span class="pb-unread">{envelope}{_esc(model.unread)}</span></section>')
+                 f'<span class="pb-unread">{envelope}{_esc(model.unread.text)}</span></section>')
     parts.append(f'<section class="pb-cell pb-begge-r">{rows_html(shared, model.tight)}</section>')
     tracks = " ".join([*(f"minmax(min-content,{height}fr)" for height in heights[:-1]), "auto"])
     css = SHARED_CSS + PARENTS_CSS + f".dashboard.parents{{grid-template-rows:auto {tracks}}}\n"

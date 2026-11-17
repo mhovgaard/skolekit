@@ -125,7 +125,7 @@ def _stage_summary(stage: str, payload: dict[str, Any] | None) -> dict[str, Any]
     if stage == "derive":
         summary = {
             key: int(payload[key])
-            for key in ("candidate_count", "contract_candidate_count", "failures")
+            for key in ("candidate_count", "contract_candidate_count", "contract_failure_count", "failures")
             if isinstance(payload.get(key), int)
         }
         # How many seen or ticked-off facts a re-derivation gave a new key; never which.
@@ -201,8 +201,11 @@ def _dashboard_failure_code(error: Exception) -> str:
     return "dashboard_error"
 
 
-def _run_quietly(stage: str, callback: Callable[[], StageResult]) -> None:
-    """Run one service; only its safe counts reach the log, never its output or messages."""
+def _run_quietly(stage: str, callback: Callable[[], StageResult]) -> dict[str, Any]:
+    """Run one service; only its safe counts reach the log, never its output or messages.
+
+    Returns those safe counts.
+    """
     started = time.monotonic()
     _event("stage_started", stage=stage)
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
@@ -225,6 +228,7 @@ def _run_quietly(stage: str, callback: Callable[[], StageResult]) -> None:
         duration_seconds=duration_seconds,
         **summary,
     )
+    return summary
 
 
 def _utc_timestamp(value: str) -> str:
@@ -273,7 +277,8 @@ def _check_reviews(database: Path, *, model: str, message_mode: str, today) -> d
         return health.degraded(error)
     _event("stage_completed", stage="review_checks",
            duration_seconds=round(time.monotonic() - started, 3), **counts)
-    return health.ok()
+    # A model call that failed leaves flagged facts unchecked: the board says so.
+    return health.degraded("model_failed") if counts.get("model_failed") else health.ok()
 
 
 def _generate_day_summaries(database: Path, *, model: str, message_mode: str, today) -> dict[str, str]:
@@ -472,6 +477,9 @@ def _dashboard_frames(now, context_at, compose_week, cached, model, stage, extra
                 except Exception as error:
                     state, audit = _fallback_week(context, week, error)
                     fallback = True
+            # Health belongs to this scan, never to a cached week (skoleklar.health).
+            state = {**state, "health": {"composition": health.degraded("plain_board") if fallback
+                                         else health.ok()}}
             weeks[week] = {"key": key, "state": state, "audit": audit,
                            "reused": reused is not None, "fallback": fallback}
         return weeks[week]["state"]
@@ -488,6 +496,9 @@ def _dashboard_frames(now, context_at, compose_week, cached, model, stage, extra
         state = week_state(context, at)
         stage["name"] = "weather"
         frame = health.merge(slice_state(state, context), scan_health or {})
+        # Facts on the board made under an older contract than it reads, at this moment.
+        stale = (context.get("contract") or {}).get("stale")
+        frame = health.record(frame, "facts", health.degraded("old_contract") if stale else health.ok())
         frame = _with_weekend_weather(frame, at, fetch=fetch)
         if extras is not None:
             stage["name"] = "extras"
@@ -563,7 +574,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
         # the scan re-derives those in the board's window that do not.
         derive = DeriveRequest(db=str(database), model=model, message_mode=message_mode,
                                migrate=True, as_of=target_date.isoformat())
-        _run_quietly("derive", lambda: pipeline.derive(derive))
+        derived = _run_quietly("derive", lambda: pipeline.derive(derive)) or {}
         archive_plan = ArchiveRequest(as_of=target_date.isoformat(), db=str(database), model=model,
                                       dry_run=True, message_mode=message_mode)
         _run_quietly("archive_plan", lambda: pipeline.archive(archive_plan))
@@ -574,6 +585,8 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
         _run_quietly("consolidate", lambda: pipeline.consolidate(consolidate))
         # What the board and the brief say is missing (skoleklar.health).
         scan_health = {
+            # A source the migration could not re-derive keeps its older facts.
+            **({"facts": health.degraded("rederive_failed")} if derived.get("contract_failure_count") else {}),
             "day_summaries": _generate_day_summaries(database, model=model, message_mode=message_mode,
                                                      today=target_date),
             "review_checks": _check_reviews(database, model=model, message_mode=message_mode,
@@ -636,7 +649,9 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
                     runtime.write_private("current-audit.json", json.dumps(current["audit"]))
                     # A fallback week is not cached, so the next scan asks the model again.
                     runtime.write_private("composition-cache.json", json.dumps(
-                        {"weeks": {week["key"]: {"state": week["state"], "audit": week["audit"]}
+                        {"weeks": {week["key"]: {"state": {key: value for key, value in week["state"].items()
+                                                           if key != "health"},
+                                                 "audit": week["audit"]}
                                    for week in weeks.values() if not week["fallback"]}}))
                     stage["name"] = "live_subjects"
                     live = None

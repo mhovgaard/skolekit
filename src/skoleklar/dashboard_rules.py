@@ -98,6 +98,9 @@ def _weekend_entries(context):
         if birthday_notice(fact):
             decisions[fact["ref"]] = ("omitted", "", "Classmate birth date only")
             continue
+        if fact_model.kind(fact) == "routine":
+            decisions[fact["ref"]] = ("omitted", "", "Weekly routine")
+            continue
         kind = fact.get("confirmed_activity_kind") or fact.get("activity_kind")
         if kind:
             group = activities.setdefault(_activity_event(fact), {

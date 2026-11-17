@@ -64,7 +64,8 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
         ("stage", "duration_seconds"),
         frozenset({
             # derive
-            "candidate_count", "failures", "contract_candidate_count", "lost_key_count",
+            "candidate_count", "failures", "contract_candidate_count", "contract_failure_count",
+            "lost_key_count",
             # consolidate
             "input_count", "output_count", "reduction_count", "dropped_group_count",
             "unknown_id_count", "repeated_id_count", "omitted_id_count",
@@ -688,7 +689,8 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
             {"lessons": ["Dansk", "Matematik", "Musik"]}, {"lessons": ["Engelsk", "Idræt"]}]},
         "ahead_days": 18, "device": {"battery_percent": 82},
         # The earlier stages' health reaches every frame (skoleklar.health).
-        "health": {"day_summaries": {"status": "ok"}, "review_checks": {"status": "ok"}},
+        "health": {"composition": {"status": "ok"}, "day_summaries": {"status": "ok"},
+                   "review_checks": {"status": "ok"}, "facts": {"status": "ok"}},
     }
     assert "day_view" not in second
     assert third["weather"]["verdict"] == "dry"
@@ -865,6 +867,7 @@ def test_board_extras_failures_are_logged_and_never_stop_the_board(scan, caplog)
     # The board says what is missing instead of only logging it.
     for _, state in scan.frames:
         assert {stage: entry["status"] for stage, entry in state["health"].items()} == {
+            "composition": "ok", "facts": "ok",
             "day_summaries": "degraded", "review_checks": "ok", "composition_cache": "degraded",
             "weather": "degraded", "day_view": "degraded", "lookahead": "degraded", "battery": "degraded"}
         assert state["health"]["weather"] == {"status": "degraded", "reason": "key_error"}

@@ -61,9 +61,15 @@ def missing(health: dict[str, Any] | None) -> list[str]:
             if label and health.get(stage, {}).get("status") == "degraded"]
 
 
+# More missing parts than this are counted, so the line fits the status corner.
+NAMED_PARTS = 2
+
+
 def line(health: dict[str, Any] | None) -> str:
-    """'Mangler: vejret, dagene frem', or '' when nothing is missing."""
+    """'Mangler: vejret, dagene frem', 'Mangler 3 dele', or '' when nothing is missing."""
     parts = missing(health)
+    if len(parts) > NAMED_PARTS:
+        return f"Mangler {len(parts)} dele"
     return f"Mangler: {', '.join(parts)}" if parts else ""
 
 

@@ -116,7 +116,8 @@ def build_delivery_manifest(
             )
     missing = stage_health.line(health)
     if missing:
-        brief_body += f"\n\n⚠️ {missing}"
+        # First, so cutting a long brief never loses it.
+        brief_body = f"⚠️ {missing}\n\n{brief_body}"
     manifest = {
         "schema_version": 1,
         "manifest_id": f"{generated.strftime('%Y%m%dT%H%M%SZ')}-{suffix}",

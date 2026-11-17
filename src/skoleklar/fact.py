@@ -28,6 +28,23 @@ CONTRACT = "fact-v1"
 CORE = ("stable_key", "stream", "item_type", "audience", "child", "title", "summary",
         "effective_date", "end_date", "all_day", "timing_rule", "actionability", "urgency",
         "urgency_reason", "confidence", "needs_review", "review_reason")
+# Each column's type, for a result schema such as the MCP's.
+CORE_TYPES: dict[str, Any] = {
+    "id": int, "stable_key": str, "stream": str | None, "item_type": str | None, "type": str | None,
+    "audience": str | None, "child": str | None, "title": str | None, "summary": str | None,
+    "effective_date": str | None, "end_date": str | None, "all_day": bool, "timing_rule": str | None,
+    "actionability": str | None, "urgency": str | None, "urgency_reason": str | None,
+    "confidence": float | str | None, "needs_review": bool | int | None, "review_reason": str | None,
+    "acknowledged_at": str | None, "completed_at": str | None,
+}
+# What each reader sees of a fact's columns, besides its meaning (`public`): the
+# brief (and the phone, which reads it), the board's context and the week view.
+BRIEF_CORE = ("id", "stable_key", "stream", "child", "title", "summary", "effective_date", "end_date",
+              "actionability", "urgency", "confidence", "needs_review")
+BOARD_CORE = ("type", "child", "title", "summary", "effective_date", "end_date", "actionability",
+              "urgency", "confidence", "needs_review")
+WEEK_CORE = ("stable_key", "child", "item_type", "title", "summary", "effective_date", "end_date",
+             "all_day", "actionability", "urgency", "needs_review", "acknowledged_at", "completed_at")
 # Where a fact came from, kept beside it but never sent to a model or the board.
 PROVENANCE = ("source_urls", "source_types", "harvest_run_id")
 # The workflow state a fact's stable key carries across re-derivation.
@@ -164,6 +181,11 @@ def merge(item_type: str, members: list[dict[str, Any]]) -> dict[str, Any]:
         merged[field.name] = field.normal(value, item_type)
     merged["contract"] = CONTRACT if members and all(current(member) for member in members) else None
     return merged
+
+
+def core_annotations(keys: tuple[str, ...]) -> dict[str, Any]:
+    """The columns `keys` as types, for a result schema such as the MCP's."""
+    return {key: CORE_TYPES[key] for key in keys}
 
 
 def annotations() -> dict[str, Any]:

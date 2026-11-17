@@ -420,19 +420,8 @@ def _headline(signal: dict[str, Any], selected: list[dict[str, Any]]) -> str:
 
 def _public_item(item: dict[str, Any]) -> dict[str, Any]:
     return {
-        "id": item["id"],
-        "stable_key": item["stable_key"],
-        "type": item["item_type"],
-        "stream": item["stream"],
-        "child": item["child"],
-        "title": item["title"],
-        "summary": item["summary"],
-        "effective_date": item["effective_date"],
-        "end_date": item["end_date"],
-        "actionability": item["actionability"],
-        "urgency": item["urgency"],
-        "confidence": item["confidence"],
-        "needs_review": item["needs_review"],
+        # The columns the brief shows (skoleklar.fact.BRIEF_CORE).
+        **{key: item[key] for key in fact_model.BRIEF_CORE},
         "seen": bool(item.get("first_delivered_at") or item.get("acknowledged_at")),
         "completed": bool(item.get("completed_at")),
         "source_urls": item.get("source_urls", []),

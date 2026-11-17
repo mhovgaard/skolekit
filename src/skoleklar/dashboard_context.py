@@ -21,8 +21,8 @@ from skoleklar.triage.review_checks import apply_verdicts
 from skoleklar.storage import SnapshotStore
 
 ZONE = ZoneInfo("Europe/Copenhagen")
-FIELDS = ("type", "child", "title", "summary", "effective_date", "end_date",
-          "actionability", "urgency", "confidence", "needs_review")
+# What the board's context shows of a fact's columns (skoleklar.fact.BOARD_CORE).
+FIELDS = fact_model.BOARD_CORE
 # Facts that are the same thing for the board: everything but their reference.
 _SAME_FACT = ("type", "child", "title", "effective_date", "end_date", "actionability",
               "private_message_fact", "cancelled", "activity_kind", "confirmed_activity_kind",

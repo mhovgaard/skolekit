@@ -445,3 +445,23 @@ def test_lesson_slots_say_what_they_are() -> None:
     [lesson] = deterministic_calendar_items(candidate_)
     assert (lesson["type"], lesson["category"], lesson["moves_time"], lesson["recurring"]) == (
         "substitute", None, None, False)
+
+
+def test_a_lesson_changes_identity_survives_the_readers_new_version() -> None:
+    """The reader's version moved with the fact contract; a lesson change's stable key
+    did not, so a substitute the family ticked off stays ticked off."""
+    from skolekit.records import canonical_hash
+
+    candidate_ = {"source_type": "calendar", "source_key": "LessonsEvents:slot:x", "sources": [{
+        "version_id": 2, "child": "Alfa", "payload_json": json.dumps({"source_data": {
+            "calendar_kind": "LessonsEvents", "event": {
+                "title": "MAT", "lessonName": "MAT", "start": "2026-09-18T09:00:00",
+                "end": "2026-09-18T09:45:00", "staffName": "Original Teacher",
+                "substituteStaff": "Substitute Teacher"}}})}]}
+    [lesson] = deterministic_calendar_items(candidate_)
+    assert lesson["stable_key"] == canonical_hash({"filter_version": "routine-calendar-v3",
+                                                   "source_key": "LessonsEvents:slot:x", "child": "Alfa",
+                                                   "type": "substitute"})
+    # It says what it is in typed fields, and carries the current contract.
+    assert (lesson["teacher"], lesson["school_subject"], lesson["contract"]) == (
+        "Substitute Teacher", "MAT", "fact-v1")

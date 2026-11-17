@@ -112,22 +112,10 @@ def day_summary(data: dict[str, Any], name: str) -> tuple[str, str] | None:
     return None
 
 
-# How a line's kind reads in the remember list, in a child's words; None leaves it out.
-_REMEMBER = {"optional": "{} (hvis du vil)", "homework": "Lektie: {}", "substitute": None, "routine": None,
-             "more": None}
-
-
 def remember_text(entry: dict[str, Any]) -> str:
-    """One line of the remember list, from its kind (`skoleklar.present`) and its text."""
-    form = _REMEMBER.get(entry["kind"], "{}")
-    if form is None or entry["hidden"]:
-        return ""  # A substitute is on the lesson tile; a routine needs no reminder.
-    if entry["kind"] == "homework" and entry["subject"]:
-        form = form.replace("{}", entry["subject"] + " {}")
-    text = form.format(" ".join(entry["text"].split()))
-    if entry["cancelled"]:
-        text += " er aflyst"
-    return text[:1].upper() + text[1:]
+    """One line of the remember list (`skoleklar.present.remember`)."""
+    from skoleklar.present import remember
+    return remember(entry)
 
 
 def remember_items(data: dict[str, Any]) -> list[tuple[str, str]]:

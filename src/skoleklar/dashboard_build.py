@@ -25,6 +25,7 @@ import re
 from collections import defaultdict
 from datetime import date
 
+from skoleklar import fact as fact_model
 from skoleklar import health
 from skoleklar.dashboard_events import birthday_notice
 from skoleklar.dashboard_rules import (
@@ -86,6 +87,8 @@ def _omission_reason(fact, omission, targets, sections, shown, facts=None):
     """
     if birthday_notice(fact):
         return "Classmate birth date only"
+    if fact_model.kind(fact) == "routine":
+        return "Weekly routine"
     if not targets:
         return "Outside displayed week"
     if fact.get("needs_review"):
@@ -137,6 +140,10 @@ def build_state(context, slots, *, plain=False):
             for ref in entry.get("refs") or []:
                 fact = facts.get(ref)
                 if fact is None or ref in used or ref in weekend_refs or birthday_notice(fact):
+                    continue
+                if fact_model.kind(fact) == "routine":
+                    # A weekly routine is never drawn, so it never takes one of a day's lines.
+                    dropped.setdefault(ref, "Weekly routine")
                     continue
                 if not _covers(fact, day):
                     dropped.setdefault(ref, "Wrong date")
@@ -258,10 +265,9 @@ def build_state(context, slots, *, plain=False):
         "weekend_overflow": overflow,
         "messages": {key: context["messages"][key] for key in ("checked", "bodies_retained", "unread_count")}
         | {"items": []},
-        # The plain board says so in the board's one line about what is missing.
-        "health": {"composition": health.degraded("plain_board") if plain else health.ok(),
-                   "facts": (health.degraded("old_contract") if (context.get("contract") or {}).get("stale")
-                             else health.ok())},
+        # The plain board says so in the board's one line about what is missing. The
+        # scan sets this again for every frame, so a cached week never carries it.
+        "health": {"composition": health.degraded("plain_board") if plain else health.ok()},
     }
     _apply_inbox(state["messages"], context)
     audit = {"source_updated_at": context["freshness"]["source_updated_at"], "facts": audit_facts,

@@ -25,9 +25,8 @@ from skoleklar.delivery_manifest import delivery_items_from_snapshot
 from skoleklar.triage.review_checks import apply_verdicts
 
 SCHEMA_VERSION = 1
-# What a fact in the view holds; anything else stays in the store.
-FACT_FIELDS = ("stable_key", "child", "item_type", "title", "summary", "effective_date", "end_date",
-               "all_day", "actionability", "urgency", "needs_review", "acknowledged_at", "completed_at")
+# What a fact in the view holds (skoleklar.fact); anything else stays in the store.
+FACT_FIELDS = fact_model.WEEK_CORE
 
 
 def _fact(item: dict[str, Any]) -> dict[str, Any]:

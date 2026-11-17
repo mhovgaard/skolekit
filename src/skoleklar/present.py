@@ -85,6 +85,25 @@ def more_line(count: int) -> dict[str, Any]:
     return line(f"+{count} {'punkt' if count == 1 else 'punkter'} mere", [], [], day=None)
 
 
+# How a line reads in the children's remember list, in a child's words; None leaves
+# it out (a substitute is on its lesson tile, a routine needs no reminder).
+REMEMBER = {"optional": "{} (hvis du vil)", "homework": "Lektie: {}", "substitute": None,
+            "routine": None, "more": None}
+
+
+def remember(entry: dict[str, Any]) -> str:
+    """A line as the children's view says it: from its presentation, its words kept whole."""
+    form = REMEMBER.get(entry["kind"], "{}")
+    if form is None or entry["hidden"]:
+        return ""
+    if entry["kind"] == "homework" and entry["subject"]:
+        form = form.replace("{}", entry["subject"] + " {}")
+    text = form.format(" ".join(entry["text"].split()))
+    if entry["cancelled"]:
+        text += " er aflyst"
+    return text[:1].upper() + text[1:]
+
+
 def urgent_on(entry: dict[str, Any], today: date | None) -> bool:
     """Whether a line is yellow on `today`: inside the window `present` gave it."""
     window = entry.get("urgent")

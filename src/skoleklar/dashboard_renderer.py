@@ -737,11 +737,11 @@ def draw_weekend_panel(draw: ImageDraw.ImageDraw, data: dict[str, Any], live_mes
     for name, message in lines[:2]:
         pb.draw_message(draw, left, y, end, message, BLACK, PAPER, who=name)
         y += 22
-    if total.endswith("i alt"):
+    if total.counted:
         pb._envelope(draw, left, y + 4, BLACK, PAPER, False)
-        pb._text(draw, left + 23, y, total, "msg_b", BLACK)
+        pb._text(draw, left + 23, y, total.text, "msg_b", BLACK)
     else:
-        pb._text(draw, left, y, total, "msg_b", BLACK)
+        pb._text(draw, left, y, total.text, "msg_b", BLACK)
 
 
 def draw_weather_panel(draw: ImageDraw.ImageDraw, data: dict[str, Any]) -> None:

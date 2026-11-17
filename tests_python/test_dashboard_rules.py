@@ -250,10 +250,32 @@ def test_fallback_board_is_valid_puts_obligations_first_and_says_it_is_plain():
     assert decisions["fact-8"]["decision"] == "merged"
 
 
-def test_a_board_with_facts_on_an_older_contract_says_so():
-    ctx = context("2026-11-05T19:35:00", [fact("fact-1", "ChildA", "2026-11-06", title="Teaterbesøg")])
-    state, _ = fallback_composition({**ctx, "contract": {"current": "fact-v1", "stale": 2}})
-    assert state["health"]["facts"] == {"status": "degraded", "reason": "old_contract"}
+def test_a_weekly_routine_takes_no_line_and_is_never_counted():
+    from tests_python.test_display_services import _slots
+    items = [fact("fact-1", "ChildA", "2026-11-03", "event", title="Morgensang", recurring=True),
+             *[fact(f"fact-{n}", "ChildA", "2026-11-03", "event", title=f"Punkt {n}") for n in (2, 3, 4)]]
+    ctx = context("2026-11-02T08:00:00", items)
+    lines = [{"refs": [f"fact-{n}"], "priority": "event", "text": f"Punkt {n}"} for n in (1, 2, 3, 4)]
+    state, audit = build_state(ctx, _slots(ctx, {("2026-11-03", "ChildA"): lines}))
+    # Three real lines fit the row; the routine neither takes one nor counts as more.
+    assert texts(state["weekdays"][1]["children"][0]["lines"]) == ["Punkt 2", "Punkt 3", "Punkt 4"]
+    assert {item["ref"]: item["reason"] for item in audit["facts"]}["fact-1"] == "Weekly routine"
+
+
+def test_a_frame_says_when_its_facts_are_on_an_older_contract(monkeypatch):
+    monkeypatch.setenv("AG_WEATHER", "off")
+    now = local("2026-11-05T19:35:00")
+
+    def at(moment, stale):
+        return {**context_at(moment, updated="2026-11-05T19:31:00"), "items": [],
+                "contract": {"current": "fact-v1", "stale": stale}}
+
+    for stale, status in ((2, "degraded"), (0, "ok")):
+        frames, weeks, _ = scan_service._dashboard_frames(
+            now, lambda moment: at(moment, stale), fallback_composition, {}, "model", {"name": ""})
+        # Health is this scan's, set on every frame; a cached week never carries it.
+        assert all(state["health"]["facts"]["status"] == status for _, state in frames)
+        assert all(state["health"]["composition"] == {"status": "ok"} for _, state in frames)
 
 
 def test_validation_reason_names_well_formed_facts_only():

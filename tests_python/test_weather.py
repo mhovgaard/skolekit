@@ -432,6 +432,15 @@ def test_cloud_job_keeps_the_dashboard_when_the_forecast_fails(monkeypatch):
     assert {**kept, "health": None} == {**state, "health": None}
     assert kept["health"] == {"weather": {"status": "degraded", "reason": "timeout_error"}}
     assert events == [("weather_failed", {"error_type": "TimeoutError"})]
+    # The forced failure shows on the rendered board, in the browser and on the panel.
+    from skoleklar import dashboard_renderer, parents_board_render
+    assert "Mangler: vejret" in dashboard_renderer.render_html(kept)
+    drawn = []
+    original = parents_board_render._text
+    monkeypatch.setattr(parents_board_render, "_text",
+                        lambda draw, x, y, text, *rest: drawn.append(text) or original(draw, x, y, text, *rest))
+    dashboard_renderer.render_png(kept)
+    assert any("Mangler: vejret" in text for text in drawn)
 
     events.clear()
     monkeypatch.setattr(weather, "attach_weather", lambda value, _now: museum)

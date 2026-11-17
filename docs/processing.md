@@ -38,9 +38,12 @@ a title to decide it.
 
 Every fact carries the `contract` it was made under (`fact-v1`). A contract change
 is migrated, never read around: each scan re-derives the sources whose live facts
-in the board's window (this and next week's plans, anything dated in the next 18
-days) were made under an older one, the nearest first and at most 40 a scan
-(`derive --migrate`). The board's context counts any fact still on an older
+in the board's window (this and next week's plans, anything dated from the Monday
+of the week the board shows to 18 days ahead) were made under an older one, the
+nearest first and at most 40 a scan (`derive --migrate`). A source that fails keeps
+its older facts and is tried again next scan; it never stops the scan, and the
+board's health says `facts` are missing. A lesson change's stable key does not
+move with the lesson reader's version (`LESSON_KEY_VERSION`). The board's context counts any fact still on an older
 contract, and the board says so in its health line. A re-derivation that rewords
 a dedupe hint gives the fact a new stable key, and the phone's acknowledgement stays
 with the old key, so run the migration on a copy first and read its `continuity`:

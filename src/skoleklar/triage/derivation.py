@@ -27,6 +27,9 @@ TAXONOMY_VERSION = _PACK.taxonomy_version
 DERIVATION_SCHEMA = _PACK.output_schema
 # The deterministic lesson-change reader; its version moves with the fact contract.
 ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v4"
+# A lesson change's identity, which must not move with the reader's version: a new
+# key would bring back every substitute and cancelled lesson the family ticked off.
+LESSON_KEY_VERSION = "routine-calendar-v3"
 
 
 def derivation_manifest() -> PromptManifest:
@@ -239,7 +242,7 @@ def _deterministic_lesson_change(
         )
     stable_key = canonical_hash(
         {
-            "filter_version": ROUTINE_CALENDAR_FILTER_VERSION,
+            "filter_version": LESSON_KEY_VERSION,
             "source_key": source_key,
             "child": child,
             "type": item_type,

@@ -540,7 +540,7 @@ def derive(request: DeriveRequest) -> StageResult:
                      for candidate in candidates}
             stale = [candidate for candidate in store.contract_candidates(
                 current_versions={PROMPT_VERSION, ROUTINE_CALENDAR_FILTER_VERSION},
-                start=as_of, end=as_of + timedelta(days=MIGRATION_DAYS),
+                start=_window_start(as_of), end=as_of + timedelta(days=MIGRATION_DAYS),
                 weekly_plan_keys=_plan_keys(as_of), limit=request.migrate_limit)
                 if tuple(sorted(source["version_id"] for source in candidate["sources"])) not in known]
             if request.source:
@@ -611,6 +611,9 @@ def derive(request: DeriveRequest) -> StageResult:
             )
         results: list[dict[str, Any]] = []
         failures = 0
+        # A source re-derived for a newer contract that fails keeps its older facts and
+        # is tried again next scan; it never stops the scan (docs/processing.md).
+        contract_failures = 0
         aborted = False
         for candidate in candidates:
             deterministic_items = deterministic_calendar_items(candidate)
@@ -714,7 +717,10 @@ def derive(request: DeriveRequest) -> StageResult:
                     }
                 )
             except Exception as error:
-                failures += 1
+                if candidate.get("change") == "contract":
+                    contract_failures += 1
+                else:
+                    failures += 1
                 store.fail_derivation(derivation_id, str(error))
                 results.append(
                     {
@@ -746,6 +752,7 @@ def derive(request: DeriveRequest) -> StageResult:
             "deterministic_candidate_count": deterministic_count,
             "processed_count": len(results),
             "contract_candidate_count": migrated,
+            "contract_failure_count": contract_failures,
             "failures": failures,
             "aborted": aborted,
             "results": results,
@@ -759,6 +766,16 @@ def derive(request: DeriveRequest) -> StageResult:
 MIGRATION_DAYS = 18
 
 
+def _window_start(as_of: date) -> date:
+    """Where the board's window starts: the Monday of the week it shows, as its
+    context does (`dashboard_context.export_context`), or `as_of` when that is earlier."""
+    from datetime import time
+
+    from skoleklar.dashboard_timing import ZONE, dashboard_focus
+    focus = dashboard_focus(datetime.combine(as_of, time(12), ZONE)).school_date
+    return min(as_of, focus - timedelta(days=focus.weekday()))
+
+
 def _plan_keys(as_of: date) -> set[str]:
     """This week's and next week's weekly-plan source keys, in either week spelling."""
     keys = set()
@@ -770,14 +787,14 @@ def _plan_keys(as_of: date) -> set[str]:
 
 def _workflow_keys(store: Any, as_of: date) -> dict[str, dict[str, Any]]:
     """The current facts from `as_of` on that the family has already seen or ticked off."""
-    end = (as_of + timedelta(days=MIGRATION_DAYS)).isoformat()
+    start, end = _window_start(as_of).isoformat(), (as_of + timedelta(days=MIGRATION_DAYS)).isoformat()
     result = {}
     for item in store.current_derived_items():
         seen = {"delivered": bool(item.get("first_delivered_at")),
                 "acknowledged": bool(item.get("acknowledged_at")),
                 "completed": bool(item.get("completed_at") or item.get("dismissed_at"))}
         day = item.get("effective_date") or ""
-        if any(seen.values()) and as_of.isoformat() <= day <= end:
+        if any(seen.values()) and start <= day <= end:
             result[item["stable_key"]] = {"child": item["child"], "type": item["item_type"],
                                           "effective_date": day, "title": item["title"], **seen}
     return result
