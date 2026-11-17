@@ -230,7 +230,8 @@ class FactRepository:
             f"""
             SELECT r.id AS record_id, r.child, r.source_type, r.source_key, r.source_url,
                    v.id AS version_id, v.content_hash, v.payload_json,
-                   MIN(CASE WHEN i.effective_date >= ? THEN i.effective_date END) AS next_date,
+                   MIN(CASE WHEN COALESCE(i.end_date, i.effective_date) >= ?
+                            THEN max(i.effective_date, ?) END) AS next_date,
                    MAX(i.effective_date) AS last_date
             FROM derivations d
             JOIN derivation_sources s ON s.derivation_id = d.id
@@ -251,7 +252,7 @@ class FactRepository:
             GROUP BY r.id, v.id
             ORDER BY next_date IS NULL, next_date, last_date DESC, r.child, r.source_type, r.source_key
             """,
-            [today_text, *sorted(current_versions), *sorted(weekly_plan_keys), end.isoformat(),
+            [today_text, today_text, *sorted(current_versions), *sorted(weekly_plan_keys), end.isoformat(),
              start.isoformat()],
         ).fetchall()
         run_id = self.latest_completed_run_id()

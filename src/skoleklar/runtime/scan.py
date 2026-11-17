@@ -445,7 +445,9 @@ def _with_lookahead(frame, lookahead, at):
         context = lookahead(at)
         frame = attach_lookahead(frame, context)
         # The days ahead read their own, longer context: its facts must be current too.
-        if (context.get("contract") or {}).get("stale"):
+        # The weekend cover and the children's view draw no days ahead, so they skip it.
+        shows_days_ahead = not (frame.get("weather") or frame.get("day_view"))
+        if shows_days_ahead and (context.get("contract") or {}).get("stale"):
             frame = health.record(frame, "facts", health.degraded("old_contract"))
         return frame
     except Exception as error:
