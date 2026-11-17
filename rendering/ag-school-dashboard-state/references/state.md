@@ -2,8 +2,9 @@
 
 Both renderers consume the same UTF-8 JSON. The executable allowlist lives in
 `src/skoleklar/dashboard_renderer.py` (`validate`) and `src/skoleklar/present.py`
-(`validate_line`); unknown fields are rejected at every level. Only schema 3 is
-rendered: every state is rebuilt by each scan, so no older state is ever drawn again.
+(`validate_line`). For a new render, the input must be schema 3. The separately
+versioned display timeline contains already rendered frames.
+[Display timeline](../../../docs/dashboard-timeline.md#serving-a-frame)
 
 ```json
 {
@@ -19,35 +20,41 @@ rendered: every state is rebuilt by each scan, so no older state is ever drawn a
   "hero": {
     "state": "Næste skoledag", "day": "Mandag 28. sep.", "date": "2026-09-28",
     "children": [
-      {"name": "Alfa", "lines": [LINE, ...]},
+      {"name": "Alfa", "lines": []},
       {"name": "Beta", "lines": []}
     ]
   },
   "weekdays": [
     {"date": "2026-09-28", "day": "Man. 28. sep.",
-     "children": [{"name": "Alfa", "lines": []}, {"name": "Beta", "lines": []}],
-     "shared": []}
+     "children": [{"name": "Alfa", "lines": []}, {"name": "Beta", "lines": []}], "shared": []},
+    {"date": "2026-09-29", "day": "Tir. 29. sep.",
+     "children": [{"name": "Alfa", "lines": []}, {"name": "Beta", "lines": []}], "shared": []},
+    {"date": "2026-09-30", "day": "Ons. 30. sep.",
+     "children": [{"name": "Alfa", "lines": []}, {"name": "Beta", "lines": []}], "shared": []},
+    {"date": "2026-10-01", "day": "Tor. 1. okt.",
+     "children": [{"name": "Alfa", "lines": []}, {"name": "Beta", "lines": []}], "shared": []},
+    {"date": "2026-10-02", "day": "Fre. 2. okt.",
+     "children": [{"name": "Alfa", "lines": []}, {"name": "Beta", "lines": []}], "shared": []}
   ],
-  "weekend": [
-    {"date": "2026-10-04", "day": "Søn. 4. okt.", "who": "Begge", "lines": [LINE]}
-  ],
+  "weekend": [],
   "weekend_overflow": 0,
   "messages": {"checked": true, "bodies_retained": 0, "unread_count": 2, "items": []},
   "health": {"composition": {"status": "ok"}, "weather": {"status": "degraded", "reason": "timeout_error"}}
 }
 ```
 
-A `LINE` is an object: its wording, the facts it shows, and how it looks.
+Each entry in `lines` or `shared` has wording, fact references, and presentation.
 
 ```json
 {"text": "s. 52–53; lav s. 26", "refs": ["fact-4"], "kind": "homework", "label": "",
  "chip": "", "box": true, "subject": "Mat.", "cancelled": false, "hidden": false,
- "rain_gear": false, "urgent": null}
+ "rain_gear": false, "retold": false, "urgent": null}
 ```
 
-- `text`: the model's words as written, or code's words from the fact's typed fields
-  (weekend rows, days ahead, the plain board); at most 100 characters, 48 in a
-  weekend row. It holds no label.
+- `text`: display wording without presentation labels. Code supplies wording
+  for named substitutes, weekend rows, days ahead and the plain board. Other
+  composed lines use the model's wording. The general validator allows up to
+  100 characters, and the weekend builder uses a 48-character wording limit.
 - `refs`: the context facts the line shows (`fact-N`, per export); empty only for
   the `+N punkter mere` line (`kind` `more`).
 - The rest is `present.present(facts, day)`: `kind` (`homework`, `bring`,
@@ -56,9 +63,10 @@ A `LINE` is an object: its wording, the facts it shows, and how it looks.
   `Valgfrit`, `Frist`, `Vikar`, `Aflyst` or empty), the blue `chip` (`TUR`, `FEST`,
   `MØDE`, `ARR.` or empty), the homework `box` and its bold short `subject`,
   `cancelled` (every fact behind it is), `hidden` (a weekly routine, never drawn),
-  `rain_gear` (its things to bring are rain clothes) and `urgent`, the dates
-  `{"from", "to"}` on which it is yellow, or null. The validator recomputes it from
-  the facts and refuses a line that looks otherwise.
+  `rain_gear` (the line includes rain clothes), `retold` (the day's plan
+  headline references one of these facts), and `urgent` (the dates
+  `{"from", "to"}` on which it is yellow, or null). Composition validation
+  recomputes the presentation from the referenced facts.
 
 Production state contains exactly five `weekdays`, Monday through Friday, each
 with both children in hero order and up to two `shared` lines. The hero has up to
@@ -95,7 +103,8 @@ and at most two metadata-only rows. Each row may contain:
 - optional `new` boolean: the row's latest activity is from the last 24 hours, or
   from Friday 15:00 on while the weekend panel shows.
 
-`messages.new_count` counts those rows. Both are set by code, never by the model.
+`messages.new_count` is the number of new inbox items in context and may exceed
+the number of displayed rows. Code copies the totals and builds the display rows.
 
 Never include message subjects, bodies, previews, quoted text, full surnames,
 source URLs, raw IDs, stable keys or opaque handles. The one name a message fact

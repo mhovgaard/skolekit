@@ -13,7 +13,7 @@ Each child has a row across the panel, and the dividers line up on both halves.
 | Part | Shows |
 |---|---|
 | Top left (dark) | The next school day's date and a weather heads-up: `1–5° Vintertøj`, `9–14° Regntøj` |
-| Top right | `Opdateret 08/11 19.30` and the board's battery; `ÆLDRE DATA ·` and `N punkter at tjekke` come first when they apply |
+| Top right | `Opdateret 08/11 19.30` and the board's battery, with `ÆLDRE DATA`, `Mangler: …` and `N punkter at tjekke` when they apply |
 | Child row, left | The weekly plan's headline for the day, homework with a checkbox, what to bring, the time-urgent line, the latest message |
 | Child row, right | The four school days after the next school day as dated rows, each led by the weekly plan's headline for that day, then events up to two weeks out below a dotted rule |
 | `Begge` row | The unread total (`4 ulæste i alt`) on the left; what concerns both children on the right |
@@ -41,10 +41,11 @@ Every highlight that guides the eye comes from the line's presentation, never fr
 its words: the checkbox and the bold subject (`homework`, the subject in its short
 form: `Mat.`, `Eng.`, `N/T`), the bold `Medbring`, `Valgfrit`, `Frist` and `Vikar`
 labels, `Aflyst` for a cancelled line, the `TUR`/`FEST`/`MØDE`/`ARR.` boxes, the
-yellow time-urgency marker and leaving out a weekly routine. Every deadline gets
-`Frist`, so a reply or a payment with a date reads as one. The words are content
-only, and code adds nothing to the model's words. No words are compared anywhere on
-the board.
+yellow time-urgency marker and leaving out a weekly routine. A deadline gets
+`Frist`, so a reply or a payment with a date reads as one. Substitute lines
+with a named teacher use the stored teacher, subject and timetable class when
+present, for example `Vikar Alex W. · MAT 02`. [Board generation](board-generation.md#context-slots-and-state)
+describes when the builder writes a line itself.
 
 - **The day's plan line** on the right is the weekly plan's
   [day summary](processing.md#day-summaries) headline (`Trekanter og bogstavet T`,
@@ -54,7 +55,8 @@ the board.
   retells (`retold`, from the summary itself): `TUR Kulturdag i teatret` is said once.
 - **Homework** has a checkbox and a bold subject (`Mat.`, `Eng.`, `N/T`); two
   homework items of a day share a line at a tab stop, or right after each other
-  when the first is long, and get a line each when they do not fit.
+  when the first is long, and get a line each when they do not fit. The checkbox
+  is a display marker. Tick off synced homework in Apple Reminders.
 - **Trips, parties and meetings** get a blue box: `TUR`, `FEST`, `MØDE`, and `ARR.`
   for other events.
 - **Yellow marks time urgency only**: a deadline, or a `time_change` (a change

@@ -13,7 +13,7 @@ this skill follows the same ones.
 |---|---|
 | Which facts matter, in what order, per child and day | Dates, day labels, week label, update stamp |
 | Which facts are the same thing (one line, several refs) | Each line's look from its facts (`present`): labels, boxes, checkbox, colour |
-| Short Danish line text, content only | Weekend rows and the overflow count |
+| Short Danish line text, content only | Named substitute wording, weekend rows and the overflow count |
 | A priority tag per line | Inbox rows and counts, freshness |
 | A reason tag for every left-out fact | Checking each reason tag; showing a certain fact whose tag does not hold |
 | | `+N punkter mere` when a row is full; the to-check count |

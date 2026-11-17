@@ -120,7 +120,7 @@ your family:
 | --- | --- | --- |
 | **1 · Skolekit: local toolkit** | `skolekit` CLI and MCP server for live lessons, calendars, plans, forms, notices and requested message reads | Look up school information from your terminal or through an assistant, without a school-record database or model |
 | **2 · Skoleklar: family planner** | `skoleklar` scans, checked household records, school-week CLI and stored-record MCP server | Bring each child's week together, trace facts to their sources and ask questions across the household |
-| **3 · Skoleklar: dashboard and phone manifest** | A browser board with optional GCP hosting; a phone manifest and iPhone Shortcut implementation also exist but are currently unused | Share the family overview in the browser, with an optional path to iCloud calendars and reminders |
+| **3 · Skoleklar: dashboard and phone manifest** | A browser board with optional GCP hosting and an optional iPhone Shortcut for shared Calendar and Reminders | Share the family overview in the browser and sync checked events and reminders to the phone |
 | **4 · Skoleklar: e-ink in the home** | An 800×480 six-colour Waveshare Spectra 6 display with a FireBeetle ESP32-E | Put the school day in a shared physical place, with automatic views for parents, children and weekends |
 
 The first two levels run locally on macOS or Linux. The browser board can also
@@ -134,11 +134,10 @@ household database, aggregation, interpretation and delivery. Each has its own
 MCP server, so an assistant can use live lookups or the aggregated family view.
 For the technical design, see [architecture](docs/architecture.md).
 
-**Phone integration status:** The phone delivery manifest exists, but is
-currently not used. The repository includes the iPhone Shortcut implementation
-for applying it to shared iCloud calendars and reminders; using that path
-requires phone setup and device acceptance testing. See the
-[iPhone guide](docs/iphone-refresh-school.md).
+**Phone setup:** A scan publishes a v2 phone manifest. With **Refresh School**
+installed on the primary iPhone, the Shortcut applies calendar and reminder
+entries to the shared iCloud destinations and sends reminder completions back.
+See the [iPhone guide](docs/iphone-refresh-school.md) for setup and device checks.
 
 ## Technology stack
 

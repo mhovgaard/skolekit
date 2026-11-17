@@ -40,19 +40,23 @@ Exact JSON definitions are in [contracts](../src/skoleklar/contracts/):
 | `POST /v1/sync` | Submit completed stable keys and request a newer manifest |
 | `POST /v1/receipts` | Report applied keys and failed native writes |
 
-An unchanged or inapplicable manifest returns 204. A manifest carries calendar,
-reminder and review entries with stable keys/revisions and expiry. Each entry
-says what it is like every other reader gets it ([the fact model](processing.md#the-fact-model)):
-its board `kind` and its typed `fact` (type, category, things to bring, subject …). The Shortcut
-matches embedded markers before writing, leaves unchanged items alone, updates
-changed items, and refuses ambiguous duplicate matches. It does not delete
-native entries. Exactly one phone performs reconciliation; other family members
-receive shared iCloud destinations.
+`/v1/sync` returns 204 when the caller already has the current manifest. A
+missing, expired or unsupported manifest returns 503. Manifest v2 includes
+calendar, reminder and review entries, each with a stable key, a presentation
+`kind`, and a typed `fact` object. Calendar and reminder entries also carry a
+revision used by the Shortcut. [Fact model](processing.md#the-fact-model)
 
-Only successful native application belongs in a delivery receipt. Completion
-observations and receipts are ingested by the next scan; an HTTP download is
-not a read receipt. Daily Note writing is not implemented, even though the
-manifest contains brief text. See [iPhone setup](iphone-refresh-school.md).
+The Shortcut reads the calendar and reminder sections and matches native
+entries by the stable key embedded in their notes. It skips unchanged
+revisions, updates changed entries, and refuses ambiguous matches. It leaves
+existing native entries in place when a key disappears. One primary iPhone
+reconciles entries. Other family members receive the shared iCloud calendars
+and lists.
+
+A receipt lists applied keys and failed writes separately. The next scan
+records delivery for the applied keys and ingests completion observations.
+The manifest includes a text brief, which can start with a scan health notice.
+The Shortcut applies calendar and reminder entries. [iPhone setup](iphone-refresh-school.md)
 
 ## Refresh and display
 
@@ -117,9 +121,11 @@ entry and redeploying the delivery service, which loads the registry at start.
 ## Maintaining the boundary
 
 Change schemas, application validation, gateway routes, device permissions
-and callers together. Deploy readers before a writer that emits a new bundle
-shape. Keep failure outcomes explicit: expired publication, unknown version,
-authentication failure and no new data have different meanings.
+and callers together. The delivery API validates both sync responses and
+receipt lookups against manifest v2. During a rollout from manifest v1, run the
+updated scan to replace the current manifest. A sync still pointing to v1 returns
+503, and receipts for v1 manifests return 409. The endpoint paths, sync request
+and receipt body versions stay at v1. [GCP updates](../infra/gcp/README.md#updating-the-running-services)
 
 Use synthetic contract/API tests and Shortcut-structure tests first. Real
 acceptance must then check iOS import destinations, changed-item edits,

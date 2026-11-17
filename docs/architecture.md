@@ -33,7 +33,7 @@ output stores and run summaries.
 flowchart TD
     Checkout[Lock and private state checkout] --> Receipt[Ingest phone receipts and completions]
     Receipt --> Harvest[Harvest and rebuild typed sources/bookings]
-    Harvest --> Derive[Derive facts]
+    Harvest --> Derive[Derive changed sources and refresh older fact contracts]
     Derive --> Clean[Archive and consolidate]
     Clean --> Check[Day summaries and review checks]
     Check --> Validate[Invariants and SQLite integrity]
@@ -51,8 +51,10 @@ A scan also holds the runtime's lock.
 
 Database validation and commit happen before independent output work. A board
 or phone publication failure produces `partial`; it does not roll back the
-validated database. A failed data stage stops before commit. Day-summary and
-review failures are handled conservatively so a later scan can retry them.
+validated database. A failed data stage stops before commit. Individual contract
+re-derivation failures keep the earlier facts. Day-summary and review failures
+allow the scan to finish with a health notice. [Processing](processing.md) and
+[board health](board-generation.md#health) describe those outcomes.
 
 ## Configuration
 
@@ -75,11 +77,12 @@ See [source adapters](data-sources.md) and [data foundation](data-foundation.md)
 
 ## Checked reads and delivery
 
-`week.week_view` exposes checked current facts, sanitized message facts and
-bookings, with `as_of` from a completed harvest. The board and phone apply the
-same stored review verdicts; their projections and date windows differ.
-`trace` reads provenance separately. A board model composition is not a new
-source of facts.
+`skoleklar/fact.py` defines the typed fields shared by derivation, consolidation,
+the brief, the stored-record MCP, the board, and phone delivery. The board and
+phone apply the same stored review verdicts and use their own date windows.
+The board model selects and words lines, then code computes their presentation
+from the referenced facts. `week.week_view` exposes checked facts and bookings
+with `as_of` from a completed harvest. `trace` reads provenance separately.
 
 Pulled copies open with `mode=ro&immutable=1` per read, so replacing the copy
 between MCP calls is visible on the next call. Rendering never migrates or
