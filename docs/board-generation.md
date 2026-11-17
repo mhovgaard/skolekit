@@ -15,14 +15,15 @@ Use the shared [rendering workflows](../rendering/README.md) for agent previews.
    only: no `Medbring`, `Valgfrit`, `Frist`, `Vikar`, `Aflyst`, `Besked` or `Lektie`,
    no box word and no subject for one subject's homework. Each omitted fact gets a
    reason. The strict schema is the contract.
-3. `dashboard_build.build_state` writes the board state (schema 3). Every line is
-   an object: the model's `text` as written, the `refs` of the facts it shows, and
-   the presentation `present.present` computes from those facts: `kind`, the bold
-   `label`, the category `chip`, the homework `box` and its `subject`, `cancelled`,
-   `hidden` (a weekly routine), `rain_gear` and the `urgent` window. Code supplies
+3. `dashboard_build.build_state` writes the board state (schema 3). Each line
+   has `text`, fact `refs`, and presentation from `present.present`: `kind`,
+   `label`, `chip`, the homework `box` and its `subject`, `cancelled`,
+   `hidden`, `rain_gear`, `retold` and the `urgent` date window. Code supplies
    dates, day/week labels, update stamps, inbox metadata, weekend rows and
-   overflow; where it writes a line itself (weekend rows, the days ahead, the plain
-   board) it words it from the fact's typed fields (`dashboard_rules.fact_text`).
+   overflow. It uses `dashboard_rules.fact_text` for weekend rows, the days
+   ahead and the plain board. It also replaces the model's wording when a line
+   consists entirely of substitutes with named teachers. The substitute line
+   joins the shortened teacher's name, subject and timetable class when present.
    It drops references placed outside their dates, checks omission reasons and
    restores facts whose omission is unjustified. Excess lines become `+N punkter mere`.
 4. `dashboard_validation.validate_composition` checks structure, never wording:
@@ -55,23 +56,26 @@ Review verdicts are applied before composition as described in
 
 Classmate birth-date notices (`category` `birthday`) are not invitations or plans.
 Labels such as `Medbring`, `Valgfrit`, `Frist`, `Vikar` and `Aflyst` are drawn from
-the line's facts by `present`; they are never in the text.
+the line's facts by `present`. The prompt asks the model to leave labels out of
+its text. Check for duplicate labels in the rendered board during acceptance.
+
+The timetable reader supplies `lesson_class`. The `derive-v11` schema for
+published prose, including weekly plans, has no `lesson_class` field. A
+substitute's class can therefore be missing from a prose-derived line. Some
+timetable subject strings already contain class text, so appending the
+timetable class can repeat it.
 
 ## Health
 
-A stage that fails without stopping the scan records a health entry in every frame
-(`skoleklar/health.py`): the review checks, the day summaries (generated or
-attached), the children's view, the weather, the days ahead, the battery, the
-composition cache, the plain board and facts on an older contract. Each is `ok`, or
-`degraded` with a fixed reason (an exception's type, never its message). The
-status line of every view then names what is missing, `Mangler: vejret, dagene frem
-· Opdateret 08/11 19.30`, in bold (`Mangler 3 dele` when more than two are missing,
-so it fits its corner); the phone brief starts with the same line for the stages
-that ran before it, and the run summary lists the degraded ones. Health belongs to
-the scan: the composition and facts entries are set on every frame, never cached
-with a week's composition. A review check whose model call failed is degraded too.
-The composition cache is recorded but not named on the board: a missing cache only
-costs a model call.
+The scan records `ok` or `degraded` with a fixed reason for stages it checks
+(`skoleklar/health.py`). Review checks and day summary generation contribute
+scan-wide status. Composition fallback, older facts, forecast failures and
+errors attaching extras can affect individual frames. The status line names
+missing parts, for example `Mangler: vejret, dagene frem`, or counts them when
+more than two are missing. The phone brief and run summary report degradation
+from the shared scan stages. Composition and frame health are recomputed on
+each scan, including when it reuses a cached composition. An unreadable
+composition cache is recorded for diagnostics and can cost another model call.
 
 ## Frame construction and verification
 

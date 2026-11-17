@@ -55,8 +55,10 @@ bounded page check must not remove unseen history. Original source versions
 remain available for traceability.
 
 Derivations and consolidations retain source/member links and input/prompt
-hashes. Only current complete live derivations feed current facts; validation
-backfills do not silently supersede them. `item_workflow` keeps delivery,
+hashes. Only current complete live derivations feed current facts. Validation
+backfills remain separate until a live run activates a matching result.
+Each fact's serialized payload holds its shared typed fields and contract
+version. `item_workflow` keeps delivery,
 acknowledgement, completion and dismissal by semantic stable key.
 `item_archive` separately holds archival decisions and review state.
 
@@ -86,8 +88,9 @@ are not implemented. Do not bypass that gap with unreviewed production SQL.
 Numbered SQL files in [migrations](../src/skoleklar/migrations/) are applied
 transactionally with their checksum in `schema_migrations`. The current series
 covers the baseline, typed sources, bookings, read views, separation of
-`item_archive` from delivery workflow state, and a message birthday party's
-`celebrant` first name (0006).
+`item_archive` from delivery workflow state, the birthday child's first name
+in `message_event_facts.celebrant` (0006), and headline references in
+`day_summaries.fact_keys_json` (0007).
 
 Never edit a recorded migration. Add a new number and tests for upgrade,
 rollback-on-failure, foreign keys, triggers and invariants. The runner refuses

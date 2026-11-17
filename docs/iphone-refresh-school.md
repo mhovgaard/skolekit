@@ -31,8 +31,8 @@ no keys: import questions collect them on the phone.
 
 ## What reaches the phone
 
-The manifest carries checked facts from today on; ended events, past due days
-and past review items are left out, because the phone never deletes.
+The v2 manifest carries checked facts from today on. It leaves out ended
+events, past due days, and past review items.
 
 | Fact type | Destination |
 | --- | --- |
@@ -41,10 +41,18 @@ and past review items are left out, because the phone never deletes.
 | `homework`, `parent_action`, `reminder` | A reminder in `School · Deadlines`, alert at 07:00 on the due day |
 | `substitute`, `context`, `routine` and other types | Not sent to the phone |
 
-A fact goes to the manifest's review list instead when it is flagged for review,
-has confidence below 0.75, has no validated date, or is a timed event without
-explicit start and end times. The Shortcut does not write the review list.
-The routing lives in `src/skoleklar/delivery_manifest.py`.
+A fact eligible for phone delivery goes to the review list when it is flagged
+for review, has confidence below 0.75, lacks a validated date, or needs a timed
+calendar entry. The Shortcut applies the calendar and reminder lists. Maintainers
+can inspect the review list and text brief in the manifest. [Delivery contracts](delivery.md#phone)
+
+## Complete a reminder
+
+Tick off the item in Apple Reminders under **School · Bring home** or
+**School · Deadlines**. The next **Refresh School** run sends its stable key,
+and the next scan records the completion. The board's checkboxes are display
+markers. A maintainer on the configured writer can also record completion with
+`uv run skoleklar item complete ITEM_ID`.
 
 ## Test the gateway from the Mac first
 

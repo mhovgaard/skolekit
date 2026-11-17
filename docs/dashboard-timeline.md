@@ -29,8 +29,8 @@ covers the relevant input and contract; unchanged inputs reuse the composition.
 and the [day-view](day-view.md) windows.
 
 For every change time, the scan exports context again without another harvest,
-then slices the composition. Source freshness and inbox markers come from that
-moment's context. Weekend rows are selected again from facts and current weekend
+then slices the schema 3 board state. Source freshness and inbox markers come
+from that moment's context. Weekend rows are selected again from facts and current weekend
 dates, with freed rows refilled and overflow recalculated. Weather, lessons,
 day summaries and the parents' look-ahead are attached for that frame.
 A failed week's model composition uses a plain validated fallback and is not
@@ -42,8 +42,10 @@ with a scheduled job for every layout transition.
 
 ## Serving a frame
 
-A schema-2 timeline holds complete frame bundles with `valid_from` and
-`valid_until`. The API selects the frame valid at request time and reports
+A schema-2 timeline holds rendered frame bundles with `valid_from` and
+`valid_until`. This is the published display format. The renderer's input is
+the separate [schema 3 board state](../rendering/ag-school-dashboard-state/references/state.md).
+The API selects the frame valid at request time and reports
 `next_change_at` and upcoming versions through `/v1/display/status`.
 Unknown or past frame versions return 409 when requested.
 

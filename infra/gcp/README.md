@@ -248,6 +248,20 @@ gcloud run services update agskoleintra-dashboard --region=europe-west1 --image=
 gcloud run jobs update agskoleintra-sync --region=europe-west1 --image=APP_IMAGE
 ```
 
+Run the updated job and check that it published both the dashboard and phone
+outputs:
+
+```bash
+gcloud run jobs execute agskoleintra-sync --project=YOUR_PROJECT_ID --region=europe-west1 --wait
+gcloud storage cat gs://YOUR_PROJECT_ID-ag-control/latest-run.json --project=YOUR_PROJECT_ID
+```
+
+The delivery service accepts manifest v2. When moving from v1, phone sync can
+return `manifest_unavailable` between updating the delivery service and the
+first successful scan with the new job. Check that the published artifacts
+match the successful run and test **Refresh School** on the primary iPhone.
+[Delivery contracts](../../docs/delivery.md#maintaining-the-boundary)
+
 A new gateway route needs a new API config. Do not run `deploy-gateway.sh` for
 that, because it also manages the API key. Render the spec with the delivery
 backend URL, then create the config and point the gateway at it:

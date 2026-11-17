@@ -41,10 +41,12 @@ uv run pytest -q
 ```
 
 Use focused tests during development, then the relevant full checks before a
-release. `uv run pytest -m pipeline` runs the typed pipeline's core set (the fact
-model, extraction, the board's lines, structural checks and health) in seconds. `tests_python/conftest.py` gives each test a synthetic household and
-private temporary directories; do not substitute a real session. The privacy
-guard compares committed text with the owner's identifiers when available, and
+release. `uv run pytest -m pipeline` covers the fact model, extraction, summary
+references, board presentation, and scan health. For fact model or delivery
+changes, run the stored-record MCP, delivery contract, and Shortcut tests too.
+`tests_python/conftest.py` gives each test a synthetic household and private
+temporary directories. The privacy guard compares committed text with the
+owner's identifiers when available and
 always refuses real-looking email addresses, home paths and deployed gateway
 hostnames.
 Also inspect new files before staging: an untracked file is outside a
@@ -86,6 +88,10 @@ A code merge does not establish cloud or hardware success. For a cloud update,
 follow [GCP operations](../infra/gcp/README.md) and the [agent runbook](../infra/gcp/SKILL.md):
 verify the target, update readers before the writer when formats change, run a
 bounded manual scan, check invariants and output outcomes, then check each client.
+When evaluating a prompt change on authorized real inputs, record completion
+tokens against the configured cap, dashboard fallback, duplicate labels, and
+provider cost. The automated suites use synthetic inputs. Check the published
+board and manifest separately from the physical iPhone and e-ink client.
 Do not enable schedules, rotate secrets or flash hardware as a side effect of
 a documentation or source-only task.
 

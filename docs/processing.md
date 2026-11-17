@@ -21,10 +21,13 @@ an event's or a meeting's `category` (`trip`, `party`, `meeting`, `birthday` for
 classmate's birth-date notice, `other`), whether a schedule change `moves_time`,
 whether an event is `recurring` (morning singing), its `school_subject`, a
 substitute's `teacher`, a bring-item's `bring_items` and whether they are
-`rain_gear`, and the `class_levels` the source says it concerns. A changed lesson
-from the timetable carries its `start_time` and `end_time`; the brief groups and
-times a lesson's changes from those, never from their sentences. Message facts say the same through their own extractor
-(`message-events-v4`: `activity_kind`, `celebrant`, `bring_items`).
+`rain_gear`, and the `class_levels` the source says it concerns. Class levels
+are integers, for example `[2, 5]` in the stored-record MCP. The timetable
+reader (`routine-calendar-v6`) adds `lesson_class`, such as `"02"`, and
+`start_time` and `end_time` to changed lessons when available. The brief
+groups timetable changes using the typed fields. The restricted message extractor
+(`message-events-v4`) supplies fields such as `activity_kind`, `celebrant`
+and `bring_items`.
 
 ## The fact model
 
@@ -32,31 +35,35 @@ times a lesson's changes from those, never from their sentences. Message facts s
 types, the fact types each one belongs to, and how consolidation joins them. A
 value on a type it does not belong to, or of the wrong shape, becomes the field's
 empty value; it is a display hint, so a wrong one is dropped rather than sent for
-review. Every stage copies a fact by that list (the store, consolidation, the brief,
-the board's context, the week view and the MCP), so a new field is added to the
-model and its extractor and nowhere else (`tests_python/test_fact_model.py`).
+review. Storage, consolidation, the brief, board context, week view, MCP and phone
+manifest all project fields from the shared model. When adding a field, update the
+model, its producer and the producer's output schema where applicable. Use the
+fact-model tests to check it survives the projections.
 `fact.kind` is what a fact is on the board, from these fields alone; no stage reads
 a title to decide it.
 
-Every fact carries the `contract` it was made under (`fact-v1`). A contract change
-is migrated, never read around: each scan re-derives the sources whose live facts
-in the board's window (this and next week's plans, anything dated from the Monday
-of the week the board shows to 18 days ahead) were made under an older one, the
-nearest first and at most 40 a scan (`derive --migrate`). A source that fails keeps
-its older facts and is tried again a day later (`MIGRATION_RETRY`), not every scan;
-it never stops the scan, the board's health says `facts` are missing meanwhile, and
-the scan logs a fixed failure code (`contract_failure_code`), never the error's text.
-Sources with a fact from today on are re-derived first, then the week's past days. A lesson change's stable key does not
-move with the lesson reader's version (`LESSON_KEY_VERSION`). The board's context counts any fact still on an older
-contract, and the board says so in its health line. A re-derivation that rewords
-a dedupe hint gives the fact a new stable key, and the phone's acknowledgement stays
-with the old key, so run the migration on a copy first and read its `continuity`:
+The current fact contract is `fact-v1`. When a database contains older facts,
+each scan also re-derives eligible sources under the current prompt or lesson
+reader. This covers this and next week's plans and facts overlapping the board's
+window through 18 days ahead. The default limit is 40 migration candidates per
+scan. It prioritizes upcoming facts, then recent past days. A failed migration
+keeps the earlier facts and waits 24 hours before it is eligible to retry.
+The scan reports a fixed failure code, and the board flags older facts in its
+health line.
+
+A timetable lesson change keeps its stable key across reader versions. For
+model-derived facts, a changed `dedupe_hint` can give the fact a different key.
+Delivery, acknowledgement, completion and dismissal still belong to the old key.
+When upgrading an existing database, you can run a migration on a private
+scratch copy and inspect `continuity`:
 
 ```sh
 uv run skoleklar derive --db COPY.db --migrate --as-of YYYY-MM-DD
 ```
 
-`continuity.lost` lists the seen or ticked-off facts whose key would change.
+`continuity.lost` lists previously delivered, acknowledged or acted-on facts
+whose keys did not survive that run. The command writes to the scratch copy.
+A fresh install has no older facts to migrate.
 
 The model reads each source once. A weekly plan goes as its days and general
 blocks (subject and text), without its flattened `body_text`, the repeated
@@ -73,17 +80,17 @@ identities are retained locally for traceability. Messages use a separate
 restricted extractor, not `derive --source messages`; see
 [message privacy](message-harvesting.md).
 
-Model requests use the configured OpenRouter model with response storage off,
-required parameters and ZDR provider routing. This still transmits school text
-to that provider; ZDR is a retention boundary, not local-only processing.
+Model requests send school text to the configured OpenRouter model with required
+parameters and zero data retention (ZDR) provider routing. ZDR governs provider
+retention.
 
 ## Versioning and evaluation
 
 Each bundle names instructions, semantic definitions, few-shots and an output
 schema. Its complete hash participates in stored audit and cache keys together
-with input identity and model. Preserve existing bundle files so stored results
-remain interpretable. Introduce a new bundle for a changed contract and update
-the loader and hash/regression tests intentionally.
+with input identity and model. Introduce a new bundle for a changed contract and
+update the loader and hash/regression tests. Retire a bundle after its callers have
+moved to the new version. Stored runs retain the original manifest ID and hash.
 
 Use bounded validation backfills against a private copy, not the production
 writer. They carry `purpose=validation`, including zero-item results, and stay
@@ -133,15 +140,17 @@ group or pair, a classmate the class celebrates), and forbids naming other
 children or adding sensitive matters; code cannot fully enforce the semantic
 naming policy. Each day also lists the facts derived from that day's plan, by a
 short id (`f1`), never their stable keys; the model names the ids its headline
-retells, and the store keeps their keys (`day_summaries.fact_keys_json`). The
-board's context then marks those facts `retold`, so the plan line is left out where
-a line of the day already shows one of them; no words are compared.
+retells, and the store keeps their keys (`day_summaries.fact_keys_json`). For the
+plan's current content, only the latest completed summary contributes `retold`
+references. The parents' board suppresses the headline on a day ahead when a
+displayed line already carries one of those facts.
 
 Code validates day order, paired headline/text, length and relative-time rules,
 and rejects `[barnet]` or the child's own name in the output.
-Summary caching includes plan version, prompt and model. A changed plan makes
-its previous summary unavailable until regenerated. The scan bounds the number
-of plans and retries failures on a later run. State statuses are `ok`,
+Summary caching includes the plan record and content hash, the prompt and model,
+and the referenced facts' keys, dates and titles. A changed plan makes its
+previous summary unavailable until regenerated. The scan bounds the number of
+plans and retries failures on a later run. State statuses are `ok`,
 `no_content`, `not_published` and `unavailable`.
 
 ```sh
