@@ -16,13 +16,18 @@ notices and composition always omits them; the validator rejects any
 composition that displays one. Source records, derivations, and birthday dates
 remain intact.
 
-Private-message event extraction (`message-events-v3`) assigns each event a
+Private-message event extraction (`message-events-v4`) assigns each event a
 bounded `activity_kind`: `birthday_party`, `class_trip`, `class_event`,
 `social_activity` (arranged by parents) or null. Dated invitations and
 parent-arranged activities count as events even when the message also asks for
 a reply. The board shows a categorized event on its weekend as an event, such
 as `ChildA: Fødselsdagsfest`, without the `Besked:` prefix that other message
-facts carry, and keeps the category visible. No message prose is retained. An owner may
+facts carry, and keeps the category visible. When the invitation names the
+birthday child, the title says whose party it is, `ChildA: Claras fødselsdag`
+(see [message privacy](message-harvesting.md#extraction-and-validation) for the
+one name a fact may keep); a weekend row too long for the name falls back to
+`Fødselsdagsfest`, so `fødselsdag` and `aflyst` are never cut. No message prose
+is retained. An owner may
 confirm an existing event's activity category without retrieving or retaining
 message prose. Cloud composition optionally reads the private object
 `dashboard/event-confirmations.json` from `AG_PRIVATE_BUCKET`:

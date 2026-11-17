@@ -93,10 +93,10 @@ def test_a_new_database_runs_every_migration_once(tmp_path):
             "SELECT version, name, checksum FROM schema_migrations ORDER BY version").fetchall()
         assert [(row[0], row[1]) for row in rows] == [
             (1, "baseline"), (2, "typed_sources"), (3, "bookings"), (4, "views"),
-            (5, "item_archive")]
+            (5, "item_archive"), (6, "message_celebrant")]
         assert [row[2] for row in rows] == [m.checksum for m in migrations.migrations()]
     with SnapshotStore(tmp_path / "new.db") as store:
-        assert store.connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 5
+        assert store.connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 6
 
 
 def test_an_older_database_is_marked_as_baseline_without_rerunning_it(tmp_path):
@@ -106,7 +106,7 @@ def test_an_older_database_is_marked_as_baseline_without_rerunning_it(tmp_path):
         connection.execute("INSERT INTO harvest_runs(started_at, status, schema_version) "
                            "VALUES ('2026-09-13T05:45:00Z', 'complete', 1)")
     with SnapshotStore(path) as store:
-        assert migrations.current_version(store.connection) == 5
+        assert migrations.current_version(store.connection) == 6
         assert store.connection.execute("SELECT count(*) FROM harvest_runs").fetchone()[0] == 1
 
 
@@ -128,7 +128,7 @@ def test_the_old_startup_upgrade_still_brings_an_older_file_to_the_baseline(tmp_
     with SnapshotStore(path) as store:
         columns = {row[1] for row in store.connection.execute("PRAGMA table_info(derivations)")}
         assert "purpose" in columns
-        assert migrations.current_version(store.connection) == 5
+        assert migrations.current_version(store.connection) == 6
 
 
 def test_a_file_that_does_not_match_the_baseline_is_refused_untouched(tmp_path):
@@ -152,6 +152,28 @@ def test_a_database_newer_than_the_code_is_refused(tmp_path):
         SnapshotStore(path)
 
 
+def test_a_version_5_database_gains_the_celebrant_column_and_keeps_its_facts(tmp_path, monkeypatch):
+    real = migrations.migrations()
+    path = tmp_path / "v5.db"
+    monkeypatch.setattr(migrations, "migrations", lambda: real[:5])
+    with SnapshotStore(path) as store:
+        assert "celebrant" not in {row[1] for row in store.connection.execute(
+            "PRAGMA table_info(message_event_facts)")}
+        store.connection.execute(
+            "INSERT INTO message_event_facts(stable_key, thread_ref, message_ref, child, event_kind, "
+            "effective_date, all_day, cancellation_state, activity_kind, participant_display_json, "
+            "template_key, confidence, needs_review, workflow_state, extractor_version, policy_version, "
+            "first_observed_at, last_confirmed_at) VALUES ('message-event:' || hex(zeroblob(32)), "
+            "'thr_aaaaaaaaaaaaaaaa', 'msg_aaaaaaaaaaaaaaaa', 'Alfa', 'event', '2026-11-14', 1, 'active', "
+            "'birthday_party', '[]', 'private_event', 0.9, 0, 'active', 'x', 'y', 'now', 'now')")
+        store.connection.commit()
+    monkeypatch.setattr(migrations, "migrations", lambda: real)
+    with SnapshotStore(path) as store:
+        assert migrations.current_version(store.connection) == 6
+        [row] = store.connection.execute("SELECT activity_kind, celebrant FROM message_event_facts").fetchall()
+        assert tuple(row) == ("birthday_party", None)
+
+
 def test_an_edited_migration_is_refused(tmp_path):
     path = tmp_path / "edited.db"
     with SnapshotStore(path) as store:
@@ -163,13 +185,13 @@ def test_an_edited_migration_is_refused(tmp_path):
 
 def test_a_failing_migration_leaves_nothing_behind(tmp_path, monkeypatch):
     real = migrations.migrations()
-    broken = migrations.Migration(6, "broken", "CREATE TABLE half (id INTEGER);\nNOT SQL;", "c")
+    broken = migrations.Migration(len(real) + 1, "broken", "CREATE TABLE half (id INTEGER);\nNOT SQL;", "c")
     monkeypatch.setattr(migrations, "migrations", lambda: (*real, broken))
     path = tmp_path / "broken.db"
     with pytest.raises(sqlite3.OperationalError):
         SnapshotStore(path)
     with sqlite3.connect(path) as connection:
-        assert connection.execute("SELECT max(version) FROM schema_migrations").fetchone()[0] == 5
+        assert connection.execute("SELECT max(version) FROM schema_migrations").fetchone()[0] == len(real)
         assert connection.execute(
             "SELECT count(*) FROM sqlite_master WHERE name = 'half'").fetchone()[0] == 0
 

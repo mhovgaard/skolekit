@@ -85,8 +85,9 @@ are not implemented. Do not bypass that gap with unreviewed production SQL.
 
 Numbered SQL files in [migrations](../src/skoleklar/migrations/) are applied
 transactionally with their checksum in `schema_migrations`. The current series
-covers the baseline, typed sources, bookings, read views and separation of
-`item_archive` from delivery workflow state.
+covers the baseline, typed sources, bookings, read views, separation of
+`item_archive` from delivery workflow state, and a message birthday party's
+`celebrant` first name (0006).
 
 Never edit a recorded migration. Add a new number and tests for upgrade,
 rollback-on-failure, foreign keys, triggers and invariants. The runner refuses

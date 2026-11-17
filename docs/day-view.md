@@ -32,10 +32,12 @@ Left, as at the weekend:
 - the weekday and date;
 - the season's [house artwork](weekend-artwork.md), chosen from that day's weather;
 - **Husk**: what to wear for the weather (`Jakke, hue og regntøj`), then each
-  child's lines from the board's hero for that day without their markers
-  (`Medbring:` and `Besked:` drop; `Valgfrit:` becomes `(hvis du vil)`). The
-  same item for both children is one `Begge` item, and the day's shared row is
-  added. Substitutes are left out, since their lesson tile shows them.
+  child's lines from the board's hero for that day, read from each line's kind:
+  an optional item ends `(hvis du vil)`, homework starts `Lektie:`, and a
+  substitute (its lesson tile shows it) or a weekly routine is left out; code's
+  own markers (`Medbring:`, `Besked:`) are trimmed. The same item for both
+  children is one `Begge` item, and the day's shared row is added with its
+  `shared_kind`. Only a state without kinds is read from its markers.
 
 Right, for each child:
 
@@ -47,6 +49,9 @@ Right, for each child:
   `Vikar Mette`; a cancelled lesson has a heavy outline, is struck through and
   headed `Aflyst`;
 - the [weekly plan's day summary](processing.md#day-summaries), when one is written.
+  Its first sentence is the child's own part of the day when the plan names the
+  child (`Du og Emma laver en bogstavhistorie med F og H`); a text too long for
+  the row is cut with `…` at its end, so that sentence stays.
 
 ## Where the lessons come from
 

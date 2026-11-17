@@ -274,6 +274,9 @@ def _schedule_group(members: list[dict[str, Any]]) -> dict[str, Any]:
         "seen": all(bool(item.get("seen")) for item in members),
         "completed": all(bool(item.get("completed")) for item in members),
         "source_urls": sorted(source_urls),
+        # The group moves a time when any member does, when they say (derive-v10).
+        **({"moves_time": any(item["moves_time"] for item in members if isinstance(item.get("moves_time"), bool))}
+           if any(isinstance(item.get("moves_time"), bool) for item in members) else {}),
         "grouped": True,
         "group_kind": "adaptive_schedule",
         "member_count": len(members),
@@ -433,6 +436,9 @@ def _public_item(item: dict[str, Any]) -> dict[str, Any]:
         "completed": bool(item.get("completed_at")),
         "source_urls": item.get("source_urls", []),
         **({"activity_kind": item["activity_kind"]} if item.get("activity_kind") else {}),
+        **({"celebrant": item["celebrant"]} if item.get("celebrant") else {}),
+        # What the item is (derive-v10), when its derivation said so.
+        **{key: item[key] for key in ("category", "moves_time", "recurring") if item.get(key) is not None},
         **({"state": "cancelled"} if item.get("state") == "cancelled" else {}),
     }
 

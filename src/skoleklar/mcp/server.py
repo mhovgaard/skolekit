@@ -126,6 +126,9 @@ class BoardFact(TypedDict):
     birthday_notice: NotRequired[bool]
     confirmed_activity_kind: NotRequired[str]
     activity_kind: NotRequired[str]
+    category: NotRequired[str]
+    moves_time: NotRequired[bool]
+    recurring: NotRequired[bool]
     repeats: NotRequired[int]
 
 

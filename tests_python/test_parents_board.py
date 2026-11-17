@@ -1,7 +1,7 @@
 """The parents' board: line kinds, the days ahead, later events, urgency, the drop
 order and the message topics. Synthetic data only; no school data or network."""
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -142,10 +142,13 @@ def test_kinds_come_from_the_facts_named_in_the_audit():
     dashboard.validate(state)
 
 
-def test_an_events_own_words_can_make_it_a_meeting():
-    assert render.make_item("Skolehjemssamtaler", "event", "2026-11-09", None).chip == "MØDE"
-    assert render.make_item("Klassearrangement", "event", "2026-11-09", None).chip == "ARR."
+def test_a_lines_kind_comes_from_its_facts_and_its_words_only_without_one():
+    # The facts said what it is: the words do not overrule them.
+    assert render.make_item("Skolehjemssamtaler", "event", "2026-11-09", None).chip == "ARR."
     assert render.make_item("Fødselsdag hos Dagny", "trip", "2026-11-09", None).chip == "TUR"
+    # A state without kinds (an old state, a local render) is read from its words.
+    assert render.make_item("Besked: Skolehjemssamtaler", None, "2026-11-09", None).chip == "MØDE"
+    assert render.make_item("Besked: Klassearrangement", None, "2026-11-09", None).chip == "ARR."
 
 
 def test_kinds_must_match_the_lines():
@@ -170,6 +173,24 @@ def fact(ref, child, day, kind="homework", title="Læs s. 4", **extra):
             "actionability": "required", **extra}
 
 
+@pytest.mark.parametrize("hero, expected", [
+    # (next school day, the four after it): Sunday 12.00 and Monday evening …
+    ("2026-11-09", ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"]),
+    ("2026-11-10", ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16"]),
+    # … Wednesday evening, and Thursday evening or Friday daytime: never an empty weekend.
+    ("2026-11-12", ["2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18"]),
+    ("2026-11-13", ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"]),
+    # ISO week 53 of 2026 into week 1 of 2027.
+    ("2027-01-01", ["2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07"]),
+])
+def test_the_days_ahead_are_the_next_four_school_days(hero, expected):
+    hero = date.fromisoformat(hero)
+    assert [value.isoformat() for value in pb.lookahead_dates(hero)] == expected
+    span = pb.lookahead_span(hero)
+    assert span[0] == hero + timedelta(days=1) and span[-1].isoformat() == expected[-1]
+    assert len(span) <= pb.AHEAD_ROWS
+
+
 def test_thursday_evening_looks_into_the_weekend_and_next_week():
     state = heavy_week_state()  # composed for 9–13 November
     context = context_at("2026-11-12T19:30:00+01:00", [
@@ -177,17 +198,36 @@ def test_thursday_evening_looks_into_the_weekend_and_next_week():
         fact("f2", "Beta", "2026-11-16", "homework", "Læs s. 90"),
         fact("f3", "Beta", "2026-11-17", "bring", "Medbring badetøj"),
         fact("f4", "Alfa", "2026-11-13", "homework", "Already in the week"),
-        fact("f5", "Beta", "2026-11-18", "homework", "After the look-ahead"),
+        fact("f5", "Beta", "2026-11-20", "homework", "After the look-ahead"),
         fact("f6", "Alfa", "2026-11-16", "homework", "Uncertain", needs_review=True),
         fact("f7", "Elsewhere", "2026-11-16", "event", "Skolefest"),
+        fact("f8", "Alfa", "2026-11-19", "homework", "Thursday is the fourth school day"),
     ])
     rows = pb.ahead_rows(context, state)
-    assert [row["date"] for row in rows] == ["2026-11-14", "2026-11-16", "2026-11-17"]
-    saturday, monday, tuesday = rows
+    # The next school day is Friday: Saturday has a party, Sunday nothing, then Monday to Thursday.
+    assert [row["date"] for row in rows] == ["2026-11-14", "2026-11-16", "2026-11-17", "2026-11-19"]
+    saturday, monday, tuesday, thursday = rows
     assert saturday["children"][0] == {"name": "Alfa", "lines": ["Fødselsdagsfest"], "kinds": ["party"]}
     assert monday["children"][1]["lines"] == ["Læs s. 90"] and monday["children"][0]["lines"] == []
     assert monday["shared"] == [{"text": "Skolefest", "kind": "party"}]
     assert tuesday["children"][1] == {"name": "Beta", "lines": ["Medbring: badetøj"], "kinds": ["bring"]}
+    assert thursday["children"][0]["lines"] == ["Lektie: Thursday is the fourth school day"]
+    dashboard.validate({**state, "freshness": {**state["freshness"], "composed_at": "2026-11-12T19:30:00+01:00"},
+                        "ahead": rows, "later_events": []})
+
+
+def test_later_events_start_after_the_last_school_day_ahead():
+    state = heavy_week_state()
+    context = context_at("2026-11-12T19:30:00+01:00", [  # Thursday: the days ahead end on Thursday 19
+        fact("f1", "Alfa", "2026-11-19", "event", "Skovtur"),
+        fact("f2", "Alfa", "2026-11-20", "event", "Juleklip"),
+        fact("f3", "Beta", "2026-11-27", "parent_action", "Tilmeld juletur"),
+        fact("f4", "Beta", "2026-11-28", "event", "Too far out"),
+    ])
+    assert pb.later_events(context, state) == [
+        {"date": "2026-11-20", "kind": "party", "text": "Juleklip", "who": "Alfa"},
+        {"date": "2026-11-27", "kind": "deadline", "text": "Tilmeld juletur", "who": "Beta"},
+    ]
 
 
 def test_later_events_are_trips_parties_meetings_and_deadlines_two_weeks_out():
@@ -225,12 +265,79 @@ def test_a_weekly_event_is_not_repeated_below_the_rule():
 def test_morning_singing_is_a_routine_and_never_shown_unless_cancelled():
     state = heavy_week_state()
     state["weekdays"][4]["shared"] = "Morgensang"
-    state["weekdays"][4]["shared_kind"] = "event"
-    state["later_events"].append({"date": "2026-11-20", "who": "Begge", "kind": "event", "text": "Morgensang"})
-    state["later_events"].sort(key=lambda entry: entry["date"])
+    state["weekdays"][4]["shared_kind"] = "routine"
+    assert "Morgensang" not in dashboard.render_html(state)
+    # A state without kinds is read from its words, as before.
+    state["weekdays"][4].pop("shared_kind")
     assert "Morgensang" not in dashboard.render_html(state)
     state["weekdays"][4]["shared"] = "Morgensang aflyst"
     assert "Morgensang aflyst" in dashboard.render_html(state)
+
+
+@pytest.mark.parametrize("fact, kind", [
+    # derive-v10 says what a fact is; the title is not read.
+    ({"type": "event", "title": "Morgensang i salen", "recurring": True, "category": "other"}, "routine"),
+    ({"type": "event", "title": "Morgensang i salen", "recurring": True, "cancelled": True,
+      "category": "other"}, "event"),
+    ({"type": "event", "title": "Skovdag", "recurring": False, "category": "trip"}, "trip"),
+    ({"type": "event", "title": "Turnering i hallen", "recurring": False, "category": "other"}, "event"),
+    ({"type": "event", "title": "Samtaler", "recurring": False, "category": "meeting"}, "meeting"),
+    ({"type": "parent_action", "title": "Book en samtale", "recurring": False}, "deadline"),
+    # A null category reaches the board as a missing key: the title's words still do not decide.
+    ({"type": "parent_action", "title": "Læs referatet fra forældremødet", "recurring": False}, "deadline"),
+    ({"type": "parent_action", "title": "Giv besked om samtaletid", "recurring": False}, "deadline"),
+    ({"type": "event", "title": "Skovtur", "recurring": False}, "event"),
+    ({"type": "schedule_change", "title": "Fri kl. 12", "recurring": False}, "change"),
+    ({"type": "parent_action", "title": "Kom til informationsaften", "category": "meeting"}, "meeting"),
+    ({"type": "schedule_change", "title": "Ny tid for svømning", "moves_time": True}, "time_change"),
+    ({"type": "schedule_change", "title": "Idræt kl. 10 flyttes til salen", "moves_time": False}, "change"),
+    # Facts from before v10 say nothing, so their titles are read as the board always did.
+    ({"type": "event", "title": "Morgensang"}, "routine"),
+    ({"type": "event", "title": "Morgensang aflyst"}, "event"),
+    ({"type": "event", "title": "Skovtur"}, "trip"),
+    ({"type": "parent_action", "title": "Forældresamtale kl. 16.40"}, "meeting"),
+    ({"type": "schedule_change", "title": "Fri kl. 12"}, "time_change"),
+    ({"type": "schedule_change", "title": "Idræt i salen"}, "change"),
+])
+def test_a_facts_own_fields_decide_its_kind(fact, kind):
+    assert pb.fact_kind(fact) == kind
+
+
+@pytest.mark.parametrize("line, fact, kind", [
+    # Facts from before derive-v10: the composed line's words still say what they did.
+    ("Skolehjemssamtaler", {"type": "event", "title": "Samtaler i uge 47"}, "meeting"),
+    ("Fri kl. 12", {"type": "schedule_change", "title": "Ændret skoledag"}, "time_change"),
+    ("Morgensang", {"type": "event", "title": "Fælles samling"}, "routine"),
+    # derive-v10 facts are taken at their word, whatever the line says.
+    ("Besøg på museet", {"type": "event", "title": "Besøg", "category": "other", "recurring": False}, "event"),
+    ("Idræt kl. 10 i salen", {"type": "schedule_change", "title": "Idræt flyttes", "moves_time": False,
+                              "recurring": False}, "change"),
+    ("Morgensang med 3. klasse", {"type": "event", "title": "Morgensang", "category": "other",
+                                  "recurring": False}, "event"),
+    ("Idræt kl. 10", {"type": "schedule_change", "title": "Idræt", "recurring": False}, "change"),
+    # Signing up for a meeting is a deadline; only going is a meeting.
+    ("Tilmeld forældresamtale", {"type": "parent_action", "title": "Tilmeld forældresamtale"}, "deadline"),
+])
+def test_a_lines_kind_comes_from_its_facts(line, fact, kind):
+    state = heavy_week_state()
+    state["hero"]["children"][0]["lines"] = [line]
+    context = {"items": [{"ref": "fact-1", "actionability": "required", **fact}]}
+    audit = {"facts": [{"ref": "fact-1", "decision": "displayed", "location": "hero.children[0].lines[0]"}]}
+    pb.attach_kinds(state, audit, context)
+    assert state["hero"]["children"][0]["kinds"] == [kind]
+
+
+def test_a_classmates_birth_date_never_reaches_the_board():
+    state = heavy_week_state()
+    notice = fact("f1", "Alfa", "2026-11-19", "event", "Ida har fødselsdag", actionability="informational")
+    assert pb.later_events(context_at("2026-11-08T19:30:00+01:00", [notice]), state) == []
+
+
+def test_yellow_follows_the_facts_kind_not_the_lines_words():
+    today = render.date(2026, 11, 8)
+    assert render.make_item("Ny mødetid", "time_change", "2026-11-09", today).urgent
+    assert not render.make_item("Idræt kl. 10 i salen", "change", "2026-11-09", today).urgent
+    assert not render.make_item("Ny mødetid", "time_change", "2026-11-12", today).urgent
 
 
 def test_look_ahead_is_left_out_of_the_weekend_cover_and_day_view():
@@ -245,6 +352,9 @@ def test_look_ahead_is_left_out_of_the_weekend_cover_and_day_view():
     {"later_events": [{"date": "2026-11-19", "who": "Somebody", "kind": "party", "text": "Fest"}]},
     {"later_events": [{"date": "2026-11-19", "who": "Begge", "kind": "homework", "text": "Læs"}]},
     {"ahead": [{"date": "2026-11-14", "children": [], "shared": []}]},
+    {"ahead": [{"date": f"2026-11-{14 + n}", "shared": [], "children": [
+        {"name": "Alfa", "lines": [], "kinds": []}, {"name": "Beta", "lines": [], "kinds": []}]}
+        for n in range(pb.AHEAD_ROWS + 1)]},
     {"device": {"battery_percent": 101}},
     {"device": {"battery_percent": 50, "serial": "x"}},
 ])
@@ -272,17 +382,115 @@ def test_heavy_week_shows_all_sixteen_homework_items_uncut(monkeypatch):
         assert expected in texts, expected
 
 
+def with_plans(state, composed, headlines=None):
+    """`state` composed at `composed`, with a plan headline for each child on every shown school day."""
+    state = {**state, "freshness": {**state["freshness"], "composed_at": composed}, "later_events": []}
+    focus = date.fromisoformat(dashboard.focus_date(state))
+    dates = sorted({day["date"] for day in state["weekdays"]}
+                   | {value.isoformat() for value in pb.lookahead_dates(focus)})
+    headlines = headlines or {}
+    state["day_summaries"] = [{"date": iso, "children": [
+        {"name": name, "status": "ok", "headline": headlines.get((name, iso), f"{name} plan {iso[-2:]}"),
+         "text": "Tekst."} for name in NAMES]} for iso in dates]
+    return state
+
+
+def day_lines(kid):
+    return {iso: ["".join(text for text, _ in item.runs) for item in items] for iso, items, _ in kid.days}
+
+
+@pytest.mark.parametrize("composed, shown", [
+    # Sunday 12.00–15.00: Monday on the left, Tuesday to Friday; never Sunday.
+    ("2026-11-08T13:00:00+01:00", ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"]),
+    # Monday evening: Tuesday on the left, then into the next week.
+    ("2026-11-09T19:30:00+01:00", ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16"]),
+    # Thursday evening and Friday daytime: Friday on the left, Monday to Thursday, no empty weekend.
+    ("2026-11-12T19:30:00+01:00", ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"]),
+    ("2026-11-13T10:00:00+01:00", ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"]),
+])
+def test_the_board_shows_the_next_five_school_days(composed, shown):
+    state = heavy_week_state()
+    for entry in state["weekdays"]:  # A child without homework: only the weekly plan says what is on.
+        entry["children"][0].update(lines=[], kinds=[])
+    state = with_plans(state, composed)
+    dashboard.validate(state)
+    model, _ = render.layout(state)
+    alfa = model.kids[0]
+    assert [iso for iso, _, _ in alfa.days] == shown
+    for iso in shown:
+        plan = alfa.days[[day[0] for day in alfa.days].index(iso)][1][0]
+        assert plan.kind == "plan" and plan.runs == [(f"Alfa plan {iso[-2:]}", False)]
+        assert not plan.box and not plan.chip and not plan.urgent
+    html = dashboard.render_html(state)
+    assert "Lør " not in html and "Søn " not in html
+    assert f"Alfa plan {shown[-1][-2:]}" in html and 'class="pb-dayplan"' in html
+
+
+def test_a_weekend_activity_between_the_school_days_keeps_its_row():
+    state = with_plans(heavy_week_state(), "2026-11-12T19:30:00+01:00")
+    state["weekend"] = [{"day": "Lør. 14. nov.", "text": "Beta: Fødselsdagsfest"}]
+    dashboard.validate(state)
+    beta = render.layout(state)[0].kids[1]
+    assert [iso for iso, _, _ in beta.days] == ["2026-11-14", "2026-11-16", "2026-11-17", "2026-11-18",
+                                                "2026-11-19"]
+    assert day_lines(beta)["2026-11-14"] == ["Fødselsdagsfest"]
+
+
+def test_a_plan_line_is_left_out_when_a_line_already_says_it():
+    state = heavy_week_state()
+    for entry in state["weekdays"]:
+        if entry["date"] != "2026-11-12":
+            for kid in entry["children"]:
+                kid.update(lines=[], kinds=[])
+    state = with_plans(state, "2026-11-08T19:30:00+01:00",
+                       {("Beta", "2026-11-12"): "Kulturdag i teatret", ("Alfa", "2026-11-12"): "Kunst og tog"})
+    lines = [day_lines(kid)["2026-11-12"] for kid in render.layout(state)[0].kids]
+    assert lines[0][0] == "Kunst og tog"
+    # Beta's trip says it already: no second line with the same words.
+    assert lines[1] == ["Kulturdag i teatret", "Medbring madpakke"]
+
+
+def test_plan_lines_give_way_before_homework_and_are_not_counted():
+    plain = render.layout(heavy_week_state())[0]
+    state = with_plans(heavy_week_state(), "2026-11-08T19:30:00+01:00")
+    dashboard.validate(state)
+    model, heights = render.layout(state)
+    assert sum(heights) <= 480 - render.HEADER_HEIGHT
+    shown = [item for kid in model.kids for _, items, _ in kid.days for item in items]
+    homework = [item for kid in model.kids for item in kid.left if item.kind == "homework"]
+    assert len(homework) + sum(item.kind == "homework" for item in shown) == 16
+    assert any(item.chip == "TUR" for item in shown)
+    # A plan line retells the plan; it is no 'punkt' when it gives way.
+    assert [kid.dropped_right for kid in model.kids] == [kid.dropped_right for kid in plain.kids]
+    # They give way one at a time, the farthest day first, so the room left keeps the nearer ones.
+    for kid in model.kids:
+        planned = [any(item.kind == "plan" for item in items) for _, items, _ in kid.days]
+        assert planned[0] and planned == sorted(planned, reverse=True)
+
+
+def test_a_quiet_week_keeps_every_plan_line():
+    state = heavy_week_state()
+    for entry in state["weekdays"]:
+        for kid in entry["children"]:
+            kid.update(lines=[], kinds=[])
+    model, _ = render.layout(with_plans(state, "2026-11-08T19:30:00+01:00",
+                                        {(name, f"2026-11-{day}"): "Bogstavet F, tal til 20 og en tur i skoven"
+                                         for name in NAMES for day in range(10, 14)}))
+    assert all(len(kid.days) == 4 and all(items[0].kind == "plan" for _, items, _ in kid.days)
+               for kid in model.kids)
+
+
 def test_yellow_marks_only_time_urgency():
     model, _ = render.layout(heavy_week_state())
     urgent = [item for kid in model.kids for item in kid.left if item.urgent]
     urgent += [item for kid in model.kids for _, items, _ in kid.days for item in items if item.urgent]
     # Monday's deadline is urgent; Thursday's changed time is four days away, not yet.
     assert [item.kind for item in urgent] == ["deadline"]
-    assert render.make_item("Mødetid 7.45", "change", "2026-11-10", render.date(2026, 11, 8)).urgent
-    assert not render.make_item("Mødetid 7.45", "change", "2026-11-11", render.date(2026, 11, 8)).urgent
+    assert render.make_item("Mødetid 7.45", "time_change", "2026-11-10", render.date(2026, 11, 8)).urgent
+    assert not render.make_item("Mødetid 7.45", "time_change", "2026-11-11", render.date(2026, 11, 8)).urgent
     # A moved lesson without a new time is not time-urgent.
     assert not render.make_item("Idræt ved søen", "change", "2026-11-09", render.date(2026, 11, 8)).urgent
-    assert render.make_item("Fri kl. 12", "change", "2026-11-09", render.date(2026, 11, 8)).urgent
+    assert render.make_item("Fri kl. 12", "time_change", "2026-11-09", render.date(2026, 11, 8)).urgent
 
 
 def test_full_week_gives_way_in_the_fixed_order_and_keeps_homework():
@@ -473,3 +681,76 @@ def test_weekend_day_labels_are_never_shortened(monkeypatch):
     dashboard.render_png(state)
     assert "Lør 3." in drawn and "Søn 4." in drawn
     assert not any(value.endswith("…") for value in drawn)
+
+
+# --- Highlights come from kinds, never from words ------------------------------------------
+
+def runs(item):
+    return item.runs
+
+
+@pytest.mark.parametrize("text, kind, expected", [
+    ("Husk idrætstøj", "bring", [("Medbring", True), (" idrætstøj", False)]),
+    ("Tag madpakke med", "bring", [("Medbring", True), (" madpakke", False)]),
+    ("husk at tage tøj med", "bring", [("Medbring", True), (" tøj", False)]),
+    ("Tag hensyn til vejret", "bring", [("Medbring", True), (" Tag hensyn til vejret", False)]),
+    ("Medbring: gave", "bring", [("Medbring", True), (" gave", False)]),
+    ("idrætstøj", "bring", [("Medbring", True), (" idrætstøj", False)]),
+    # A word that only starts like a marker stays whole.
+    ("Huskeliste til turen", "bring", [("Medbring", True), (" Huskeliste til turen", False)]),
+    ("Tagrender og grus", "bring", [("Medbring", True), (" Tagrender og grus", False)]),
+    ("Valgfrit: hinkesten", "optional", [("Valgfrit", True), (" hinkesten", False)]),
+    ("svar på invitationen", "deadline", [("Frist", True), (" svar på invitationen", False)]),
+    ("Frist: aflever samtykke", "deadline", [("Frist", True), (" aflever samtykke", False)]),
+    # Without a kind (an old state, a local render) the markers still label it.
+    ("Medbring: x", None, [("Medbring", True), (" x", False)]),
+    ("Husk idrætstøj", None, [("Husk idrætstøj", False)]),
+])
+def test_a_lines_label_comes_from_its_kind(text, kind, expected):
+    assert runs(render.make_item(text, kind, "2026-11-10", render.date(2026, 11, 8))) == expected
+
+
+def test_weekend_rows_draw_their_boxes_and_labels_from_their_kinds():
+    from tests_python.test_weather import weather_state
+
+    state = weather_state("Blandet")
+    # 'Skovdag' has no trip word: only the row's kind makes it a trip.
+    state["weekend"] = [{"day": "Lør. 3. okt.", "text": "ChildA: Skovdag; Husk madpakke",
+                         "kinds": ["trip", "bring"]}]
+    dashboard.validate(state)
+    [(_, who, items)] = render.weekend_activities(state)
+    assert who == "ChildA" and items[0].chip == "TUR"
+    assert items[1].runs == [("Medbring", True), (" madpakke", False)]
+    # The same row without kinds is read from its words, as before.
+    state["weekend"][0].pop("kinds")
+    [(_, _, items)] = render.weekend_activities(state)
+    assert items[0].chip == "ARR."
+
+
+@pytest.mark.parametrize("kinds", [["party"], ["trip", "secret"], ["trip", "bring", "bring"], "trip"])
+def test_weekend_row_kinds_are_one_known_kind_per_part(kinds):
+    from tests_python.test_weather import weather_state
+
+    state = weather_state("Blandet")
+    state["weekend"] = [{"day": "Lør. 3. okt.", "text": "ChildA: Skovdag; Medbring: madpakke", "kinds": kinds}]
+    with pytest.raises(ValueError):
+        dashboard.validate(state)
+
+
+def test_a_weekend_rows_kinds_follow_its_final_text():
+    from skoleklar.dashboard_rules import _row_kinds
+
+    # A part that fitting cut away loses its kind; a fact's own ';' repeats its kind.
+    assert _row_kinds("ChildA: Fødselsdagsfest; Medbring: gave", ["party", "bring", "optional"]) == [
+        "party", "bring"]
+    assert _row_kinds("ChildA: Lektie: Læs s. 4; lav s. 5", ["homework"]) == ["homework", "homework"]
+
+
+def test_the_parents_board_weekend_rows_use_their_kinds_when_the_forecast_fails():
+    state = heavy_week_state()
+    state["freshness"]["composed_at"] = "2026-11-07T10:00:00+01:00"  # Saturday, no weekend weather
+    state["weekend"] = [{"day": "Søn. 8. nov.", "text": "Beta: Skovdag; Husk madpakke", "kinds": ["trip", "bring"]}]
+    dashboard.validate(state)
+    beta = render.layout(state)[0].kids[1]
+    [(iso, items, _)] = [day for day in beta.days if day[0] == "2026-11-08"]
+    assert items[0].chip == "TUR" and items[1].runs[0] == ("Medbring", True)

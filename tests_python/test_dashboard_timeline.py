@@ -107,7 +107,7 @@ def test_weekend_rows_follow_the_slice_refill_from_facts_and_other_weeks_are_ref
     assert saturday["weekend_overflow"] == 1
     # At Sunday midnight Saturday is over: Sunday's party gets a row and nothing is left over.
     sunday = slice_state(week, at("2026-09-20T00:00:00", items))
-    assert sunday["weekend"] == [{"day": "Søn. 20. sep.", "text": "ChildA: Fødselsdagsfest"}]
+    assert sunday["weekend"] == [{"day": "Søn. 20. sep.", "text": "ChildA: Fødselsdagsfest", "kinds": ["party"]}]
     assert sunday["weekend_overflow"] == 0
     noon = slice_state(week, at("2026-09-20T12:00:00", items))
     assert noon["hero"] == week["hero"] and [row["day"] for row in noon["weekend"]] == ["Søn. 20. sep."]

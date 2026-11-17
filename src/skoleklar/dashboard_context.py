@@ -13,7 +13,8 @@ from zoneinfo import ZoneInfo
 
 from skoleklar.brief import build_brief_range
 from skoleklar.dashboard_timing import dashboard_focus, new_messages_since
-from skoleklar.dashboard_events import ACTIVITY_LABELS, birthday_notice, confirmed_activity, event_confirmations
+from skoleklar.dashboard_events import (ACTIVITY_LABELS, activity_title, birthday_notice, confirmed_activity,
+                                        event_confirmations)
 from skoleklar.delivery_manifest import delivery_items_from_snapshot
 from skoleklar.triage.review_checks import apply_verdicts
 from skoleklar.storage import SnapshotStore
@@ -25,6 +26,8 @@ FIELDS = ("type", "child", "title", "summary", "effective_date", "end_date",
 _SAME_FACT = ("type", "child", "title", "effective_date", "end_date", "actionability",
               "private_message_fact", "cancelled", "activity_kind", "confirmed_activity_kind",
               "message_thread", "birthday_notice")
+# What a fact is, when its derivation said so (derive-v10); the board reads these, not the title.
+SHAPE = ("category", "moves_time", "recurring")
 
 
 def collapse_duplicates(items):
@@ -39,6 +42,10 @@ def collapse_duplicates(items):
         key = tuple(re.sub(r"\s+", " ", str(item.get(k) or "")).strip().casefold() for k in _SAME_FACT)
         if key in kept:
             kept[key]["repeats"] = kept[key].get("repeats", 1) + 1
+            # A repeat derived later may say what the fact is (derive-v10).
+            for field in SHAPE:
+                if kept[key].get(field) is None and item.get(field) is not None:
+                    kept[key][field] = item[field]
             continue
         kept[key] = item
         result.append(item)
@@ -103,7 +110,8 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
     for index, item in enumerate(brief["items"], 1):
         fact = {"ref": f"fact-{index}", **{k: item[k] for k in FIELDS},
                               "private_message_fact": item["stable_key"].startswith("message-event:"),
-                              "grouped": bool(item.get("grouped"))}
+                              "grouped": bool(item.get("grouped")),
+                              **{k: item[k] for k in SHAPE if item.get(k) is not None}}
         if item.get("state") == "cancelled":
             fact["cancelled"] = True
         thread = thread_of.get(item["stable_key"])
@@ -114,12 +122,13 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
         kind = confirmed_activity(item, confirmations)
         if kind:
             fact["confirmed_activity_kind"] = kind
-            fact["title"] = ACTIVITY_LABELS[kind]
+            fact["title"] = activity_title(kind, item.get("celebrant"))
             fact["summary"] = "Brugerbekræftet aktivitet; tidspunkt er ikke bekræftet."
         elif item.get("type") == "event" and item.get("activity_kind") in ACTIVITY_LABELS:
             # Extracted bounded category; a weekend activity the family should see.
             fact["activity_kind"] = item["activity_kind"]
-            fact["title"] = ACTIVITY_LABELS[item["activity_kind"]]
+            # 'Emmas fødselsdag' when the invitation names the birthday child.
+            fact["title"] = activity_title(item["activity_kind"], item.get("celebrant"))
         if fact.get("cancelled") and (kind or fact.get("activity_kind")):
             fact["title"] += " aflyst"
         context_items.append(fact)

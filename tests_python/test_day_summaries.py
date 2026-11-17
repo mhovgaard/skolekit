@@ -83,7 +83,7 @@ class FakeClient:
         self.responses = list(responses or [])
 
     def generate(self, document, *, manifest, max_output_tokens):
-        assert manifest.manifest_id == "day-summary-v1"
+        assert manifest.manifest_id == "day-summary-v2"
         self.documents.append(copy.deepcopy(document))
         output = self.responses.pop(0)(document) if self.responses else answer(document)
         if isinstance(output, Exception):
@@ -104,6 +104,72 @@ def test_plan_document_keeps_plan_text_and_drops_ids_links_and_unnamed_subjects(
     assert document["days"][2]["blocks"] == []
     assert set(json.dumps(document)) .isdisjoint({"\x00"})
     assert "content_html" not in json.dumps(document) and "https" not in json.dumps(document)
+
+
+def test_the_plans_own_child_becomes_a_marker_and_no_other_name_changes():
+    value = plan(blocks={1: [("Dansk", "Bogstavhistorier i grupper:\nIda- Liva : F, H\nNoah- Emma: G, M\n"
+                                       "LIVA læser højt. Livas gruppe starter. Olivia hjælper.")]},
+                 general=[("Uden angivelse af fag", "Liva tager ugens kammerat med hjem fredag.")])
+    document = plan_document(value, child="Liva")
+    text = document["days"][1]["blocks"][0]["text"]
+    assert "Ida- [barnet] : F, H" in text and "Noah- Emma: G, M" in text
+    assert "[barnet] læser højt. [barnet]s gruppe starter. Olivia hjælper." in text
+    assert document["general"][0]["text"].startswith("[barnet] tager ugens kammerat")
+    assert "Liva" not in json.dumps(document) and "LIVA" not in json.dumps(document)
+    # Without a child, the plan text is unchanged.
+    assert "Ida- Liva : F, H" in plan_document(value)["days"][1]["blocks"][0]["text"]
+
+
+@pytest.mark.parametrize("child, source, expected", [
+    # A name that is also a word is the child only as the profile writes it.
+    ("Bjørn", "Bjørn og Ida: A, B. Vi læser om en bjørn i skoven.",
+     "[barnet] og Ida: A, B. Vi læser om en bjørn i skoven."),
+    ("Liv", "Liv og Ida: A, B. Dyrenes liv i skoven.", "[barnet] og Ida: A, B. Dyrenes liv i skoven."),
+    ("Maj", "Maj og Ida: A, B. Vi holder fri 1. maj.", "[barnet] og Ida: A, B. Vi holder fri 1. maj."),
+    # A name in lower case stays as it is: the group is then left out, as before.
+    ("Liva", "ida- liva: A, B", "ida- liva: A, B"),
+])
+def test_only_the_names_own_spelling_is_the_child(child, source, expected):
+    value = plan(blocks={0: [("Dansk", source)]})
+    assert plan_document(value, child=child)["days"][0]["blocks"][0]["text"] == expected
+
+
+def test_validation_rejects_the_marker_and_the_childs_name():
+    value = plan(blocks={0: [("Dansk", "Liva og Ida: A, B")]})
+    document = plan_document(value, child="Liva")
+    for text in ("[barnet] laver en historie med A og B.", "Liva laver en historie med A og B."):
+        with pytest.raises(DaySummaryInvalid, match="du, not the child"):
+            validate_output(document, answer(document, **{"2026-09-21": {"text": text}}), child="Liva")
+    ok = answer(document, **{"2026-09-21": {"text": "Du og Ida laver en historie med A og B.",
+                                             "headline": "Historie med Ida: A og B"}})
+    assert validate_output(document, ok, child="Liva")[0]["headline"] == "Historie med Ida: A og B"
+    # The word is not the child: an animal story validates for a child named Bjørn.
+    bear = plan_document(value, child="Bjørn")
+    assert validate_output(bear, answer(bear, **{"2026-09-21": {"text": "Du læser om en bjørn i skoven."}}),
+                           child="Bjørn")
+
+
+def test_generation_sends_the_marker_never_the_childs_name(tmp_path):
+    with SnapshotStore(tmp_path / "school.db") as store:
+        store_plans(store, ("Liva", [plan(39, blocks={0: [("Idræt", "Liva husker fløjten.")]})]))
+        client = FakeClient()
+        assert generate_day_summaries(store, client, model="m", today=date(2026, 9, 23))["generated_count"] == 1
+    [document] = client.documents
+    assert document["days"][0]["blocks"][0]["text"] == "[barnet] husker fløjten."
+    assert "Liva" not in json.dumps(document)
+
+
+def test_the_manifest_is_v2_without_household_slots():
+    from skoleklar.day_summaries import MANIFEST
+    from skoleklar.triage.prompt_manifest import load_prompt_manifest
+
+    assert MANIFEST.manifest_id == "day-summary-v2"
+    invented = load_prompt_manifest("day-summary-v2", slots={})
+    assert invented.content_hash == MANIFEST.content_hash
+    assert invented.content_hash == "68b64f8e77da5baee19ee559b3ecae47e54723a98962c06e144101769e8e566a"
+    assert "[barnet]" in invented.render_instructions()
+    # v1 stays as it was: stored summaries keep naming the prompt that wrote them.
+    assert load_prompt_manifest("day-summary-v1", slots={}).content_hash == "764a12d3372a43e12066a0806ef51950444bc546c2003d113c00645d7e2a2140"
 
 
 def test_validation_cleans_text_and_enforces_the_contract():
@@ -255,6 +321,41 @@ def test_cloud_extras_attach_summaries_and_never_break_the_board(tmp_path):
         broken = weekday_grid_state()
         broken["weekdays"][0]["date"] = "not-a-date"
         assert "day_summaries" not in extras(broken)
+
+
+def test_a_thursday_evening_frame_carries_next_weeks_summaries(tmp_path, caplog):
+    import logging
+    database = tmp_path / "school.db"
+    with SnapshotStore(database) as store:
+        store_plans(store, ("ChildA", [plan(39), plan(40)]), ("ChildB", [plan(39)]))
+        generate_day_summaries(store, FakeClient(), model="m", today=date(2026, 9, 24))
+    # Thursday 24 September, 19.30: Friday on the left, Monday 28 to Thursday 1 October ahead.
+    state = weekday_grid_state("2026-09-24T19:30:00+02:00")
+    with SnapshotStore(database, read_only=True) as store, \
+            caplog.at_level(logging.INFO, logger="agskoleintra.cloud_job"):
+        frame = scan_service._day_summary_extras(store)(state)
+    assert not [record for record in caplog.records if "day_summaries_unattached" in record.message]
+    dates = [day["date"] for day in frame["day_summaries"]]
+    assert dates == ["2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25",
+                     "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"]
+    monday = frame["day_summaries"][5]["children"]
+    assert [child["status"] for child in monday] == ["ok", "not_published"]
+    validate(frame)
+    # The parents' board leads next Monday with ChildA's plan line.
+    assert monday[0]["headline"] in render_html(frame)
+
+
+def test_summaries_are_allowed_only_on_shown_school_days():
+    state = weekday_grid_state("2026-09-24T19:30:00+02:00")
+    entry = [{"name": "ChildA", "status": "no_content", "headline": None, "text": None},
+             {"name": "ChildB", "status": "no_content", "headline": None, "text": None}]
+    state["day_summaries"] = [{"date": value, "children": copy.deepcopy(entry)} for value in (
+        "2026-09-21", "2026-09-25", "2026-09-28", "2026-10-01")]
+    validate(state)
+    for dates in (["2026-09-26"], ["2026-10-02"], ["2026-09-28", "2026-09-28"]):
+        broken = dict(state, day_summaries=[{"date": value, "children": copy.deepcopy(entry)} for value in dates])
+        with pytest.raises(ValueError):
+            validate(broken)
 
 
 def test_cli_shows_a_week_without_model_calls(tmp_path, capsys):

@@ -378,3 +378,70 @@ def test_removes_non_danish_characters_and_marks_item_for_review() -> None:
     assert value["summary"] == "Læs side 18 inden mandag"
     assert value["needs_review"] is True
     assert "non-Danish" in value["review_reason"]
+
+
+def test_a_weekly_plan_goes_to_the_model_once() -> None:
+    """derive-v10: one copy of the plan, without code's heading guesses, links or ids."""
+    source = candidate()
+    payload = json.loads(source["sources"][0]["payload_json"])
+    block = payload["source_data"]["days"][0]["plans"][0]
+    block.update(segments=[{"section_hint": "homework", "text": "Læs side 18 før mandag."}],
+                 link="https://x.skoleintra.dk/plan/7", source_plan_id=7)
+    payload["source_data"]["general_plans"] = [{"subject": None, "content_text": "Kære forældre", "segments": []}]
+    payload["content_data"] = {"days": payload["source_data"]["days"],
+                               "general_plans": payload["source_data"]["general_plans"]}
+    source["sources"][0]["payload_json"] = json.dumps(payload)
+
+    document = candidate_document(source, class_labels={})
+
+    assert "body_text" not in document and "content_data" not in document
+    block = document["source_data"]["days"][0]["plans"][0]
+    assert block == {"subject": "Dansk", "content_text": "Lektie: Læs side 18 før mandag."}
+    assert document["source_data"]["general_plans"] == [{"subject": None, "content_text": "Kære forældre"}]
+    # A quote from a plan block still passes the evidence check.
+    [checked] = validate_items([item()], candidate=source, document=document)
+    assert checked["needs_review"] is False
+
+
+def test_content_data_that_says_more_is_kept_and_other_sources_keep_their_text() -> None:
+    def notice(content_data: dict) -> dict:
+        payload = {"source_type": "frontpage", "body_text": "Skolen holder lukket fredag.",
+                   "source_data": {"title": "Lukket", "id": 4}, "content_data": content_data}
+        return {"source_type": "frontpage", "sources": [{"version_id": 1, "child": "Alfa",
+                                                         "payload_json": json.dumps(payload)}]}
+
+    repeated = candidate_document(notice({"title": "Lukket"}), class_labels={})
+    assert "content_data" not in repeated and repeated["body_text"] == "Skolen holder lukket fredag."
+    different = candidate_document(notice({"title": "Lukket", "note": "Kun 0. klasse"}), class_labels={})
+    assert different["content_data"] == {"title": "Lukket", "note": "Kun 0. klasse"}
+
+
+def test_what_an_item_is_is_kept_only_where_it_means_something() -> None:
+    source = candidate()
+    document = candidate_document(source, class_labels={})
+    homework = item() | {"category": "trip", "moves_time": True, "recurring": True}
+    event = item() | {"type": "event", "category": "party", "moves_time": True, "recurring": True}
+    unknown = item() | {"type": "event", "category": "picnic", "moves_time": None, "recurring": False}
+    action = item() | {"type": "parent_action", "category": "trip", "moves_time": None, "recurring": False}
+    meeting = item() | {"type": "parent_action", "category": "meeting", "moves_time": None, "recurring": True}
+    change = item() | {"type": "schedule_change", "category": "other", "moves_time": True, "recurring": True}
+    undecided = item() | {"type": "schedule_change", "category": None, "moves_time": None, "recurring": False}
+    result = validate_items([homework, event, unknown, action, meeting, change, undecided],
+                            candidate=source, document=document)
+    shape = [(i["category"], i["moves_time"], i["recurring"]) for i in result]
+    assert shape == [(None, None, False), ("party", None, True), (None, None, False), (None, None, False),
+                     ("meeting", None, False), (None, True, False), (None, None, False)]
+    # A wrong field is dropped, never sent for review: it would hide real homework.
+    assert not any(i["needs_review"] for i in result)
+
+
+def test_lesson_slots_say_what_they_are() -> None:
+    candidate_ = {"source_type": "calendar", "source_key": "LessonsEvents:slot:x", "sources": [{
+        "version_id": 2, "child": "Alfa", "payload_json": json.dumps({"source_data": {
+            "calendar_kind": "LessonsEvents", "event": {
+                "title": "MAT", "lessonName": "MAT", "start": "2026-09-18T09:00:00",
+                "end": "2026-09-18T09:45:00", "staffName": "Original Teacher",
+                "substituteStaff": "Substitute Teacher"}}})}]}
+    [lesson] = deterministic_calendar_items(candidate_)
+    assert (lesson["type"], lesson["category"], lesson["moves_time"], lesson["recurring"]) == (
+        "substitute", None, None, False)

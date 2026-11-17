@@ -21,10 +21,12 @@ SATURDAY, SUNDAY = "2026-10-24", "2026-10-25"
 LABEL = {SATURDAY: "Lør. 24. okt.", SUNDAY: "Søn. 25. okt."}
 
 
-def fact(number, *, child="ChildA", day=SUNDAY, kind="birthday_party", event_kind="event", cancelled=False):
+def fact(number, *, child="ChildA", day=SUNDAY, kind="birthday_party", event_kind="event", cancelled=False,
+         celebrant=None):
     """A stored message fact in the restricted privacy schema."""
     return {"stable_key": f"message-event:{number:064x}", "child": child, "event_kind": event_kind,
-            "activity_kind": kind if event_kind == "event" else None, "effective_date": day,
+            "activity_kind": kind if event_kind == "event" else None, "celebrant": celebrant,
+            "effective_date": day,
             "end_date": None, "all_day": True,
             "cancellation_state": "cancelled" if cancelled or event_kind == "cancellation" else "active",
             "necessary_location": None, "bring_items": [], "requirement": None,
@@ -44,7 +46,7 @@ def export(tmp_path, threads):
         for letter, facts in threads.items():
             store.complete_message_event_extraction(
                 thread_ref="thr_" + letter * 16, message_ref="msg_" + letter * 16, facts=facts,
-                extractor_version="message-events-v3", policy_version=MESSAGE_POLICY_VERSION)
+                extractor_version="message-events-v4", policy_version=MESSAGE_POLICY_VERSION)
     with SnapshotStore(path, read_only=True) as store:
         items = delivery_items_from_snapshot(store, message_mode="events-only")
         return items, export_context(store, now=NOW)
@@ -82,6 +84,50 @@ def test_one_active_party_appears_on_its_date_in_both_renderers(tmp_path):
     audit["facts"][0].update(decision="omitted", location="")
     with pytest.raises(ValueError, match="confirmed weekend activity must be displayed"):
         validate_composition(context, state, audit)
+
+
+def test_a_named_birthday_reads_as_whose_party_it_is_everywhere(tmp_path):
+    from skoleklar.dashboard_rules import weekend_selection
+    from skoleklar.delivery_manifest import _phone_title
+
+    items, context = export(tmp_path, {"a": [fact(1, celebrant="Clara")]})
+    assert items[0]["title"] == "Claras fødselsdag" and items[0]["celebrant"] == "Clara"
+    assert _phone_title(items[0]) == "ChildA · Claras fødselsdag"
+    brief = build_brief_range(items, start_date=date(2026, 10, 24), end_date=date(2026, 11, 2), compact=True)
+    assert brief["items"][0]["title"] == "Claras fødselsdag" and brief["items"][0]["celebrant"] == "Clara"
+    [party] = context["items"]
+    # The context carries the name in the title only: no new field reaches the model or MCP.
+    assert party["title"] == "Claras fødselsdag" and "celebrant" not in party
+    rows, overflow, _ = weekend_selection(context)
+    assert [row["text"] for row in rows] == ["ChildA: Claras fødselsdag"] and overflow == 0
+    state, audit = compose(context, [(SUNDAY, "ChildA: Claras fødselsdag")], {party["ref"]: "weekend[0].text"})
+    validate_composition(context, state, audit)
+    assert "Claras fødselsdag" in render_html(state)
+    render_png(state)
+
+
+def test_a_named_birthday_that_is_cancelled_still_says_so(tmp_path):
+    _, context = export(tmp_path, {"a": [fact(1, celebrant="Mads", cancelled=True)]})
+    [party] = context["items"]
+    assert party["title"] == "Mads' fødselsdag aflyst"
+    state, audit = compose(context, [(SUNDAY, "ChildA: Mads' fødselsdag aflyst")],
+                           {party["ref"]: "weekend[0].text"})
+    validate_composition(context, state, audit)
+
+
+@pytest.mark.parametrize("celebrant, cancelled", [("Aaaaaaaaaaaaaaaaaaaaaaaa", False),
+                                                   ("Ella-Rose", True)])
+def test_a_long_name_gives_way_before_the_activity_or_its_cancellation(celebrant, cancelled):
+    from skoleklar.dashboard_events import activity_title
+    from skoleklar.dashboard_rules import WEEKEND_TEXT_LIMIT, _activity_text
+
+    child = "Bbbbbbbbbbbbbbbbbbbbbbbb"
+    group = {"child": child, "kind": "birthday_party", "label": activity_title("birthday_party", celebrant),
+             "cancelled": cancelled, "bring": []}
+    text = _activity_text(group, [child])
+    assert len(text) <= WEEKEND_TEXT_LIMIT and "…" not in text
+    assert "fødselsdag" in text.casefold() and ("aflyst" in text) == cancelled
+    assert text == f"{child}: Fødselsdagsfest" + (" aflyst" if cancelled else "")
 
 
 def test_cancellation_survives_the_brief_and_context_and_is_never_a_plan(tmp_path):
@@ -225,3 +271,60 @@ def test_birthday_notice_never_takes_a_row_and_an_invitation_gets_it():
     audit["facts"][0].update(decision="omitted", location="")
     audit["facts"][2].update(decision="displayed", location="weekend[1].text")
     validate_composition(context, state, audit)
+
+
+def test_what_a_derived_fact_is_reaches_the_board_context(tmp_path):
+    """derive-v10's fields travel from the store to the context, only when they are set."""
+    from skolekit.records import SourceRecord
+    from skoleklar.dashboard_context import collapse_duplicates
+
+    path = tmp_path / "facts.db"
+    with SnapshotStore(path) as store:
+        run = store.begin_run()
+        notice = SourceRecord(student_id=1, child="ChildA", source_type="frontpage", source_key="notice:1",
+                              source_url="https://example.invalid/notice/1", title="Tur", body_text="Skovtur.",
+                              source_data={}, content_data={}, raw_payload={})
+        store.store_checks(run, [SourceCheck(student_id=index, child=child, source_type="frontpage",
+                                             records=[notice] if child == "ChildA" else [], complete=True)
+                                 for index, child in enumerate(("ChildA", "ChildB"), 1)])
+        [candidate] = store.derivation_candidates(run)
+        base = {"stream": "calendar", "type": "event", "audience": "family", "child": "ChildA",
+                "summary": "Klassen tager i skoven.", "effective_date": "2026-10-27", "end_date": None,
+                "all_day": True, "timing_rule": "explicit", "actionability": "informational",
+                "urgency": "routine", "urgency_reason": "", "confidence": 0.9, "needs_review": False,
+                "review_reason": "", "evidence": [{"quote": "Skovtur", "source_day": None, "subject": None}]}
+        derivation = store.begin_derivation(harvest_run_id=run, cache_key="c", provider="test", model="m",
+                                            prompt_version="derive-v10", taxonomy_version="t")
+        store.complete_derivation(derivation, items=[
+            base | {"stable_key": "trip", "dedupe_hint": "trip", "title": "Skovtur", "category": "trip",
+                    "moves_time": None, "recurring": False},
+            base | {"stable_key": "older", "dedupe_hint": "older", "title": "Skovdag"},
+        ], sources=candidate["sources"], response_id="r", usage={})
+    with SnapshotStore(path, read_only=True) as store:
+        context = export_context(store, now=datetime.fromisoformat("2026-10-26T19:30:00+01:00"))
+    facts = {fact["title"]: fact for fact in context["items"]}
+    assert (facts["Skovtur"]["category"], facts["Skovtur"]["recurring"]) == ("trip", False)
+    assert "moves_time" not in facts["Skovtur"]
+    assert not {"category", "moves_time", "recurring"} & set(facts["Skovdag"])
+
+    # The same fact derived before and after v10 is still one fact, and says what it is.
+    older = {"ref": "fact-1", "type": "event", "child": "ChildA", "title": "Skovtur", "effective_date": "2026-10-27"}
+    newer = {**older, "ref": "fact-2", "category": "trip", "recurring": False}
+    [kept] = collapse_duplicates([dict(older), newer])
+    assert kept["repeats"] == 2 and kept["category"] == "trip" and kept["recurring"] is False
+
+
+def test_a_weekend_rows_kind_not_its_words_shows_the_activity(tmp_path):
+    _, context = export(tmp_path, {"a": [fact(1, celebrant="Clara")]})
+    [party] = context["items"]
+    # The row's kind is the party, so its words need not say 'fødselsdag'.
+    state, audit = compose(context, [(SUNDAY, "ChildA: Claras fest")], {party["ref"]: "weekend[0].text"})
+    state["weekend"][0]["kinds"] = ["party"]
+    validate_composition(context, state, audit)
+    state["weekend"][0]["kinds"] = ["event"]
+    with pytest.raises(ValueError, match="weekend activity must keep its kind"):
+        validate_composition(context, state, audit)
+    # A row without kinds is held to its words, as before.
+    state["weekend"][0].pop("kinds")
+    with pytest.raises(ValueError, match="birthday party must retain its activity kind"):
+        validate_composition(context, state, audit)

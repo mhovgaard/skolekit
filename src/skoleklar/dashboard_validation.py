@@ -192,6 +192,13 @@ def _activity_event(fact):
     return fact.get("child"), fact.get("effective_date"), fact.get("message_thread") or fact["ref"]
 
 
+def _weekend_kinds(state, row):
+    """The kinds code wrote for a weekend row, or None for a state without them."""
+    rows = state.get("weekend") or []
+    kinds = rows[row].get("kinds") if row is not None and 0 <= row < len(rows) else None
+    return kinds or None
+
+
 def _validate_weekend_activities(context, state, audit):
     """Every current weekend activity is shown, shown as cancelled, or counted as overflow."""
     if not context.get("now"):
@@ -230,6 +237,14 @@ def _validate_weekend_activities(context, state, audit):
                                     [member[5] for member in members])
             overflow += 1
         for kind, row, visible, _, location, ref in shown:
+            kinds = _weekend_kinds(state, row)
+            if kinds is not None:
+                # The row shows the activity's kind (its box), whatever its words.
+                from skoleklar.parents_board import _ACTIVITY_KINDS
+                if kinds[0] != _ACTIVITY_KINDS.get(kind, "event"):
+                    raise RuleViolation("weekend activity must keep its kind", [_at(ref, location)])
+                continue
+            # A state without kinds: the row's words must say it, as before.
             if kind == "class_trip" and not re.search(r"\bklassetur\b|\btur\b.*\bklassen\b", visible):
                 raise RuleViolation("confirmed class trip must retain its activity kind",
                                     [_at(ref, location)])
@@ -299,9 +314,12 @@ def validate_composition(context, state, audit):
             # A classmate's birth date is not the child's event, so it never displays.
             raise RuleViolation("birthday notice is not a family activity", [_at(ref, location)])
         kind = fact.get("confirmed_activity_kind") or fact.get("activity_kind")
-        if (kind and selection["decision"] != "omitted" and _weekend_row(location) is not None
-                and "besked" in _value_at_location(state, location).casefold()):
-            raise RuleViolation("weekend activity must read as an event", [_at(ref, location)])
+        if kind and selection["decision"] != "omitted" and _weekend_row(location) is not None:
+            from skoleklar.parents_board import EVENT_KINDS
+            kinds = _weekend_kinds(state, _weekend_row(location))
+            if (kinds[0] not in EVENT_KINDS if kinds is not None
+                    else "besked" in _value_at_location(state, location).casefold()):
+                raise RuleViolation("weekend activity must read as an event", [_at(ref, location)])
     _validate_weekend_activities(context, state, audit)
     for ref, fact in facts.items():
         if not (

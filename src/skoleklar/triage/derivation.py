@@ -20,7 +20,7 @@ PROVIDER = "openrouter"
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 # What doesn't depend on the household's names is read once; the filled manifest
 # (its hash and its few-shots) is read when a stage runs (prompt_manifest.py).
-_PACK = load_prompt_manifest("derive-v9", slots=DEFAULT_SLOTS)
+_PACK = load_prompt_manifest("derive-v10", slots=DEFAULT_SLOTS)
 PROMPT_VERSION = _PACK.manifest_id
 TAXONOMY_VERSION = _PACK.taxonomy_version
 DERIVATION_SCHEMA = _PACK.output_schema
@@ -29,7 +29,7 @@ ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v3"
 
 def derivation_manifest() -> PromptManifest:
     """The derivation's manifest with the household's names in its slots."""
-    return load_prompt_manifest("derive-v9")
+    return load_prompt_manifest("derive-v10")
 
 
 DROP_KEYS = {
@@ -90,13 +90,44 @@ def _compact(value: Any) -> Any:
     return value
 
 
+# A weekly plan's block, as the model reads it: no link, id or code's heading guesses.
+_PLAN_BLOCK_DROP = {"segments", "link", "source_plan_id"}
+
+
+def _contained(part: Any, whole: Any) -> bool:
+    """Whether every key and value of `part` is also in `whole`, recursively."""
+    if isinstance(part, dict):
+        return isinstance(whole, dict) and all(
+            key in whole and _contained(value, whole[key]) for key, value in part.items())
+    if isinstance(part, list):
+        return isinstance(whole, list) and len(part) == len(whole) and all(
+            _contained(a, b) for a, b in zip(part, whole))
+    return part == whole
+
+
+def _one_copy(compact: dict[str, Any]) -> dict[str, Any]:
+    """The source once: `content_data` repeats `source_data`, and a weekly plan's
+    `body_text` is its blocks flattened, so neither goes to the model twice."""
+    if "content_data" in compact and _contained(compact["content_data"], compact.get("source_data")):
+        compact.pop("content_data")
+    if compact.get("source_type") == "weekly_plan" and isinstance(compact.get("source_data"), dict):
+        compact.pop("body_text", None)
+        data = compact["source_data"]
+        blocks = [*data.get("general_plans", []), *(block for day in data.get("days", [])
+                                                    for block in day.get("plans", []))]
+        for block in blocks:
+            for key in _PLAN_BLOCK_DROP:
+                block.pop(key, None)
+    return compact
+
+
 def candidate_document(
     candidate: dict[str, Any], *, class_labels: Mapping[str, str]
 ) -> dict[str, Any]:
     """The model's input for one candidate; `class_labels` come from the household's profile."""
     sources = candidate["sources"]
     primary = json.loads(sources[0]["payload_json"])
-    compact = _compact(primary)
+    compact = _one_copy(_compact(primary))
     children = sorted({source["child"] for source in sources})
     compact["children"] = children
     compact["child"] = children[0] if len(children) == 1 else "household"
@@ -216,6 +247,10 @@ def _deterministic_lesson_change(
         "dedupe_hint": f"{source_key}:{item_type}",
         "stream": "schedule",
         "type": item_type,
+        # A lesson slot never moves the day's times on its own: never yellow.
+        "category": None,
+        "moves_time": False if item_type == "schedule_change" else None,
+        "recurring": False,
         "audience": "child",
         "child": child,
         "title": title,
@@ -451,6 +486,7 @@ def validate_items(
         if item["timing_rule"] == "no_derived_date":
             item["effective_date"] = None
             item["end_date"] = None
+        _what_it_is(item)
         evidence_valid = bool(item["evidence"])
         for evidence in item["evidence"]:
             if not _evidence_present(evidence["quote"], evidence_haystack):
@@ -473,6 +509,23 @@ def validate_items(
         ).hexdigest()
         result.append(item)
     return result
+
+
+CATEGORIES = {"event": {"trip", "party", "meeting", "other"}, "parent_action": {"meeting"}}
+
+
+def _what_it_is(item: dict[str, Any]) -> None:
+    """Keep `category`, `moves_time` and `recurring` only where they mean something.
+
+    A value on the wrong type becomes null; they are display hints, so a wrong one
+    is dropped rather than sent for review. An event without a category stays
+    null, and the board then reads its title as it did before these fields.
+    """
+    if item.get("category") not in CATEGORIES.get(item["type"], set()):
+        item["category"] = None
+    if item["type"] != "schedule_change" or not isinstance(item.get("moves_time"), bool):
+        item["moves_time"] = None
+    item["recurring"] = item.get("recurring") is True and item["type"] in {"event", "routine"}
 
 
 def _evidence_present(quote: str, haystack: str) -> bool:

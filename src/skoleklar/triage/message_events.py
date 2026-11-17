@@ -21,12 +21,13 @@ from skoleklar.triage.derivation import (
     OpenRouterGenerationError,
     OpenRouterHTTPError,
 )
+from skoleklar.dashboard_events import CELEBRANT
 from skolekit.privacy import normalize_latest_activity, shorten_name, shorten_participants
 from skoleklar.restricted_messages import MESSAGE_POLICY_VERSION, EphemeralThread, message_handle
 from skoleklar.triage.prompt_manifest import DEFAULT_SLOTS, load_prompt_manifest
 
 
-MESSAGE_EVENT_MANIFEST_ID = "message-events-v3"
+MESSAGE_EVENT_MANIFEST_ID = "message-events-v4"
 _SCHEMA_VALIDATOR = Draft202012Validator(
     load_prompt_manifest(MESSAGE_EVENT_MANIFEST_ID, slots=DEFAULT_SLOTS).output_schema,
     format_checker=FormatChecker(),
@@ -39,7 +40,7 @@ def message_event_manifest():
 
 
 def message_event_extractor_version() -> str:
-    """`message-events-v3:<hash>`: stored with each fact, so a changed prompt re-extracts."""
+    """`message-events-v4:<hash>`: stored with each fact, so a changed prompt re-extracts."""
     manifest = message_event_manifest()
     return f"{manifest.manifest_id}:{manifest.content_hash[:16]}"
 
@@ -155,6 +156,66 @@ def _safe_location(value: Any, *, prohibited_surnames: set[str]) -> str | None:
     return None
 
 
+def _first_names(thread: EphemeralThread, message: dict[str, Any]) -> set[str]:
+    """The first names of the adults in the conversation: the sender and the participants."""
+    values = [str(message.get("sender") or "")]
+    values += re.split(r"[,;]", str(thread.conversation.get("participants_text") or ""))
+    result = set()
+    for value in values:
+        tokens = re.sub(r"\s*\([^)]*\)\s*$", "", value).split()
+        if tokens:
+            result.add(tokens[0].casefold())
+    return result
+
+
+def _safe_celebrant(value: Any, *, document: dict[str, Any], thread: EphemeralThread,
+                    message: dict[str, Any], prohibited_surnames: set[str]) -> str | None:
+    """The birthday child's first name, or None when it is not plainly one.
+
+    It must be one capitalised first name that occurs as a word in the message
+    (`Emmas` counts for `Emma`), and not a surname, an adult in the conversation or
+    the family's own child. A refused name costs only the name: the event stays.
+    """
+    if value is None:
+        return None
+    name = str(value).strip()
+    if not CELEBRANT.fullmatch(name) or len(name) > 24:
+        return None
+    text = f"{document.get('subject') or ''}\n{document.get('body_text') or ''}"
+    found = list(re.finditer(rf"(?<![\wÆØÅæøå]){re.escape(name)}s?(?![\wÆØÅæøå])", text))
+    if not found:
+        return None
+    # 'Hansen' in 'Emma Hansen' is a surname: the name must stand once on its own.
+    if all(_after_a_name(text[:match.start()]) for match in found):
+        return None
+    folded = name.casefold()
+    if folded in prohibited_surnames or folded in _first_names(thread, message) or folded in _own_children(thread):
+        return None
+    return name
+
+
+# Words that come before a first name without being a name: 'Kære Emma', 'Hej Noah'.
+_GREETINGS = {"kære", "hej", "hejsa", "hi", "hilsen", "kh", "mvh", "vh", "fra", "til", "kom", "og"}
+
+
+def _after_a_name(before: str) -> bool:
+    """`before` ends in a capitalised name and a space or one line break: what follows is its surname."""
+    match = re.search(r"(?:^|[^\wÆØÅæøå])([A-ZÆØÅ][a-zæøåäöüé]+(?:-[A-ZÆØÅ][a-zæøåäöüé]+)?)"
+                      r"(?:[ \t\u00a0]+|[ \t]*\n[ \t]*)$", before)
+    return match is not None and match.group(1).casefold() not in _GREETINGS
+
+
+def _own_children(thread: EphemeralThread) -> set[str]:
+    """The family's own children's names and first names: never the birthday child."""
+    names = [str(thread.child or "")]
+    try:
+        from skoleklar.household import load_site_profile
+        names += [child.child for child in load_site_profile().children]
+    except Exception:  # No profile here: the thread's own child still counts.
+        pass
+    return {part.casefold() for name in names for part in (name.strip(), *name.split()) if part}
+
+
 def _safe_bring_items(
     value: Any, *, prohibited_surnames: set[str]
 ) -> list[str]:
@@ -242,12 +303,17 @@ def project_event_facts(
         activity_kind = item.get("activity_kind")
         if activity_kind is not None and event_kind != "event":
             raise MessageEventExtractionError("activity_kind_on_non_event_fact")
+        if item.get("celebrant") is not None and activity_kind != "birthday_party":
+            raise MessageEventExtractionError("celebrant_on_non_birthday_fact")
+        celebrant = _safe_celebrant(item.get("celebrant"), document=document, thread=thread,
+                                    message=message, prohibited_surnames=prohibited_surnames)
         facts.append(
             {
                 "stable_key": stable_key,
                 "child": thread.child,
                 "event_kind": event_kind,
                 "activity_kind": activity_kind,
+                "celebrant": celebrant,
                 "effective_date": effective.isoformat(),
                 "end_date": end.isoformat() if end else None,
                 "all_day": bool(item["all_day"]),

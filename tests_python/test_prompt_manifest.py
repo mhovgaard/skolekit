@@ -63,11 +63,12 @@ def test_dashboard_manifest_requires_weekend_and_five_day_structure() -> None:
 def test_runtime_prompt_contains_semantics_and_fewshots() -> None:
     manifest = derivation_manifest()
     instructions = manifest.render_instructions()
-    assert PROMPT_VERSION == manifest.manifest_id == "derive-v9"
+    assert PROMPT_VERSION == manifest.manifest_id == "derive-v10"
     assert TAXONOMY_VERSION == manifest.taxonomy_version
     assert DERIVATION_SCHEMA == manifest.output_schema
     assert "# Semantic layer" in instructions
     assert "`schedule_change`" in instructions
+    assert "`moves_time`" in instructions and "`recurring`" in instructions and "`category`" in instructions
     assert "# Few-shot examples" in instructions
     # The few-shots name the household's people through slots; here the invented ones.
     assert "Esther kommer gerne" in instructions and "{{" not in instructions

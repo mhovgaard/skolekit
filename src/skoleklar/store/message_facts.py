@@ -1,6 +1,7 @@
 """Layer 3 for messages: the facts the restricted extraction made, its receipts and
 attempts, and the owner's feedback. Never message text: a fact holds its kind, dates,
-what to bring, a place and shortened names.
+what to bring, a place, shortened names and, for a birthday party, the birthday
+child's first name.
 
 `SnapshotStore` combines this restricted repository with the other layers.
 Retain only allowlisted facts and operational metadata; never source text.
@@ -13,6 +14,7 @@ import sqlite3
 from datetime import date
 from typing import Any, Iterable
 
+from skoleklar.dashboard_events import CELEBRANT, activity_title
 from skoleklar.store.capture import utc_now
 
 # Danish titles for message facts, shown on the phone and the board alike.
@@ -91,10 +93,10 @@ class MessageFactRepository:
                         stable_key, thread_ref, message_ref, child, event_kind,
                         effective_date, end_date, all_day, cancellation_state,
                         necessary_location, bring_items_json, requirement,
-                        activity_kind, participant_display_json, template_key,
+                        activity_kind, celebrant, participant_display_json, template_key,
                         confidence, needs_review, workflow_state, extractor_version,
                         policy_version, first_observed_at, last_confirmed_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(stable_key) DO UPDATE SET
                         message_ref = excluded.message_ref,
                         child = excluded.child,
@@ -107,6 +109,7 @@ class MessageFactRepository:
                         bring_items_json = excluded.bring_items_json,
                         requirement = excluded.requirement,
                         activity_kind = excluded.activity_kind,
+                        celebrant = excluded.celebrant,
                         participant_display_json = excluded.participant_display_json,
                         template_key = excluded.template_key,
                         confidence = excluded.confidence,
@@ -133,6 +136,7 @@ class MessageFactRepository:
                         ),
                         fact.get("requirement"),
                         fact.get("activity_kind"),
+                        fact.get("celebrant"),
                         json.dumps(
                             fact.get("participant_display_names") or [],
                             ensure_ascii=False,
@@ -199,6 +203,7 @@ class MessageFactRepository:
             "child",
             "event_kind",
             "activity_kind",
+            "celebrant",
             "effective_date",
             "end_date",
             "all_day",
@@ -236,6 +241,14 @@ class MessageFactRepository:
             or fact["activity_kind"] not in MESSAGE_ACTIVITY_TITLES
         ):
             raise ValueError("Unsupported message activity kind")
+        celebrant = fact.get("celebrant")
+        if celebrant is not None and (
+            fact.get("activity_kind") != "birthday_party"
+            or not isinstance(celebrant, str)
+            or len(celebrant) > 24
+            or not CELEBRANT.fullmatch(celebrant)
+        ):
+            raise ValueError("Only a birthday party keeps one first name")
         try:
             effective_date = str(fact["effective_date"])
             if date.fromisoformat(effective_date).isoformat() != effective_date:
@@ -325,6 +338,7 @@ class MessageFactRepository:
             participants = json.loads(row["participant_display_json"] or "[]")
             bring_items = json.loads(row["bring_items_json"] or "[]")
             activity_kind = None
+            celebrant = None
             if event_kind == "bring":
                 if len(bring_items) == 1:
                     item_text = bring_items[0]
@@ -346,7 +360,10 @@ class MessageFactRepository:
                     if event_kind == "event" and "activity_kind" in row.keys()
                     else None
                 )
-                title = MESSAGE_ACTIVITY_TITLES.get(activity_kind) or MESSAGE_EVENT_TITLES[event_kind]
+                # Read-only stores opened before migration 0006 lack the column.
+                celebrant = row["celebrant"] if "celebrant" in row.keys() else None
+                title = (activity_title(activity_kind, celebrant) if activity_kind in MESSAGE_ACTIVITY_TITLES
+                         else MESSAGE_EVENT_TITLES[event_kind])
                 summary = (
                     _sentence(f"Sted: {row['necessary_location']}")
                     if row["necessary_location"]
@@ -403,6 +420,7 @@ class MessageFactRepository:
                     "completed_at": row["completed_at"],
                     "dismissed_at": row["dismissed_at"],
                     "activity_kind": activity_kind,
+                    "celebrant": celebrant,
                     "message_thread_ref": row["thread_ref"],
                     "privacy_policy_version": row["policy_version"],
                 }

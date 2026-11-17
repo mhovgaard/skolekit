@@ -51,8 +51,10 @@ def test_weekend_rows_keep_a_bring_item_with_its_own_party_and_count_the_rest():
         fact("fact-5", "ChildA", "2026-11-14", title="Brynhilde har fødselsdag"),
     ])
     rows, overflow, decisions = weekend_selection(ctx)
-    assert rows == [{"day": "Lør. 7. nov.", "text": "ChildB: Fødselsdagsfest"},
-                    {"day": "Søn. 8. nov.", "text": "ChildA: Fødselsdagsfest; Medbring: udetøj"}]
+    # Each part's kind travels with the row: the activity, then what to bring.
+    assert rows == [{"day": "Lør. 7. nov.", "text": "ChildB: Fødselsdagsfest", "kinds": ["party"]},
+                    {"day": "Søn. 8. nov.", "text": "ChildA: Fødselsdagsfest; Medbring: udetøj",
+                     "kinds": ["party", "bring"]}]
     assert overflow == 1
     assert decisions == {
         "fact-1": ("displayed", "weekend[0]", "Weekend activity"),
@@ -71,8 +73,8 @@ def test_cancelled_parties_show_as_cancelled_and_other_facts_fill_free_rows():
         fact("fact-5", "ChildB", "2026-11-07", title="Lise har fødselsdag"),
     ])
     rows, overflow, decisions = weekend_selection(ctx)
-    assert rows == [{"day": "Lør. 7. nov.", "text": "ChildA: Fødselsdagsfest aflyst"},
-                    {"day": "Søn. 8. nov.", "text": "Begge: Loppemarked på skolen"}]
+    assert rows == [{"day": "Lør. 7. nov.", "text": "ChildA: Fødselsdagsfest aflyst", "kinds": ["party"]},
+                    {"day": "Søn. 8. nov.", "text": "Begge: Loppemarked på skolen", "kinds": ["event"]}]
     assert overflow == 0
     assert decisions["fact-2"] == ("omitted", "", "Cancelled activity")
     assert decisions["fact-4"] == ("omitted", "", "Needs review")
@@ -240,7 +242,7 @@ def test_fallback_board_is_valid_puts_obligations_first_and_says_it_is_plain():
     assert state["weekdays"][1]["children"][1]["lines"] == ["Vikar: Alex W. · MAT 02"]
     assert state["weekdays"][2]["children"][1]["lines"][-1] == "+3 punkter i skolebriefen"
     assert state["weekdays"][0]["children"][1]["lines"] == ["Valgfrit: Tilmeld samtale"]
-    assert state["weekend"] == [{"day": "Lør. 7. nov.", "text": "ChildB: Fødselsdagsfest"}]
+    assert state["weekend"] == [{"day": "Lør. 7. nov.", "text": "ChildB: Fødselsdagsfest", "kinds": ["party"]}]
     decisions = {item["ref"]: item for item in audit["facts"]}
     assert decisions["fact-4"]["reason"] == "Needs review"
     assert decisions["fact-14"]["reason"] == "Outside displayed week"

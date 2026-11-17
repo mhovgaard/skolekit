@@ -34,7 +34,7 @@ MESSAGE_MODES = {"off", "events-only"}
 # Removed on 14 November 2026: it stored message text as records.
 REMOVED_MESSAGE_MODES = {"legacy"}
 MESSAGE_PROCESSORS = {"disabled", "local", "zdr"}
-MESSAGE_POLICY_VERSION = "restricted-messages-v4"
+MESSAGE_POLICY_VERSION = "restricted-messages-v5"
 MESSAGE_MODE_ENV = "AG_SCHOOL_MESSAGE_MODE"
 MESSAGE_PROCESSOR_ENV = "AG_SCHOOL_MESSAGE_PROCESSOR"
 MESSAGE_HANDLE_KEY_ENV = "AG_SCHOOL_MESSAGE_HANDLE_KEY"

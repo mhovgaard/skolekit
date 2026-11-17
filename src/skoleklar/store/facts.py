@@ -69,6 +69,10 @@ def _parse_source_date(value: str) -> date | None:
         return None
 
 
+# What a derived item is (derive-v10): read from its payload, carried by consolidation.
+ITEM_SHAPE = ("category", "moves_time", "recurring")
+
+
 class FactRepository:
     connection: sqlite3.Connection
 
@@ -405,7 +409,9 @@ class FactRepository:
             item["all_day"] = bool(item["all_day"])
             item["needs_review"] = bool(item["needs_review"])
             item["evidence"] = json.loads(item.pop("evidence_json"))
-            item.pop("payload_json")
+            # derive-v10 says what an item is; facts derived before keep no such keys.
+            payload = json.loads(item.pop("payload_json") or "{}")
+            item.update({key: payload[key] for key in ITEM_SHAPE if key in payload})
             item["source_urls"] = source_urls.get(int(item["id"]), [])
             item["source_types"] = source_types.get(int(item["id"]), [])
             result.append(item)

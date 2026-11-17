@@ -12,11 +12,25 @@ without meaning-bearing text are handled deterministically. Changed prose goes
 to the model as compact normalized text and relevant fields, never source HTML,
 login data or the database file.
 
-The active `derive-v9` bundle splits prose into atomic obligations, changes,
+The active `derive-v10` bundle splits prose into atomic obligations, changes,
 events and context. Its fact types (`event`, `schedule_change`, `bring`,
 `homework`, `parent_action` and others) are defined in its
-[semantic layer](../src/skoleklar/manifests/derive-v9/semantic-layer.md); the
-phone and board route by them. Timing depends on meaning: homework under a weekday is due
+[semantic layer](../src/skoleklar/manifests/derive-v10/semantic-layer.md); the
+phone and board route by them. Each fact also says what it is, so nothing
+downstream has to guess it from the wording: an event's or a meeting's `category`
+(`trip`, `party`, `meeting`, `other`), whether a schedule change `moves_time`, and
+whether an event is `recurring` (morning singing). A field on a type it does not
+belong to is dropped, never sent for review. The fields live in the item's stored
+payload; consolidation copies them from its members (a category when they agree,
+a moved time when any says so), never from its model, and they are part of its
+cache key. Facts derived before v10 have none, and the [parents'
+board](parents-board.md#what-each-line-is) reads those as before.
+
+The model reads each source once. A weekly plan goes as its days and general
+blocks (subject and text), without its flattened `body_text`, the repeated
+`content_data`, links, ids or code's heading guesses (`segments`): a week's plan
+is about 12,000 characters instead of 45,000. `content_data` is left out for
+every source whose `source_data` already holds it. Timing depends on meaning: homework under a weekday is due
 before that school day, bring-items are needed on that day, explicit dates win,
 and missing/uncertain dates are not guessed. Keep quantities, exceptions,
 optionality and family participation attached to their facts.
@@ -74,13 +88,21 @@ uv run skoleklar consolidation-report --db COPY.db
 
 ## Day summaries
 
-`day-summary-v1` retells a weekly plan as one child-friendly Danish paragraph
+`day-summary-v2` retells a weekly plan as one child-friendly Danish paragraph
 per school day. It keeps classroom activity separately from atomic obligations.
-Input omits child names, HTML, links and attachments. The prompt permits staff
-first names but forbids identifying children or adding sensitive matters; code
-cannot fully enforce the semantic naming policy.
+Input omits HTML, links and attachments. Where the plan names the child it is
+for, code replaces the name with `[barnet]` (whole word, genitive `-s`, as the
+profile writes it or in capitals: a name is often a word too, so `en bjørn i
+skoven` and `1. maj` stay; a name a teacher writes in lower case stays unmarked),
+so the child's own group, letters, turn or item reaches the summary as
+`du`: `Du og Emma laver en bogstavhistorie med F og H`. The prompt permits staff
+first names and the first names of classmates the plan puts with the child (their
+group or pair, a classmate the class celebrates), and forbids naming other
+children or adding sensitive matters; code cannot fully enforce the semantic
+naming policy. `day-summary-v1` stays for the summaries it wrote.
 
-Code validates day order, paired headline/text, length and relative-time rules.
+Code validates day order, paired headline/text, length and relative-time rules,
+and rejects `[barnet]` or the child's own name in the output.
 Summary caching includes plan version, prompt and model. A changed plan makes
 its previous summary unavailable until regenerated. The scan bounds the number
 of plans and retries failures on a later run. State statuses are `ok`,
@@ -91,8 +113,10 @@ uv run skoleklar day-summaries --db COPY.db --dry-run
 uv run skoleklar day-summaries --db COPY.db --show YYYY-MM-DD
 ```
 
-The children's view consumes summaries; they are not another source of facts
-and do not alter the composition model's fact packet.
+The children's view and the parents' board consume summaries; they are not
+another source of facts and do not alter the composition model's fact packet.
+Frames carry the summaries of the composed week and of the parents' board's
+school days ahead, which may reach into the next week.
 
 ## Review checks
 

@@ -110,6 +110,7 @@ def _weekend_entries(context):
         if kind:
             group = activities.setdefault(_activity_event(fact), {
                 "child": fact["child"], "date": fact["effective_date"], "kind": kind,
+                "label": _activity_label(fact, kind),
                 "thread": fact.get("message_thread"), "refs": [], "bring": [], "cancelled": False})
             group["refs"].append(fact["ref"])
             if fact.get("cancelled") or (fact.get("child"), fact.get("effective_date"),
@@ -142,9 +143,41 @@ def _weekend_entries(context):
     return activities, others, decisions
 
 
+def _activity_label(fact, kind):
+    """The activity's title as the context wrote it ('Emmas fødselsdag'), else its label."""
+    title = re.sub(r"\s+aflyst$", "", str(fact.get("title") or "")).strip()
+    if kind == "birthday_party" and re.fullmatch(r"\S+ fødselsdag", title):
+        return title
+    return ACTIVITY_LABELS[kind]
+
+
+def _activity_kinds(group):
+    """The kind of each `;` part of an activity's row: the activity, then what to bring."""
+    from skoleklar.parents_board import _ACTIVITY_KINDS
+    kinds = [_ACTIVITY_KINDS.get(group["kind"], "event")]
+    if any(fact.get("actionability") != "recommended" for fact in group["bring"]):
+        kinds.append("bring")
+    if any(fact.get("actionability") == "recommended" for fact in group["bring"]):
+        kinds.append("optional")
+    return kinds
+
+
+def _row_kinds(text, kinds):
+    """One kind per `;` part of a row's final text.
+
+    A part that fitting cut away loses its kind; a fact's own text that holds a `;`
+    ('Læs s. 4; lav s. 5') repeats its one kind.
+    """
+    parts = [part for part in str(text).split(";") if part.strip()]
+    return (kinds + kinds[-1:] * len(parts))[:len(parts)]
+
+
 def _activity_text(group, names_order):
-    label = ACTIVITY_LABELS[group["kind"]] + (" aflyst" if group["cancelled"] else "")
-    text = f"{group['child']}: {label}"
+    suffix = " aflyst" if group["cancelled"] else ""
+    text = f"{group['child']}: {group.get('label', ACTIVITY_LABELS[group['kind']])}{suffix}"
+    if len(text) > WEEKEND_TEXT_LIMIT:
+        # A long name gives way before 'fødselsdag' or 'aflyst' could be cut.
+        text = f"{group['child']}: {ACTIVITY_LABELS[group['kind']]}{suffix}"
     required = [bring_items(f) for f in group["bring"] if f.get("actionability") != "recommended"]
     optional = [bring_items(f) for f in group["bring"] if f.get("actionability") == "recommended"]
     for marker, items in (("Medbring", required), ("Valgfrit", optional)):
@@ -196,7 +229,9 @@ def weekend_selection(context):
         location = f"weekend[{index}]"
         if kind == "activity":
             day = date.fromisoformat(value["date"])
-            rows.append({"day": short_day(day), "text": _activity_text(value, names)})
+            # Each part's kind travels with the row, so no renderer reads its words.
+            text = _activity_text(value, names)
+            rows.append({"day": short_day(day), "text": text, "kinds": _row_kinds(text, _activity_kinds(value))})
             first, *rest = value["refs"]
             decisions[first] = ("displayed", location, "Weekend activity")
             for ref in rest:
@@ -206,7 +241,9 @@ def weekend_selection(context):
         else:
             day = date.fromisoformat(value["effective_date"])
             who = "Begge" if value.get("child") not in order else value["child"]
-            rows.append({"day": short_day(day), "text": _fit(f"{who}: {fact_text(value)}", WEEKEND_TEXT_LIMIT)})
+            from skoleklar.parents_board import fact_kind
+            text = _fit(f"{who}: {fact_text(value)}", WEEKEND_TEXT_LIMIT)
+            rows.append({"day": short_day(day), "text": text, "kinds": _row_kinds(text, [fact_kind(value)])})
             decisions[value["ref"]] = ("displayed", location, "Weekend fact")
     for group in hidden:
         for ref in group["refs"]:

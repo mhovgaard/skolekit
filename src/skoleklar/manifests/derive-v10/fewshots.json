@@ -1,0 +1,444 @@
+[
+  {
+    "name": "Et andet barns svar giver ingen familieinformation",
+    "input": {
+      "source_type": "messages",
+      "child": "{{child_1}}",
+      "children": [
+        "{{child_1}}"
+      ],
+      "title": "Fødselsdag på søndag",
+      "body_text": "{{other_3}} kommer gerne 😊"
+    },
+    "output": {
+      "items": []
+    }
+  },
+  {
+    "name": "Almindeligt undervisningsprogram er kontekst, ikke ændring",
+    "input": {
+      "source_type": "messages",
+      "child": "{{child_1}}",
+      "children": [
+        "{{child_1}}"
+      ],
+      "title": "Dansk i næste uge",
+      "body_text": "Mandag læser vi videre i klassens bog, og onsdag arbejder vi med vokaler."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "dansk-program-laesning-vokaler",
+          "stream": "context",
+          "type": "lesson_preview",
+          "category": null,
+          "moves_time": null,
+          "recurring": false,
+          "audience": "child",
+          "child": "{{child_1}}",
+          "title": "Danskprogram med læsning og vokaler",
+          "summary": "Klassen læser videre mandag og arbejder med vokaler onsdag.",
+          "effective_date": null,
+          "end_date": null,
+          "all_day": true,
+          "timing_rule": "no_derived_date",
+          "actionability": "informational",
+          "urgency": "routine",
+          "urgency_reason": "Det er et almindeligt undervisningsprogram uden familiehandling.",
+          "confidence": 0.95,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Mandag læser vi videre i klassens bog, og onsdag arbejder vi med vokaler.",
+              "source_day": null,
+              "subject": "Dansk"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "Eksplicit ændring og ting til næste skoledag",
+    "input": {
+      "source_type": "messages",
+      "child": "{{child_2}}",
+      "children": [
+        "{{child_2}}"
+      ],
+      "title": "Ændrede planer i morgen",
+      "date": "2026-08-12",
+      "body_text": "Planerne er ændret: I morgen tager vi i parken i stedet. {{child_2}} skal have drikkedunk med."
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "park-i-stedet-2026-08-13",
+          "stream": "calendar",
+          "type": "schedule_change",
+          "category": null,
+          "moves_time": false,
+          "recurring": false,
+          "audience": "child",
+          "child": "{{child_2}}",
+          "title": "Ændrede planer: tur i parken",
+          "summary": "Klassen tager i parken den 13. august i stedet for det oprindelige program.",
+          "effective_date": "2026-08-13",
+          "end_date": "2026-08-13",
+          "all_day": true,
+          "timing_rule": "explicit",
+          "actionability": "informational",
+          "urgency": "attention",
+          "urgency_reason": "Ændringen gælder næste skoledag.",
+          "confidence": 0.98,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Planerne er ændret: I morgen tager vi i parken i stedet.",
+              "source_day": "2026-08-13",
+              "subject": null
+            }
+          ]
+        },
+        {
+          "dedupe_hint": "drikkedunk-park-2026-08-13",
+          "stream": "actions",
+          "type": "bring",
+          "category": null,
+          "moves_time": null,
+          "recurring": false,
+          "audience": "child",
+          "child": "{{child_2}}",
+          "title": "Medbring drikkedunk til parken",
+          "summary": "{{child_2}} skal have en drikkedunk med den 13. august.",
+          "effective_date": "2026-08-13",
+          "end_date": "2026-08-13",
+          "all_day": true,
+          "timing_rule": "needed_on_source_day",
+          "actionability": "required",
+          "urgency": "attention",
+          "urgency_reason": "Drikkedunken skal bruges næste skoledag.",
+          "confidence": 0.99,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "{{child_2}} skal have drikkedunk med.",
+              "source_day": "2026-08-13",
+              "subject": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "Ugeplanslektie er færdig før den angivne skoledag",
+    "input": {
+      "source_type": "weekly_plan",
+      "child": "{{child_1}}",
+      "children": [
+        "{{child_1}}"
+      ],
+      "source_data": {
+        "days": [
+          {
+            "weekday": "Onsdag",
+            "date": "2026-08-26",
+            "plans": [
+              {
+                "subject": "Dansk",
+                "content_text": "Læs side 18 og 19 og lav side 8 og 9 i opgavebogen."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "dansk-side-18-19-opgave-8-9",
+          "stream": "homework",
+          "type": "homework",
+          "category": null,
+          "moves_time": null,
+          "recurring": false,
+          "audience": "child",
+          "child": "{{child_1}}",
+          "title": "Læs og lav dansk til onsdag",
+          "summary": "Læs side 18-19 og lav side 8-9 i opgavebogen før onsdag.",
+          "effective_date": "2026-08-26",
+          "end_date": null,
+          "all_day": true,
+          "timing_rule": "complete_before_source_day",
+          "actionability": "required",
+          "urgency": "attention",
+          "urgency_reason": "Opgaven skal være færdig før onsdagens undervisning.",
+          "confidence": 0.98,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Læs side 18 og 19 og lav side 8 og 9 i opgavebogen.",
+              "source_day": "2026-08-26",
+              "subject": "Dansk"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "Vigtig vedhæftning uden udtrukket tekst sendes til review",
+    "input": {
+      "source_type": "messages",
+      "child": "{{child_2}}",
+      "children": [
+        "{{child_2}}"
+      ],
+      "title": "Første skoledag og praktisk information",
+      "body_text": "Se venligst det vedhæftede brev om første skoledag.",
+      "attachments": [
+        {
+          "name": "første-skoledag.pdf",
+          "text_extracted": false
+        }
+      ]
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "foerste-skoledag-vedhaeftning-review",
+          "stream": "context",
+          "type": "context",
+          "category": null,
+          "moves_time": null,
+          "recurring": false,
+          "audience": "parent",
+          "child": "{{child_2}}",
+          "title": "Gennemgå brev om første skoledag",
+          "summary": "Et vedhæftet brev om første skoledag indeholder praktiske oplysninger, som bør gennemgås.",
+          "effective_date": null,
+          "end_date": null,
+          "all_day": true,
+          "timing_rule": "no_derived_date",
+          "actionability": "informational",
+          "urgency": "attention",
+          "urgency_reason": "Vedhæftningen kan indeholde tidsnære praktiske oplysninger.",
+          "confidence": 0.9,
+          "needs_review": true,
+          "review_reason": "Vedhæftningens tekst er ikke udtrukket.",
+          "evidence": [
+            {
+              "quote": "Se venligst det vedhæftede brev om første skoledag.",
+              "source_day": null,
+              "subject": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "Ugeplan med tur, tidlig fri, forældremøde, samtalebooking og fast morgensang",
+    "input": {
+      "source_type": "weekly_plan",
+      "child": "{{child_1}}",
+      "children": [
+        "{{child_1}}"
+      ],
+      "source_data": {
+        "week": {
+          "number": 37,
+          "year": 2026,
+          "label": "37-2026",
+          "class_or_group": "01"
+        },
+        "general_plans": [
+          {
+            "subject": "Uden angivelse af fag",
+            "content_text": "Kære forældre\nForældremøde tirsdag den 8. september kl. 19 i klassen.\nBook en tid til skole-hjem-samtale på Intra senest fredag den 11. september.\nHilsen Lars"
+          }
+        ],
+        "days": [
+          {
+            "weekday": "Torsdag",
+            "date": "2026-09-10",
+            "plans": [
+              {
+                "subject": "Uden angivelse af fag",
+                "content_text": "Klassen har fri kl. 12 på grund af personalemøde."
+              }
+            ]
+          },
+          {
+            "weekday": "Fredag",
+            "date": "2026-09-11",
+            "plans": [
+              {
+                "subject": "Uden angivelse af fag",
+                "content_text": "Morgensang i salen som hver fredag."
+              },
+              {
+                "subject": "Natur/teknologi",
+                "content_text": "Vi tager på Zoologisk Museum. Mødetid kl. 8.00 ved busstoppet."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "output": {
+      "items": [
+        {
+          "dedupe_hint": "foraeldremoede-2026-09-08",
+          "stream": "calendar",
+          "type": "event",
+          "category": "meeting",
+          "moves_time": null,
+          "recurring": false,
+          "audience": "parent",
+          "child": "{{child_1}}",
+          "title": "Forældremøde i klassen",
+          "summary": "Der er forældremøde i klassen tirsdag den 8. september kl. 19.",
+          "effective_date": "2026-09-08",
+          "end_date": null,
+          "all_day": false,
+          "timing_rule": "explicit",
+          "actionability": "informational",
+          "urgency": "attention",
+          "urgency_reason": "Forældrene forventes at deltage.",
+          "confidence": 0.95,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Forældremøde tirsdag den 8. september kl. 19 i klassen.",
+              "source_day": null,
+              "subject": null
+            }
+          ]
+        },
+        {
+          "dedupe_hint": "book-samtale-2026-09-11",
+          "stream": "actions",
+          "type": "parent_action",
+          "category": null,
+          "moves_time": null,
+          "recurring": false,
+          "audience": "parent",
+          "child": "{{child_1}}",
+          "title": "Book skole-hjem-samtale",
+          "summary": "Book en tid til skole-hjem-samtale på Intra senest fredag den 11. september.",
+          "effective_date": "2026-09-11",
+          "end_date": null,
+          "all_day": true,
+          "timing_rule": "explicit",
+          "actionability": "required",
+          "urgency": "attention",
+          "urgency_reason": "Der er en frist for at booke.",
+          "confidence": 0.95,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Book en tid til skole-hjem-samtale på Intra senest fredag den 11. september.",
+              "source_day": null,
+              "subject": null
+            }
+          ]
+        },
+        {
+          "dedupe_hint": "fri-kl-12-2026-09-10",
+          "stream": "calendar",
+          "type": "schedule_change",
+          "category": null,
+          "moves_time": true,
+          "recurring": false,
+          "audience": "family",
+          "child": "{{child_1}}",
+          "title": "Fri kl. 12",
+          "summary": "Klassen har fri kl. 12 torsdag på grund af personalemøde.",
+          "effective_date": "2026-09-10",
+          "end_date": null,
+          "all_day": false,
+          "timing_rule": "occurs_on_source_day",
+          "actionability": "informational",
+          "urgency": "attention",
+          "urgency_reason": "Barnet skal hentes tidligere end normalt.",
+          "confidence": 0.95,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Klassen har fri kl. 12",
+              "source_day": "2026-09-10",
+              "subject": null
+            }
+          ]
+        },
+        {
+          "dedupe_hint": "morgensang-fredag",
+          "stream": "calendar",
+          "type": "event",
+          "category": "other",
+          "moves_time": null,
+          "recurring": true,
+          "audience": "child",
+          "child": "{{child_1}}",
+          "title": "Morgensang i salen",
+          "summary": "Klassen har morgensang i salen fredag, som hver uge.",
+          "effective_date": "2026-09-11",
+          "end_date": null,
+          "all_day": true,
+          "timing_rule": "occurs_on_source_day",
+          "actionability": "informational",
+          "urgency": "routine",
+          "urgency_reason": "",
+          "confidence": 0.95,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Morgensang i salen som hver fredag.",
+              "source_day": "2026-09-11",
+              "subject": null
+            }
+          ]
+        },
+        {
+          "dedupe_hint": "zoologisk-museum-2026-09-11",
+          "stream": "calendar",
+          "type": "event",
+          "category": "trip",
+          "moves_time": null,
+          "recurring": false,
+          "audience": "family",
+          "child": "{{child_1}}",
+          "title": "Tur til Zoologisk Museum",
+          "summary": "Klassen tager på Zoologisk Museum fredag med mødetid kl. 8.00 ved busstoppet.",
+          "effective_date": "2026-09-11",
+          "end_date": null,
+          "all_day": false,
+          "timing_rule": "occurs_on_source_day",
+          "actionability": "informational",
+          "urgency": "attention",
+          "urgency_reason": "Mødetiden er tidligere og et andet sted end normalt.",
+          "confidence": 0.95,
+          "needs_review": false,
+          "review_reason": "",
+          "evidence": [
+            {
+              "quote": "Vi tager på Zoologisk Museum. Mødetid kl. 8.00 ved busstoppet.",
+              "source_day": "2026-09-11",
+              "subject": "Natur/teknologi"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

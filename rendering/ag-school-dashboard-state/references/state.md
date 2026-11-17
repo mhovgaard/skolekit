@@ -60,7 +60,7 @@ from `freshness.composed_at` first and displays their summaries.
 
 Both renderers draw schema v2 school-day states as the
 [parents' board](../../../docs/parents-board.md): one row per child, the next
-school day on the left and the four days after it on the right. The table above
+school day on the left and the four school days after it on the right. The table above
 is the data; the fold order below applies to schema v1 previews only.
 
 Hero requires exactly two distinct children in fixed order. Each child has a
@@ -68,6 +68,12 @@ topic heading and up to five action-preserving lines. It represents the current
 school day before 15:00 and the next school day from 15:00. From Friday at 15:00
 through Sunday before 12:00, it prepares the coming Monday behind the HTML
 weekend panel. From Sunday at 12:00 it is shown as the next school day.
+
+Each `weekend` row may carry `kinds`, written by code from the facts: one known
+line kind per `;` part of its text after `who:` (an activity, then what to bring:
+`["party", "bring"]`). Renderers draw the boxes and labels from it, and the
+composition check compares an activity's row kind with the activity's category;
+a row without `kinds` (an older state) is read from its words.
 
 `weekend` has at most two rows of actual activities. During the weekend cover,
 use only the current weekend. In school-day mode it is the place for still-relevant
@@ -94,7 +100,9 @@ and at most two metadata-only rows. Each row may contain:
 `BESKEDER · 7 ULÆSTE (1 NY)`. Both are set by code, never by the model.
 
 Never include message subjects, bodies, previews, quoted text, full surnames,
-source URLs, raw IDs, or opaque handles. The
+source URLs, raw IDs, or opaque handles. The one name a message fact keeps is a
+birthday party's birthday child, by first name, in its title (`Claras fødselsdag`;
+see [message privacy](../../../docs/message-harvesting.md#extraction-and-validation)). The
 [live-subject overlay](live-subjects.md) is a separate render-time read with a
 local sensitivity check and, when the household opts in, a one- or two-word topic
 from the model; it never changes this serialized state.
@@ -104,13 +112,18 @@ from the model; it never changes this serialized state.
 All optional, schema v2 only, and written by code, never by the model:
 
 - `kinds` on a hero or weekday child: one entry per line, in line order, from
-  `homework`, `bring`, `optional`, `deadline`, `change`, `substitute`, `trip`,
-  `party`, `meeting`, `event`, `info` and `more`. `shared_kind` on a weekday names
+  `homework`, `bring`, `optional`, `deadline`, `time_change`, `change`,
+  `substitute`, `trip`, `party`, `meeting`, `event`, `info`, `routine` and `more`.
+  `time_change` is a change that moves a time (yellow within two days); `routine`
+  a weekly event the board leaves out. `shared_kind` on a weekday names
   the kind of its `shared` line.
-- `ahead`: at most four days after the composed week that fall in the four days
-  after the next school day, each `{"date", "children": [{"name", "lines", "kinds"}],
-  "shared": [{"text", "kind"}]}` with at most five lines per child and two shared.
-- `later_events`: at most six `{"date", "who", "kind", "text"}`, where `who` is a
+- `ahead`: at most six days after the composed week, from the day after the next
+  school day to the fourth school day after it (Monday to Friday; a Saturday or
+  Sunday in between only when it has facts), each `{"date", "children": [{"name",
+  "lines", "kinds"}], "shared": [{"text", "kind"}]}` with at most five lines per
+  child and two shared.
+- `later_events`: at most six `{"date", "who", "kind", "text"}` after the fourth
+  school day ahead and up to fourteen days after the next school day, where `who` is a
   child's name or `Begge`, `kind` is `trip`, `party`, `meeting`, `event` or
   `deadline`, and `text` is at most 60 characters.
 - `device`: `{"battery_percent": 0–100}` from the board's own status report.
@@ -135,8 +148,9 @@ absent when there are none.
 `day_summaries` is optional and schema v2 only. It is never composed by the
 model: the cloud sync attaches it to every frame from the stored
 [weekly-plan day summaries](../../../docs/processing.md#day-summaries). The parents' board
-shows the next school day's `headline` as each child's plan line; the day view
-below shows the summary for its date.
+shows the next school day's `headline` as each child's plan line on the left, and
+each school day ahead's `headline` as the first line of that day on the right; the
+day view below shows the summary for its date.
 
 ```json
 "day_summaries": [
@@ -151,8 +165,9 @@ below shows the summary for its date.
 ]
 ```
 
-- One entry per displayed weekday, at most five; each `date` is one of
-  `weekdays[].date`.
+- One entry per shown school day, at most nine, one per date: each `date` is one
+  of `weekdays[].date` or one of the four school days after the next school day
+  (`parents_board.lookahead_dates`), which may fall in the following week.
 - `children` has both children in hero order.
 - `status` is `ok`, `no_content`, `not_published` or `unavailable`. Only `ok`
   carries a `headline` (at most 48 characters) and a single-line `text` (at

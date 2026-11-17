@@ -15,7 +15,7 @@ Each child has a row across the panel, and the dividers line up on both halves.
 | Top left (dark) | The next school day's date and a weather heads-up: `1–5° Vintertøj`, `9–14° Regntøj` |
 | Top right | `Opdateret 08/11 19.30` and the board's battery; `ÆLDRE DATA ·` and `N punkter at tjekke` come first when they apply |
 | Child row, left | The weekly plan's headline for the day, homework with a checkbox, what to bring, the time-urgent line, the latest message |
-| Child row, right | The four days after the next school day as dated rows, then events up to two weeks out below a dotted rule |
+| Child row, right | The four school days after the next school day as dated rows, each led by the weekly plan's headline for that day, then events up to two weeks out below a dotted rule |
 | `Begge` row | The unread total (`4 ulæste i alt`) on the left; what concerns both children on the right |
 
 `parents_board_render.py` draws it on the panel and writes the same layout as
@@ -25,34 +25,75 @@ HTML, so the two never disagree about what is shown.
 
 The composed week carries per line a `kinds` entry, written by code from the facts
 behind the line (`parents_board.attach_kinds`, from the audit's locations):
-`homework`, `bring`, `optional`, `deadline`, `change`, `substitute`, `trip`,
-`party`, `meeting`, `event`, `info` or `more`. A composition cached before kinds
-existed gets them from its audit on the next scan. Without kinds (an old state, a
-local render) the renderer reads the markers (`Lektie:`, `Medbring:` …) and a
-leading task verb instead.
+`homework`, `bring`, `optional`, `deadline`, `time_change`, `change`, `substitute`,
+`trip`, `party`, `meeting`, `event`, `info`, `routine` or `more`. A composition
+cached before kinds existed gets them from its audit on the next scan.
 
+A fact derived with [`derive-v10`](processing.md#derivation) says what it is:
+its `category` (`trip`, `party`, `meeting`, `other`), whether a change
+`moves_time`, and whether an event is `recurring`. The board takes it at its word
+and never reads the wording to second-guess it. Before these, the board guessed
+from Danish keywords (`tur`, `fest`, `samtale`, `kl. 12`, `Morgensang`), and it
+still does, only for facts derived before v10 (which stay until their source
+changes) and for lines whose state carries no kinds (an old state, a local render,
+the composed weekend rows). Precedence for an event: the owner's confirmed
+category, then a message's `activity_kind`, then the fact's `category`, then the
+keywords.
+
+Every highlight that guides the eye comes from the line's kind, never from its
+words: the checkbox (`homework`), the bold `Medbring`, `Valgfrit` and `Frist`
+labels (`bring`, `optional`, `deadline`), the `TUR`/`FEST`/`MØDE`/`ARR.` boxes,
+the yellow time-urgency marker and leaving out a weekly routine. Every deadline
+gets `Frist`, not only a line that starts with the word, so a reply or a payment
+with a date reads as one. The words are content only: a leading word that says
+what the label already says (code's own `Medbring:` marker, a `Husk` or `Tag … med`)
+is trimmed so the label is not said twice. Code still writes its markers into the
+state's text for the phone, the skoleklar MCP and older renderers.
+
+A few word reads remain as formatting, never as a highlight: homework's bold
+subject (`Mat.`, from a list of subject names), whether a packing list already
+names rain gear (the `☂ regn` note), whether another line already says the plan
+headline, the substitute's short form and the `+N punkter` line.
+
+- **The day's plan line** on the right is the weekly plan's
+  [day summary](processing.md#day-summaries) headline (`Trekanter og bogstavet T`,
+  `Bogstavhistorie med Emma: F og H`) in the serif, before the day's other lines,
+  so a week without homework still says what each day holds. It is left out when
+  the day has no summary, or when another line of the day already says it
+  (`TUR Kulturdag i teatret`).
 - **Homework** has a checkbox and a bold subject (`Mat.`, `Eng.`, `N/T`); two
   homework items of a day share a line at a tab stop, or right after each other
   when the first is long, and get a line each when they do not fit.
 - **Trips, parties and meetings** get a blue box: `TUR`, `FEST`, `MØDE`, and `ARR.`
   for other events. The box replaces the `Besked:` marker.
-- **Yellow marks time urgency only**: a deadline, or a change that moves a time
-  (`kl. 12`, `mødetid`, `fri`), within two days of the frame. A moved room or lesson,
-  homework and substitutes are never yellow.
+- **Yellow marks time urgency only**: a deadline, or a `time_change` (a change
+  that moves when the day or an activity starts or ends: an early finish, a new
+  meeting time), within two days of the frame. A moved room or lesson, homework and
+  substitutes are never yellow, even when the line names a time.
 - **Rain on an event day** shows as `☂ regn` under its date, unless its packing
   list already names rain gear.
-- **Weekly routines** (`Morgensang`, `Fællessang`) are never shown; a cancellation
-  is (`Morgensang aflyst`).
+- **Weekly routines** (kind `routine`: a `recurring` event, such as morning
+  singing) are never shown and never take one of a day's lines; a cancellation is
+  (`Morgensang aflyst`).
 
 ## Days ahead and later events
 
-The composed school week covers Monday to Friday. For a frame whose four days
-ahead reach past it (Wednesday or Thursday evening), the sync job writes the
-missing days from the facts, as the fallback board does (`ahead`). Weekend
+The days ahead are the four school days (Monday to Friday) after the next school
+day (`parents_board.lookahead_dates`), so with the next school day on the left the
+board always covers the next five school days and never runs out on a Thursday
+evening or a Friday: Friday's board looks at Monday to Thursday. A Saturday or
+Sunday in between gets a row only when something is on, such as a birthday party;
+an empty weekend takes no room. Holidays on a weekday are not known and count as
+school days.
+
+The composed school week covers Monday to Friday. For a frame whose days ahead
+reach past it (from Monday evening on), the sync job writes the missing days from
+the facts, as the fallback board does (`ahead`), and attaches the next week's
+[day summaries](processing.md#day-summaries) for their plan lines. Weekend
 activities from the composed weekend rows replace those days' own rows. Trips,
-parties, meetings and required deadlines from five to fourteen days after the next
-school day are `later_events`: one row each with its date, box and title, `Begge`
-when both children or no particular child. A weekly event already shown in the days
+parties, meetings and required deadlines after the fourth school day ahead, up to
+fourteen days after the next school day, are `later_events`: one row each with its
+date, box and title, `Begge` when both children or no particular child. A weekly event already shown in the days
 ahead (morning singing) is not repeated there. Each frame's context for these reaches
 18 days ahead (`parents_board.CONTEXT_DAYS`); the composition's own context is
 unchanged.
@@ -73,15 +114,21 @@ that makes a row tall; the row then says `+N punkter mere · +N senere`:
 2. Things to bring on days without an event; tomorrow's list stays on the left.
 3. Later events without a deadline.
 4. The extra space between lines.
-5. The plan line, where the left side is the taller one.
-6. All later events.
-7. Things to bring on event days, then tomorrow's bring list.
-8. Last resort: the farthest day of the fullest row.
+5. The plan lines of the days ahead that have other lines, one at a time, the
+   farthest day first, from the child whose right side is tallest.
+6. The plan line on the left, where the left side is the taller one.
+7. The remaining plan lines of the days ahead, in the same way.
+8. All later events.
+9. Things to bring on event days, then tomorrow's bring list.
+10. Last resort: the farthest day of the fullest row.
+
+Plan lines retell the weekly plan and are no things to do, so they are not counted
+in `+N punkter mere`.
 
 Homework, deadlines, changed times and trips go only in the last step. The
 homework-heavy test week (`tests_python/test_parents_board.py`: two subjects a day
 for both children, a culture-day trip each and four later events) shows all 16
-homework items with nothing cut.
+homework items with nothing cut, also with a plan line on every day ahead.
 
 ## Messages
 

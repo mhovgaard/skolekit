@@ -11,7 +11,9 @@ from skoleklar.triage.derivation import (
     DEFAULT_MODEL,
     PROVIDER,
     OpenRouterClient,
+    _what_it_is,
 )
+from skoleklar.store.facts import ITEM_SHAPE
 from skoleklar.triage.prompt_manifest import DEFAULT_SLOTS, load_prompt_manifest
 from skolekit.records import canonical_hash
 
@@ -68,6 +70,10 @@ def consolidation_cache_key(
             "manifest_hash": consolidation_manifest().content_hash,
             "member_stable_keys": sorted(item["stable_key"] for item in items),
             "document_hash": canonical_hash(document),
+            # What each member is (derive-v10) is copied into the result, not sent to
+            # the model, so a member that now says it must not reuse an older result.
+            "member_shapes": sorted(json.dumps([item["stable_key"], *[item.get(key) for key in ITEM_SHAPE]])
+                                    for item in items),
         }
     )
 
@@ -242,6 +248,7 @@ def _materialize_group(
     item_type = canonical.pop("type")
     return {
         **canonical,
+        **_group_shape(item_type, members),
         "item_type": item_type,
         "stable_key": stable_key,
         "resolution": resolution,
@@ -265,6 +272,26 @@ def _materialize_group(
         ),
         "harvest_run_id": max(int(member["harvest_run_id"]) for member in members),
     }
+
+
+def _group_shape(item_type: str, members: list[dict[str, Any]]) -> dict[str, Any]:
+    """What a merged item is, from its members of the same type that say it.
+
+    A category holds when they agree; a time moves when any says so; an event is
+    recurring only when every one is. Members from before derive-v10 say nothing.
+    """
+    said = [member for member in members if member.get("item_type") == item_type
+            and any(key in member for key in ITEM_SHAPE)]
+    if not said:
+        return {}
+    categories = {member.get("category") for member in said}
+    moves = [member.get("moves_time") for member in said if isinstance(member.get("moves_time"), bool)]
+    shape = {"type": item_type, "category": categories.pop() if len(categories) == 1 else None,
+             "moves_time": any(moves) if moves else None,
+             "recurring": all(member.get("recurring") is True for member in said)}
+    # Only what the group's own type allows, as the derivation keeps it.
+    _what_it_is(shape)
+    return {key: shape[key] for key in ITEM_SHAPE}
 
 
 def _materialize_unchanged(item: dict[str, Any]) -> dict[str, Any]:
@@ -292,7 +319,7 @@ def _materialize_unchanged(item: dict[str, Any]) -> dict[str, Any]:
             "source_types",
             "harvest_run_id",
         )
-    } | {
+    } | {key: item[key] for key in ITEM_SHAPE if key in item} | {
         "resolution": "unchanged",
         "member_item_ids": [int(item["id"])],
         "reason": "No semantic duplicate was identified.",

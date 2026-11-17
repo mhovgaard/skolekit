@@ -1,3 +1,4 @@
+import json
 from datetime import date
 
 import pytest
@@ -214,3 +215,39 @@ def test_repair_prefers_valid_group_over_repeated_unclustered_id() -> None:
     assert partition == {"groups": [group([1, 2])], "unclustered_item_ids": [3]}
     assert [row["member_item_ids"] for row in result] == [[1, 2], [3]]
     assert repairs["repeated_id_count"] == 1
+
+
+def test_what_items_are_survives_consolidation_and_keys_its_cache() -> None:
+    """derive-v10's fields come from the members, never from the consolidation model."""
+    party = dict(stream="calendar", item_type="event", category="party", moves_time=None, recurring=False)
+    items = [derived_item(1, **party), derived_item(2, **party),
+             derived_item(3, stream="calendar", item_type="schedule_change", category=None,
+                          moves_time=True, recurring=False),
+             derived_item(4)]  # derived before v10: says nothing
+    group = {"member_item_ids": [1, 2], "resolution": "duplicate",
+             "canonical": canonical() | {"stream": "calendar", "type": "event"},
+             "needs_review": False, "review_reason": "", "reason": "Samme fest."}
+    result = materialize_consolidation({"groups": [group], "unclustered_item_ids": [3, 4]}, items=items)
+    by_type = {entry["item_type"]: entry for entry in result}
+    assert (by_type["event"]["category"], by_type["event"]["recurring"]) == ("party", False)
+    assert by_type["schedule_change"]["moves_time"] is True
+    assert not {"category", "moves_time", "recurring"} & set(by_type["context"])
+
+    # Members that disagree leave the category open; the model is never asked.
+    mixed = [derived_item(1, **party), derived_item(2, **(party | {"category": "trip"}))]
+    [merged] = materialize_consolidation({"groups": [group], "unclustered_item_ids": []}, items=mixed)
+    assert merged["category"] is None
+
+    document = consolidation_document(items, as_of=date(2026, 8, 24))
+    assert "category" not in json.dumps(document)
+    before = [derived_item(1, stream="calendar", item_type="event"), derived_item(2)]
+    after = [derived_item(1, **party), derived_item(2)]
+    assert consolidation_cache_key(before, model="m", document=document) != \
+        consolidation_cache_key(after, model="m", document=document)
+
+
+def test_two_members_with_one_stable_key_still_make_a_cache_key() -> None:
+    """Nothing makes current stable keys unique; the cache key must not compare None with text."""
+    twins = [derived_item(1, stable_key="same", category=None), derived_item(2, stable_key="same", category="trip")]
+    document = consolidation_document(twins, as_of=date(2026, 8, 24))
+    assert consolidation_cache_key(twins, model="m", document=document)

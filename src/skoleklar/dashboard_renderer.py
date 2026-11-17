@@ -239,11 +239,17 @@ def validate(data: dict[str, Any]) -> None:
     if not isinstance(weekend, list) or len(weekend) > 2:
         raise ValueError("at most two weekend activities")
     for item in weekend:
-        obj(item, {"day", "text"}, {"day", "text"})
+        obj(item, {"day", "text", "kinds"}, {"day", "text"})
         line(item["day"], 16, "weekend[].day")
         line(item["text"], 100, "weekend[].text")
         if len(item["text"]) > 48:
             raise ValueError("weekend activity text must fit display")
+        if "kinds" in item:
+            from skoleklar.parents_board import KINDS
+            parts = [part for part in item["text"].split(";") if part.strip()]
+            if (not isinstance(item["kinds"], list) or len(item["kinds"]) != len(parts)
+                    or any(kind not in KINDS for kind in item["kinds"])):
+                raise ValueError("a weekend row has one known kind per part")
     overflow = data.get("weekend_overflow", 0)
     if type(overflow) is not int or not 0 <= overflow <= 9:
         raise ValueError("weekend_overflow must be a count from 0 to 9")
@@ -318,14 +324,21 @@ def validate(data: dict[str, Any]) -> None:
                 raise ValueError("invalid day weather")
     if "day_summaries" in data:
         # The weekly plan retold per day for the child; attached after composition.
+        from skoleklar.parents_board import LOOKAHEAD_DAYS, lookahead_dates
         days = data["day_summaries"]
-        weekdays = {day["date"] for day in data.get("weekdays", [])}
-        if data["schema_version"] != 2 or not isinstance(days, list) or len(days) > 5:
-            raise ValueError("day summaries are at most five school days in schema version 2")
+        shown = {day["date"] for day in data.get("weekdays", [])}
+        focus = focus_date(data)
+        if focus:
+            shown |= {value.isoformat() for value in lookahead_dates(date.fromisoformat(focus))}
+        if (data["schema_version"] != 2 or not isinstance(days, list)
+                or len(days) > 5 + LOOKAHEAD_DAYS):
+            raise ValueError("day summaries cover at most the shown school days in schema version 2")
+        if len({day.get("date") if isinstance(day, dict) else None for day in days}) != len(days):
+            raise ValueError("one day summary per date")
         for day in days:
             obj(day, {"date", "children"}, {"date", "children"})
-            if day["date"] not in weekdays:
-                raise ValueError("day summary date must be a displayed weekday")
+            if day["date"] not in shown:
+                raise ValueError("day summary date must be a displayed weekday or look-ahead school day")
             if not isinstance(day["children"], list) or [c.get("name") if isinstance(c, dict) else None
                                                          for c in day["children"]] != names:
                 raise ValueError("day summary children must match the hero")
@@ -782,7 +795,7 @@ def weekend_rows(data: dict[str, Any]) -> list[dict[str, str]]:
     result = []
     for item in data.get("weekend", []):
         text = str(item["text"]).strip()
-        row = {"day": str(item["day"]), names[0]: "", names[1]: "", "shared": ""}
+        row = {"day": str(item["day"]), names[0]: "", names[1]: "", "shared": "", "kinds": item.get("kinds")}
         for name in names:
             prefix = name + ":"
             if text.casefold().startswith(prefix.casefold()):
@@ -1787,17 +1800,29 @@ def short_substitute(line: str) -> str:
     return f"Vikar {first_name} · {match.group('lesson').strip()}"
 
 
-def display_lines(child: dict[str, Any]) -> list[str]:
-    """Drop lines that only repeat the heading or an earlier line."""
+def display_entries(child: dict[str, Any]) -> list[tuple[str, str | None]]:
+    """(line, kind) without lines that only repeat the heading or an earlier line.
+
+    A dropped line takes its kind with it; a state without kinds gives None.
+    """
     heading = display_heading(child).casefold()
     seen = {heading} if heading else set()
+    lines = child.get("lines") or []
+    kinds = child.get("kinds") or []
+    kinds = kinds if len(kinds) == len(lines) else [None] * len(lines)
     result = []
-    for line in (short_substitute(raw) for raw in child.get("lines", [])):
+    for raw, kind in zip(lines, kinds):
+        line = short_substitute(raw)
         key = " ".join(str(line).split()).casefold()
         if key and key not in seen:
             seen.add(key)
-            result.append(line)
+            result.append((line, kind))
     return result
+
+
+def display_lines(child: dict[str, Any]) -> list[str]:
+    """Drop lines that only repeat the heading or an earlier line."""
+    return [line for line, _ in display_entries(child)]
 
 
 def folded_cell(child: dict[str, Any]) -> str:

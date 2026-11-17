@@ -10,6 +10,23 @@ ACTIVITY_LABELS = {
 }
 
 
+# The one name a message fact keeps: the birthday child's capitalised first name.
+CELEBRANT = re.compile(r"[A-ZÆØÅ][a-zæøåäöüé]{1,23}(?:-[A-ZÆØÅ][a-zæøåäöüé]{1,23})?")
+
+
+def possessive(name):
+    """Danish genitive: 'Emmas', but 'Mads'' and 'Felix''."""
+    return name + ("'" if name[-1:].casefold() in {"s", "x", "z"} else "s")
+
+
+def activity_title(kind, celebrant=None):
+    """'Emmas fødselsdag' for a birthday whose child is known; else the category's label."""
+    if (kind == "birthday_party" and isinstance(celebrant, str) and len(celebrant) <= 24
+            and CELEBRANT.fullmatch(celebrant)):
+        return f"{possessive(celebrant)} fødselsdag"
+    return ACTIVITY_LABELS[kind]
+
+
 def birthday_notice(item):
     """A calendar birth date establishes no invitation or family attendance."""
     return (item.get("type", item.get("item_type")) == "event"

@@ -1,0 +1,10 @@
+{
+  "id": "day-summary-v2",
+  "taxonomy_version": "weekly-plan-day-summary-v2",
+  "instructions": "instructions.md",
+  "semantic_layer": "semantic-layer.md",
+  "fewshots": "fewshots.json",
+  "output_schema": "output-schema.json",
+  "response_schema_name": "weekly_plan_day_summaries",
+  "prompt_cache_key": "ag-school-day-summary-v2"
+}

@@ -592,3 +592,29 @@ def test_reopening_store_migrates_active_lesson_identity(tmp_path: Path) -> None
         ).fetchone()["source_key"]
 
     assert source_key.startswith("LessonsEvents:slot:")
+
+
+def test_a_derived_item_says_what_it_is_and_an_older_one_says_nothing(tmp_path: Path) -> None:
+    """derive-v10's fields live in the item's payload; items from before have none."""
+    notice = record(student_id=1, child="Alfa", source_key="school:7")
+    with SnapshotStore(tmp_path / "school.db") as store:
+        run_id = store.begin_run()
+        store.store_checks(run_id, [SourceCheck(1, "Alfa", "frontpage", [notice])])
+        [candidate] = store.derivation_candidates(run_id)
+        base = {"stream": "calendar", "type": "event", "audience": "family", "child": "Alfa",
+                "summary": "Klassen tager i skoven.", "effective_date": "2026-09-11", "end_date": None,
+                "all_day": True, "timing_rule": "explicit", "actionability": "informational",
+                "urgency": "routine", "urgency_reason": "", "confidence": 0.9, "needs_review": False,
+                "review_reason": "", "evidence": [{"quote": "skoven", "source_day": None, "subject": None}]}
+        derivation_id = store.begin_derivation(harvest_run_id=run_id, cache_key="c", provider="test",
+                                               model="m", prompt_version="derive-v10", taxonomy_version="t")
+        store.complete_derivation(derivation_id, items=[
+            base | {"stable_key": "trip", "dedupe_hint": "trip", "title": "Skovtur",
+                    "category": "trip", "moves_time": None, "recurring": False},
+            base | {"stable_key": "older", "dedupe_hint": "older", "title": "Skovdag"},
+        ], sources=candidate["sources"], response_id="r", usage={})
+        items = {item["stable_key"]: item for item in store.current_derived_items()}
+    assert (items["trip"]["category"], items["trip"]["moves_time"], items["trip"]["recurring"]) == (
+        "trip", None, False)
+    assert not {"category", "moves_time", "recurring"} & set(items["older"])
+    assert "payload_json" not in items["trip"]

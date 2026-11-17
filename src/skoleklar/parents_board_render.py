@@ -2,9 +2,10 @@
 
 One row per child across the panel, with the dividers aligned on both sides.
 Left (dark): the next school day — the weekly plan's headline, homework with a
-checkbox, what to bring and the child's latest message. Right: the four days
-after it as dated rows, homework first, events in a blue category box, then
-events up to two weeks out below a dotted rule. A bottom `Begge` row carries
+checkbox, what to bring and the child's latest message. Right: the four school
+days after it as dated rows (a weekend day in between only when something is on),
+each led by the weekly plan's headline for the day, then homework, events in a
+blue category box and the rest; then events up to two weeks out below a dotted rule. A bottom `Begge` row carries
 what concerns both children and the unread total; the top right is the update
 stamp and the board's battery.
 
@@ -21,7 +22,7 @@ from functools import lru_cache
 from typing import Any
 
 from skoleklar import dashboard_renderer as board
-from skoleklar.parents_board import EVENT_KINDS, LOOKAHEAD_DAYS, event_kind, text_kind
+from skoleklar.parents_board import ROUTINES, EVENT_KINDS, event_kind, lookahead_span, text_kind
 
 WIDTH, HEIGHT = board.WIDTH, board.HEIGHT
 SPLIT = board.PANEL_SPLIT_X
@@ -44,7 +45,7 @@ STYLES = {
     "plan": (16, False, False), "plan_b": (16, True, False),
     "hw": (18, False, False), "hw_b": (18, True, False),
     "item": (16, False, False), "item_b": (16, True, False),
-    "r": (15, False, False), "r_b": (15, True, False),
+    "r": (15, False, False), "r_b": (15, True, False), "r_plan": (16, False, True),
     "chip": (14, True, False), "msg": (15, False, False), "msg_b": (15, True, False),
 }
 LINE_HEIGHT = {"plan": 21, "hw": 23, "item": 21, "r": 20, "msg": 20}
@@ -66,10 +67,17 @@ _SUBJECT = re.compile(
     re.IGNORECASE)
 _LABELS = ((re.compile(r"^medbring\b:?\s*", re.I), "Medbring"), (re.compile(r"^valgfrit\b:?\s*", re.I), "Valgfrit"),
            (re.compile(r"^frist\b:?\s*", re.I), "Frist"))
-# School routines that happen every week and need no mention; a cancellation still shows.
-ROUTINES = re.compile(r"^(morgensang|fællessang)\b", re.IGNORECASE)
-_TIMED = re.compile(r"\d{1,2}[.:]\d{2}|\bkl\.?\s*\d|mødetid|\bfri\b|hentes|tidlig|senere|forsink",
-                    re.IGNORECASE)
+# The bold label a line's kind gives it, whatever its words.
+KIND_LABELS = {"bring": "Medbring", "optional": "Valgfrit", "deadline": "Frist"}
+# Leading words that say what the label already says: code's own markers and the
+# verbs a line may start with. Trimmed only so the label is not said twice.
+_SAID_BY_LABEL = {
+    "bring": re.compile(r"^(?:(?:medbring|husk)\b:?\s*)+", re.I),
+    "optional": re.compile(r"^(?:(?:valgfrit|medbring|husk)\b:?\s*)+", re.I),
+    "deadline": re.compile(r"^(?:frist\b:?\s*)+", re.I),
+}
+# 'Tag madpakke med', 'husk at tage tøj med' (after 'husk' is trimmed): only the things.
+_TAKE_ALONG = re.compile(r"^(?:at\s+)?tage?\s+(?P<what>.+?)\s+med\.?$", re.I)
 _GENERIC_HEADING = {"medbring", "lektier", "frist", "ændring", "vikar", "arrangement", "info", "og",
                     "ingen", "punkter"}
 
@@ -82,6 +90,8 @@ class Item:
     chip: str = ""
     box: bool = False
     urgent: bool = False
+    # The kind was read from the line's words: the state carried none for it.
+    guessed: bool = False
 
 
 @dataclass
@@ -153,7 +163,10 @@ def text_width(value: str, style: str) -> float:
     return _ruler().textlength(value, font=face(style)[0])
 
 
-def _styles(family: str) -> tuple[str, str]:
+def _styles(family: str, item: Item | None = None) -> tuple[str, str]:
+    """(regular, bold) styles; a plan line on the right is set in the serif."""
+    if item is not None and item.kind == "plan" and family == "r":
+        return "r_plan", "r_plan"
     return family, f"{family}_b"
 
 
@@ -179,22 +192,34 @@ def homework_runs(text: str) -> list[tuple[str, bool]]:
 
 
 def make_item(text: str, kind: str | None, day: str | None, today: date | None) -> Item:
-    """The board item for one line of the composed state."""
+    """The board item for one line of the composed state.
+
+    `kind` comes from the facts behind the line (`parents_board.fact_kind`); the
+    line's words are read only when the state carries no kind for it.
+    """
+    guessed = kind is None
     kind = kind or text_kind(text)
     clean = _clean(text)
     urgent = False
     # A deadline is about time; a change only when it moves a time (not a room or a lesson).
-    if (kind == "deadline" or (kind == "change" and _TIMED.search(clean))) and day and today:
+    if kind in {"deadline", "time_change"} and day and today:
         urgent = 0 <= (date.fromisoformat(day) - today).days <= URGENT_DAYS
     if kind == "homework":
-        return Item(kind, homework_runs(clean), box=True)
+        return Item(kind, homework_runs(clean), box=True, guessed=guessed)
     if kind in EVENT_KINDS:
-        # The line's own words can say more than its facts' titles: 'Skolehjemssamtaler'.
-        if kind == "event":
+        if kind == "event" and guessed:
             kind = event_kind(clean)
-        return Item(kind, [(_capital(clean), False)], chip=CHIPS[kind])
+        return Item(kind, [(_capital(clean), False)], chip=CHIPS[kind], guessed=guessed)
     if kind == "more":
         return Item(kind, [(clean.replace("i skolebriefen", "mere"), False)])
+    if kind in KIND_LABELS and not guessed:
+        # The kind decides the label; the words are only the content.
+        rest = _SAID_BY_LABEL[kind].sub("", clean).strip()
+        if kind in {"bring", "optional"}:
+            take = _TAKE_ALONG.match(rest)
+            rest = take["what"] if take else rest
+        label = KIND_LABELS[kind]
+        return Item(kind, [(label, True), (" " + rest, False)] if rest else [(label, True)], urgent=urgent)
     for pattern, label in _LABELS:
         match = pattern.match(clean)
         if match:
@@ -203,7 +228,7 @@ def make_item(text: str, kind: str | None, day: str | None, today: date | None) 
                         urgent=urgent)
     if kind == "substitute":
         clean = board.short_substitute(clean)
-    return Item(kind, [(_capital(clean), False)], urgent=urgent)
+    return Item(kind, [(_capital(clean), False)], urgent=urgent, guessed=guessed)
 
 
 def _day_label(iso: str) -> str:
@@ -211,16 +236,39 @@ def _day_label(iso: str) -> str:
     return f"{SHORT_DAYS[value.weekday()]} {value.day}."
 
 
+def plan_headline(data: dict[str, Any], name: str, iso: str | None) -> str:
+    """The weekly plan's headline for a child's day, or '' when none is written."""
+    for entry in data.get("day_summaries", []):
+        if entry["date"] == iso:
+            for summary in entry["children"]:
+                if summary["name"] == name and summary["status"] == "ok":
+                    return summary["headline"]
+    return ""
+
+
 def _plan(data: dict[str, Any], child: dict[str, Any], hero_date: str | None) -> str:
     """The weekly plan's headline for the day; else the hero heading if it says more than the lines."""
-    for entry in data.get("day_summaries", []):
-        if entry["date"] == hero_date:
-            for summary in entry["children"]:
-                if summary["name"] == child["name"] and summary["status"] == "ok":
-                    return summary["headline"]
+    headline = plan_headline(data, child["name"], hero_date)
+    if headline:
+        return headline
     heading = board.display_heading(child)
     words = {word.casefold() for word in re.findall(r"[\wæøå]+", heading, re.IGNORECASE)}
     return "" if not heading or words <= _GENERIC_HEADING else heading
+
+
+def _words(text: str) -> set[str]:
+    return {word.casefold() for word in re.findall(r"[\wæøå]{3,}", text, re.IGNORECASE)}
+
+
+def plan_item(headline: str, items: list[Item]) -> Item | None:
+    """The day's plan headline as the first line of a day ahead, unless a line already says it.
+
+    'Hundrede dages fest' adds nothing beside `FEST Hundrede dages fest`.
+    """
+    words = _words(headline)
+    if not words or any(words <= _words("".join(text for text, _ in item.runs)) for item in items):
+        return None
+    return Item("plan", [(headline, False)])
 
 
 def _when(activity: str) -> str:
@@ -288,13 +336,16 @@ def _rain(data: dict[str, Any], iso: str, items: list[Item]) -> bool:
 
 
 def routine(item: Item) -> bool:
+    """A weekly routine (morning singing) needs no mention; a cancellation still shows."""
+    if item.kind == "routine":
+        return True
     text = "".join(text for text, _ in item.runs).strip()
-    return bool(ROUTINES.match(text)) and "aflyst" not in text.casefold()
+    return item.guessed and bool(ROUTINES.match(text)) and "aflyst" not in text.casefold()
 
 
 def _order(items: list[Item]) -> list[Item]:
-    """Homework first, then events, then time-urgent lines, then the rest, keeping their order."""
-    rank = {"homework": 0, "trip": 1, "party": 1, "meeting": 1, "event": 1}
+    """The plan line, homework, events, time-urgent lines, then the rest, keeping their order."""
+    rank = {"plan": -1, "homework": 0, "trip": 1, "party": 1, "meeting": 1, "event": 1}
     return sorted((item for item in items if not routine(item)),
                   key=lambda item: rank.get(item.kind, 3 if not item.urgent else 2))
 
@@ -327,34 +378,40 @@ def _weekend_rows(data, names, kids, shared_days, later, window, today) -> None:
             continue
         who, text = board.weekend_row_parts(row, names)
         who = who.rstrip(":").strip() or "Begge"
-        rows.append((day.isoformat(), who if who in names else "Begge", text))
+        rows.append((day.isoformat(), who if who in names else "Begge", text, row.get("kinds")))
     if not rows:
         return
     overflow = data.get("weekend_overflow", 0)
     if overflow:
-        iso, who, text = rows[-1]
-        rows[-1] = (iso, who, f"{text} (+{overflow} mere)")
+        iso, who, text, kinds = rows[-1]
+        rows[-1] = (iso, who, f"{text} (+{overflow} mere)", kinds)
     last_window = window[-1]
     later_dates = {iso for entries in later.values() for iso, _ in entries}
-    weekend_dates = {iso for iso, _, _ in rows}
+    weekend_dates = {iso for iso, _, _, _ in rows}
     for kid in kids:
         kid.days = [day for day in kid.days if day[0] not in weekend_dates or day[0] > last_window]
     shared_days[:] = [day for day in shared_days if day[0] not in weekend_dates or day[0] > last_window]
-    for iso, who, text in rows:
-        item = make_item(text, None, iso, today)
-        if not item.chip and item.kind == "info":
-            kind = text_kind("Besked: " + text)
-            item = Item(kind, [(_capital(_clean(text)), False)], chip=CHIPS.get(kind, ""))
+    for iso, who, text, kinds in rows:
+        parts = [part.strip() for part in text.split(";") if part.strip()]
+        if kinds and len(kinds) == len(parts):
+            # Each part's kind, as code wrote it from the facts: the activity, then what to bring.
+            items = [make_item(part, kind, iso, today) for part, kind in zip(parts, kinds)]
+        else:
+            # An old state without kinds: the row's words, as before.
+            items = [make_item(text, None, iso, today)]
+            if not items[0].chip and items[0].kind == "info":
+                kind = text_kind("Besked: " + text)
+                items = [Item(kind, [(_capital(_clean(text)), False)], chip=CHIPS.get(kind, ""), guessed=True)]
         if iso > last_window:
             if iso not in later_dates:
-                later.setdefault(who, []).append((iso, item))
+                later.setdefault(who, []).append((iso, items[0]))
             continue
         target = shared_days if who == "Begge" else next(kid.days for kid in kids if kid.name == who)
         entry = next((day for day in target if day[0] == iso), None)
         if entry is None:
-            target.append((iso, [item], False))
+            target.append((iso, items, False))
         else:
-            entry[1].append(item)
+            entry[1].extend(items)
     for kid in kids:
         kid.days.sort(key=lambda day: day[0])
     shared_days.sort(key=lambda day: day[0])
@@ -370,10 +427,7 @@ def build_model(data: dict[str, Any], live_messages=None) -> Model:
     today = board.timestamp(composed).astimezone(board.ZONE).date() if composed else None
     weekdays = {day["date"]: day for day in data.get("weekdays", [])}
     ahead = {row["date"]: row for row in data.get("ahead", [])}
-    window = []
-    if hero_date:
-        start = date.fromisoformat(hero_date)
-        window = [(start + timedelta(days=offset)).isoformat() for offset in range(1, LOOKAHEAD_DAYS + 1)]
+    window = [day.isoformat() for day in lookahead_span(date.fromisoformat(hero_date))] if hero_date else []
     kids = []
     for index, child in enumerate(hero["children"]):
         kinds = child.get("kinds") or [None] * len(child["lines"])
@@ -389,6 +443,9 @@ def build_model(data: dict[str, Any], live_messages=None) -> Model:
                 source = ahead[iso]["children"][index]
                 items = [make_item(text, kind, iso, today) for text, kind in zip(source["lines"], source["kinds"])]
             items = [item for item in _order(items) if item.kind != "more" or len(items) > 1]
+            plan = plan_item(plan_headline(data, child["name"], iso), items)
+            if plan is not None:
+                items.insert(0, plan)
             if items:
                 kid.days.append((iso, items, _rain(data, iso, items)))
         kids.append(kid)
@@ -427,7 +484,7 @@ def _prefix_width(item: Item, family: str) -> float:
 
 
 def item_width(item: Item, family: str) -> float:
-    regular, bold = _styles(family)
+    regular, bold = _styles(family, item)
     return _prefix_width(item, family) + sum(text_width(text, bold if strong else regular)
                                              for text, strong in item.runs) + (4 if item.urgent else 0)
 
@@ -436,7 +493,7 @@ def wrap_item(item: Item, family: str, width: float) -> list[Item]:
     """The item as one or more lines; continuation lines carry no box or chip."""
     if item_width(item, family) <= width:
         return [item]
-    regular, bold = _styles(family)
+    regular, bold = _styles(family, item)
     first = width - _prefix_width(item, family) - (4 if item.urgent else 0)
     words = [(word, strong) for text, strong in item.runs for word in re.findall(r"\s*\S+", text)]
     lines, current, used, room = [], [], 0.0, first
@@ -565,6 +622,7 @@ def _right_binds(kid: Kid, tight: bool) -> bool:
 
 
 def _drop_right(model: Model, kinds: set[str], *, unless_event_day=False) -> None:
+    """Drop `kinds` from the days ahead of children whose right side sets the row."""
     for kid in model.kids:
         if not _right_binds(kid, model.tight):
             continue
@@ -605,6 +663,39 @@ def _fold_all_later(model: Model) -> None:
     _fold_later(model, all_of_them=True)
 
 
+def _last_plan(kid: Kid, only_with_others: bool) -> tuple[int, Item] | None:
+    """The farthest day ahead's plan line that may go, as (day index, item)."""
+    for index in range(len(kid.days) - 1, -1, -1):
+        items = kid.days[index][1]
+        plan = next((item for item in items if item.kind == "plan"), None)
+        if plan is not None and (not only_with_others or len(items) > 1):
+            return index, plan
+    return None
+
+
+def _drop_plan_lines(model: Model, *, only_with_others: bool = False) -> None:
+    """Plan lines on the days ahead give way one at a time, the farthest day first,
+    from the child whose right side is tallest, until the board fits.
+
+    They retell the weekly plan and are no things to do, so they are not counted in
+    `+N punkter mere`. `only_with_others` keeps them on a day that would be empty.
+    """
+    available = HEIGHT - HEADER_HEIGHT
+    while sum(row_heights(model)) > available:
+        candidates = [kid for kid in model.kids
+                      if _right_binds(kid, model.tight) and _last_plan(kid, only_with_others)]
+        if not candidates:
+            return
+        kid = max(candidates, key=lambda kid: _sides(kid, model.tight)[1])
+        index, plan = _last_plan(kid, only_with_others)
+        iso, items, rain = kid.days[index]
+        items = [item for item in items if item is not plan]
+        if items:
+            kid.days[index] = (iso, items, rain)
+        else:
+            del kid.days[index]
+
+
 def _drop_plan(model: Model) -> None:
     """The plan line goes only where the left side is what makes the row tall."""
     for kid in model.kids:
@@ -625,7 +716,10 @@ DROP_STEPS = (
     # Later events without a deadline become '+N senere'.
     _fold_later,
     _tighten,
+    # The weekly plan's headline on the days ahead: first where the day has other lines.
+    lambda model: _drop_plan_lines(model, only_with_others=True),
     _drop_plan,
+    _drop_plan_lines,
     _fold_all_later,
     # Before any homework goes: what to bring on event days, then tomorrow's bring list.
     lambda model: _drop_right(model, {"bring", "optional", "more"}),
@@ -646,7 +740,7 @@ def fit_board(model: Model) -> tuple[Model, list[int]]:
         # Last resort: the farthest day of the fullest column gives way, homework too.
         kid = max((kid for kid in model.kids if kid.days), key=lambda kid: len(kid.days))
         iso, items, rain = kid.days.pop()
-        kid.dropped_right += len(items)
+        kid.dropped_right += sum(1 for item in items if item.kind != "plan")
         heights = row_heights(model)
     spare = max(0, available - sum(heights))
     kids = len(model.kids)
@@ -692,7 +786,7 @@ def _dots(draw, x0: int, x1: int, y: int) -> None:
 
 def draw_item(draw, x: float, y: float, item: Item, family: str, colour: str, ground: str) -> None:
     """One item at (x, y): its box or category chip, then its runs; yellow behind it when urgent."""
-    regular, bold = _styles(family)
+    regular, bold = _styles(family, item)
     size = STYLES[regular][0]
     ink = colour
     if item.urgent:
@@ -824,9 +918,11 @@ def weekend_activities(data: dict[str, Any]) -> list[tuple[str, str, list[Item]]
         day = _display_date(row["day"], today)
         label = _day_label(day.isoformat()) if day else row["day"].split()[0]
         items = []
-        for index, part in enumerate(part.strip() for part in text.split(";") if part.strip()):
-            item = make_item(part, None, None, None)
-            if index == 0 and item.kind == "info":
+        parts = [part.strip() for part in text.split(";") if part.strip()]
+        kinds = row.get("kinds") if len(row.get("kinds") or []) == len(parts) else [None] * len(parts)
+        for index, (part, kind) in enumerate(zip(parts, kinds)):
+            item = make_item(part, kind, None, None)
+            if index == 0 and item.kind == "info" and item.guessed:
                 kind = text_kind("Besked: " + part)
                 item = Item(kind, [(_capital(_clean(part)), False)], chip=CHIPS.get(kind, ""))
             items.append(item)
@@ -950,6 +1046,7 @@ PARENTS_CSS = """
 .parents .pb-days{display:grid;grid-template-columns:60u 1fr;column-gap:8u;row-gap:2u;align-content:start}
 .parents .pb-days > *{font-size:15u;line-height:20u;min-width:0}
 .parents .pb-d{font-weight:700;white-space:nowrap}
+.parents .pb-dayplan{font:400 16u/20u var(--serif)}
 .parents .pb-note{display:flex;align-items:center;gap:4u;font:700 14u/20u var(--sans)}
 .parents .pb-note .wx-icon{width:14u;height:14u}
 .parents .pb-gap{margin-top:5u}
@@ -975,6 +1072,8 @@ def _esc(value: Any) -> str:
 
 
 def item_html(item: Item) -> str:
+    if item.kind == "plan":
+        return f'<span class="pb-dayplan">{"".join(_esc(text) for text, _ in item.runs)}</span>'
     parts = []
     if item.box:
         parts.append('<span class="box"></span>')

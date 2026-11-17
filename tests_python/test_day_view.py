@@ -254,3 +254,51 @@ def test_the_panel_keeps_long_days_inside_their_tiles():
     assert all(edges[i][1] < edges[i + 1][0] for i in range(len(edges) - 1))
     state["day_view"] = copy.deepcopy(view)
     dashboard.validate_panel_image(dashboard.render_png(state))
+
+
+def test_the_childs_own_part_leads_the_summary_and_is_never_cut(monkeypatch):
+    """A day-summary-v2 text puts the child's own group first; the panel cuts only its end."""
+    from skoleklar import day_view_render
+
+    state = rendered_state()
+    own = "Du og Emma laver en bogstavhistorie med bogstaverne F og H."
+    long_text = own + " Først læser du i din egen bog. I engelsk synger I en sang om dyr og tæller til " \
+        "tyve, og i matematik bygger I figurer af tændstikker og tæller, hvor mange I har brugt. " \
+        "Husk: læs side 12 og 13 i læsebogen."
+    assert 250 <= len(long_text) <= 480
+    for entry in state["day_summaries"]:
+        entry["children"][1].update(status="ok", headline="Bogstavhistorie med Emma: F og H", text=long_text)
+    dashboard.validate(state)
+    drawn = []
+    original = day_view_render.board.draw_text
+    monkeypatch.setattr(day_view_render.board, "draw_text",
+                        lambda draw, xy, text, *rest, **kw: drawn.append(text) or original(draw, xy, text, *rest, **kw))
+    dashboard.render_png(state)
+    joined = " ".join(drawn)
+    assert "Bogstavhistorie med Emma: F og H" in drawn
+    assert own in joined  # The first sentence is drawn whole, whatever is cut after it.
+    assert own in dashboard.render_html(state)
+
+
+def test_the_remember_list_reads_each_lines_kind():
+    """'(hvis du vil)', 'Lektie:' and what is left out come from the kinds, not the words."""
+    from skoleklar.day_view_render import remember_items
+
+    state = rendered_state()
+    child = state["hero"]["children"][0]
+    # The repeated line is dropped with its kind, so 'Læs s. 4' keeps its own.
+    child["lines"] = ["Medbring: idrætstøj", "hinkesten", "Vikar: Mette · DAN", "Medbring: idrætstøj", "Læs s. 4"]
+    child["kinds"] = ["bring", "optional", "substitute", "bring", "homework"]
+    state["hero"]["children"][1].update(lines=[], kinds=[])
+    for day in state["weekdays"]:
+        day.update(shared="Morgensang", shared_kind="routine")
+    dashboard.validate(state)
+    items = [what for who, what in remember_items(state) if who != "Tøj"]
+    assert items == ["Idrætstøj", "Hinkesten (hvis du vil)", "Lektie: Læs s. 4"]
+    # A state without kinds is read from its markers, as before.
+    child.pop("kinds")
+    child["lines"] = ["Valgfrit: hinkesten"]
+    for day in state["weekdays"]:
+        day.update(shared=None)
+        day.pop("shared_kind")
+    assert [what for who, what in remember_items(state) if who != "Tøj"] == ["Hinkesten (hvis du vil)"]

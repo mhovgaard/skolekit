@@ -2,6 +2,8 @@
 
 Each weekly-plan version is summarized once: the plan's general blocks join a
 day only when they concern it, and the day's own blocks supply the highlights.
+Where the plan names the child, the model sees `[barnet]` instead of the name, so
+the child's own group, letters or turn reach the summary without any name.
 The result is stored per plan version and attached to the board state after
 composition, so it never changes what the composition model sees or costs.
 """
@@ -18,7 +20,7 @@ from skoleklar.triage.prompt_manifest import load_prompt_manifest
 from skoleklar.household import load_site_profile
 from skolekit.school import CLASS_LABEL
 
-MANIFEST = load_prompt_manifest("day-summary-v1")
+MANIFEST = load_prompt_manifest("day-summary-v2")
 MAX_ATTEMPTS = 3
 MAX_OUTPUT_TOKENS = 4000
 DEFAULT_PLAN_LIMIT = 6
@@ -35,6 +37,9 @@ _EMOJI = re.compile(
 )
 _RELATIVE_TIME = re.compile(r"\b(i dag|i morgen|i aften|i går)\b", re.IGNORECASE)
 _STOP_ERRORS = {401, 402, 403}
+# Stands for the child the summary is for, wherever the plan names them.
+CHILD_MARKER = "[barnet]"
+_LETTER = "A-Za-zÆØÅæøåÄÖÜäöüÉéÈè"
 
 
 class DaySummaryInvalid(ValueError):
@@ -54,27 +59,54 @@ def _subject(value: Any) -> str | None:
     return None if text.casefold() in UNNAMED_SUBJECTS else text
 
 
-def _block(plan: dict[str, Any], limit: int) -> dict[str, Any] | None:
+def child_pattern(child: str | None) -> re.Pattern[str] | None:
+    """The child's name (and first name) as a whole word, with a genitive `s`.
+
+    Only as the profile writes it, or in capitals: a name is often a word too, so
+    'Bjørn' is the child and 'en bjørn i skoven' an animal, 'Maj' the child and
+    '1. maj' the month. A name a teacher writes in lower case stays unmarked.
+    """
+    full = str(child or "").strip()
+    names = list(dict.fromkeys(part for part in (full, full.split(" ")[0]) if part))
+    if not names:
+        return None
+    forms = dict.fromkeys(form for name in sorted(names, key=len, reverse=True) for form in (name, name.upper()))
+    alternatives = "|".join(re.escape(form) for form in forms)
+    return re.compile(rf"(?<![{_LETTER}])(?:{alternatives})(?=s?(?![{_LETTER}]))")
+
+
+def mark_child(text: str, pattern: re.Pattern[str] | None) -> str:
+    """`text` with the child's name replaced by `[barnet]`: 'Ritas' becomes '[barnet]s'."""
+    return pattern.sub(CHILD_MARKER, text) if pattern else text
+
+
+def _block(plan: dict[str, Any], limit: int, pattern: re.Pattern[str] | None = None) -> dict[str, Any] | None:
     text = str(plan.get("content_text") or "").strip()
     if not text:
         return None
-    return {"subject": _subject(plan.get("subject")), "text": text[:limit]}
+    return {"subject": _subject(plan.get("subject")), "text": mark_child(text, pattern)[:limit]}
 
 
-def plan_document(plan: dict[str, Any], *, class_label: str = CLASS_LABEL) -> dict[str, Any]:
-    """The model input for one weekly plan: plan text only, no ids, links or names."""
+def plan_document(plan: dict[str, Any], *, class_label: str = CLASS_LABEL,
+                  child: str | None = None) -> dict[str, Any]:
+    """The model input for one weekly plan: plan text only, no ids or links.
+
+    `child` is the name of the child the plan is for: wherever the plan names
+    them, the model sees `[barnet]` instead.
+    """
+    pattern = child_pattern(child)
     week = plan.get("week") or {}
     days = []
     for day in plan.get("days") or []:
         if not day.get("date"):
             continue
-        blocks = [_block(item, BLOCK_TEXT_LIMIT) for item in day.get("plans") or []]
+        blocks = [_block(item, BLOCK_TEXT_LIMIT, pattern) for item in day.get("plans") or []]
         days.append({
             "date": str(day["date"])[:10],
             "weekday": str(day.get("weekday") or ""),
             "blocks": [block for block in blocks if block],
         })
-    general = [_block(item, GENERAL_TEXT_LIMIT) for item in plan.get("general_plans") or []]
+    general = [_block(item, GENERAL_TEXT_LIMIT, pattern) for item in plan.get("general_plans") or []]
     return {
         "class_level": class_level(week.get("class_or_group"), class_label),
         "week": {"number": week.get("number"), "year": week.get("year")},
@@ -92,8 +124,12 @@ def _clean(value: Any) -> str | None:
     return text or None
 
 
-def validate_output(document: dict[str, Any], output: Any) -> list[dict[str, Any]]:
-    """Cleaned summaries, one per plan day in order, or DaySummaryInvalid."""
+def validate_output(document: dict[str, Any], output: Any, *, child: str | None = None) -> list[dict[str, Any]]:
+    """Cleaned summaries, one per plan day in order, or DaySummaryInvalid.
+
+    The child is `du`: neither the marker nor `child`'s name may appear.
+    """
+    pattern = child_pattern(child)
     days = output.get("days") if isinstance(output, dict) else None
     if not isinstance(days, list) or [d.get("date") if isinstance(d, dict) else None
                                       for d in days] != [d["date"] for d in document["days"]]:
@@ -110,6 +146,9 @@ def validate_output(document: dict[str, Any], output: Any) -> list[dict[str, Any
                 raise DaySummaryInvalid("day summary is too long")
             if _RELATIVE_TIME.search(f"{headline} {text}"):
                 raise DaySummaryInvalid("day summary must not use relative time words")
+            if "barnet]" in f"{headline} {text}".casefold() or (
+                    pattern and pattern.search(f"{headline} {text}")):
+                raise DaySummaryInvalid("day summary must say du, not the child's marker or name")
         if type(day.get("general_used")) is not bool:
             raise DaySummaryInvalid("general_used must be boolean")
         result.append({"date": source["date"], "headline": headline, "text": text,
@@ -118,9 +157,9 @@ def validate_output(document: dict[str, Any], output: Any) -> list[dict[str, Any
 
 
 def summarize_plan(plan: dict[str, Any], client: Any, *,
-                   class_label: str = CLASS_LABEL) -> dict[str, Any]:
+                   class_label: str = CLASS_LABEL, child: str | None = None) -> dict[str, Any]:
     """Summaries for one plan, retrying with the validator's fixed feedback."""
-    document = plan_document(plan, class_label=class_label)
+    document = plan_document(plan, class_label=class_label, child=child)
     errors: list[str] = []
     usage: dict[str, Any] = {}
     for attempt in range(MAX_ATTEMPTS):
@@ -134,7 +173,7 @@ def summarize_plan(plan: dict[str, Any], client: Any, *,
                                    max_output_tokens=MAX_OUTPUT_TOKENS)
         usage = _add_usage(usage, response.get("usage") or {})
         try:
-            days = validate_output(document, response["output"])
+            days = validate_output(document, response["output"], child=child)
         except DaySummaryInvalid as error:
             if str(error) not in errors:
                 errors.append(str(error))
@@ -199,7 +238,7 @@ def generate_day_summaries(store, client, *, model: str, today: date,
             child=plan["child"], content_hash=plan["content_hash"], provider="openrouter",
             model=model, manifest_id=MANIFEST.manifest_id, manifest_hash=MANIFEST.content_hash)
         try:
-            result = summarize_plan(plan["plan"], client, class_label=class_label)
+            result = summarize_plan(plan["plan"], client, class_label=class_label, child=plan["child"])
         except OpenRouterHTTPError as error:
             store.fail_day_summary_run(run_id, f"provider_http_{error.status_code}")
             if error.status_code in _STOP_ERRORS:
@@ -249,12 +288,27 @@ def summary_lookup(store) -> Callable[[str, str], dict[str, Any]]:
     return lookup
 
 
+def summary_dates(state: dict[str, Any]) -> list[str]:
+    """The days a frame can show a summary for, in order.
+
+    The composed week's weekdays, then the parents' board's look-ahead school days
+    after the next school day that fall in the following week.
+    """
+    from skoleklar.dashboard_renderer import focus_date
+    from skoleklar.parents_board import lookahead_dates
+    dates = [day["date"] for day in state.get("weekdays", [])]
+    focus = focus_date(state)
+    if focus:
+        dates += [value.isoformat() for value in lookahead_dates(date.fromisoformat(focus))
+                  if value.isoformat() not in dates]
+    return sorted(dates)
+
+
 def attach_day_summaries(state: dict[str, Any], lookup) -> dict[str, Any]:
-    """A copy of `state` with one summary per weekday and child, in hero order."""
+    """A copy of `state` with one summary per shown school day and child, in hero order."""
     if state.get("schema_version") != 2 or not state.get("weekdays"):
         return state
     names = [child["name"] for child in state["hero"]["children"]]
-    days = [{"date": day["date"],
-             "children": [{"name": name, **lookup(name, day["date"])} for name in names]}
-            for day in state["weekdays"]]
+    days = [{"date": value, "children": [{"name": name, **lookup(name, value)} for name in names]}
+            for value in summary_dates(state)]
     return {**state, "day_summaries": days}

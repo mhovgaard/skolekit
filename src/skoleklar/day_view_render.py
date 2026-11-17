@@ -115,8 +115,22 @@ def day_summary(data: dict[str, Any], name: str) -> tuple[str, str] | None:
     return None
 
 
-def remember_text(line: str) -> str:
+# Code's own markers, trimmed from a line whose kind already says what it is.
+_CODE_MARKERS = re.compile(r"^(?:(?:besked|medbring|valgfrit|lektie|frist)\s*:\s*)+", re.IGNORECASE)
+# How a kind reads in the remember list; None leaves the line out.
+_REMEMBER = {"optional": "{} (hvis du vil)", "homework": "Lektie: {}", "substitute": None, "routine": None}
+
+
+def remember_text(line: str, kind: str | None = None) -> str:
+    """One line of the remember list, read from its kind; from its markers only without one."""
     text = " ".join(str(line).split())
+    if kind is not None:
+        form = _REMEMBER.get(kind, "{}")
+        rest = _CODE_MARKERS.sub("", text).strip()
+        if form is None or not rest:
+            return ""  # A substitute is on the lesson tile; a routine needs no reminder.
+        text = form.format(rest)
+        return text[:1].upper() + text[1:]
     if not text or text.casefold().startswith("vikar"):
         return ""  # A substitute is on the lesson tile.
     for marker, form in _MARKERS:
@@ -134,8 +148,8 @@ def remember_items(data: dict[str, Any]) -> list[tuple[str, str]]:
     """
     items: list[list[str]] = []
     for child in data["hero"]["children"]:
-        for line in board.display_lines(child):
-            text = remember_text(line)
+        for line, kind in board.display_entries(child):
+            text = remember_text(line, kind)
             if not text:
                 continue
             same = next((item for item in items
@@ -147,6 +161,8 @@ def remember_items(data: dict[str, Any]) -> list[tuple[str, str]]:
     card = next((day for day in data.get("weekdays", []) if day["date"] == data["day_view"]["date"]), None)
     if card and card.get("shared"):
         text = re.sub(r"^\s*Begge:\s*", "", card["shared"])
+        if card.get("shared_kind"):
+            text = remember_text(text, card["shared_kind"])
         if text and not any(item[1].casefold() == text.casefold() for item in items):
             items.append(["Begge", text[:1].upper() + text[1:]])
     wear = clothing(view_weather(data))

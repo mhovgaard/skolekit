@@ -1,4 +1,4 @@
-"""Phase 0 safety net: the six triage prompt manifests, byte for byte.
+"""Phase 0 safety net: the triage prompt manifests, byte for byte.
 
 Every stored model result records its manifest's `content_hash`, and cache keys
 are built from it, so an unintended change to a manifest file silently
@@ -27,6 +27,16 @@ from skoleklar.triage.prompt_manifest import load_prompt_manifest
 
 # manifest id: (content_hash, prompt_cache_key, sha256 of render_instructions()), as in production
 TRIAGE_MANIFESTS = {
+    "derive-v10": (
+        "39044e3bfacc9a5e68060ba6ab6b37eb3fe9961837528da2a176068bfb153bcb",
+        "ag-school-derive-v10",
+        "5bd6990162fe8f3926f480e534fba463c9caad8399d0e5339a0e05fabbfd35cc",
+    ),
+    "message-events-v4": (
+        "9683fd9093734dc6782b4b497d2e0a2da293d0c31a40e93641dc632eabf24449",
+        "ag-school-message-events-v4",
+        "2fd7d25ddced1b2f0c71729401c704489b7c0adf2c8807b759cf7c730f369fe6",
+    ),
     "message-events-v3": (
         "06f327e67be3099a9356bb6bd8bdee50e4590003bc31218ad481e6543dc5aa65",
         "ag-school-message-events-v3",
@@ -62,6 +72,14 @@ TRIAGE_MANIFESTS = {
 
 # manifest id: (content_hash, sha256 of render_instructions()) for the invented household
 INVENTED = {
+    "derive-v10": (
+        "a6a930b3768d58123d43fffb74798990648d33d7515ecdf222483c04748815b9",
+        "88b0e0717eecbe16a035102a1e4dca1f0e118a421637b28f0cb8d90cfaa1d305",
+    ),
+    "message-events-v4": (
+        "164ef04868e71dc1938472dd142cf64980b831c7f1bf5928e95c42d2a38c6cff",
+        "3f1b85061dd989158b2c05ffb57bf9643e6d69f7c5922beb4c54fa22f8c32136",
+    ),
     "message-events-v3": (
         "d1d5a901473e2e3bdbf77c5b28c4965dc2a5ad4ff8acd289f6b04a6658d5026c",
         "7af4942f8e87e4e36e9fc141f75ba7114b92e3a16248fc8c3be24f9f911bcc29",
@@ -158,9 +176,9 @@ def test_each_triage_stage_uses_its_pinned_manifest() -> None:
     loaded["review"] = review.manifests[0]
 
     assert {stage: manifest.manifest_id for stage, manifest in loaded.items()} == {
-        "message-facts": "message-events-v3",
+        "message-facts": "message-events-v4",
         "message-topic": "message-topic-v1",
-        "items": "derive-v9",
+        "items": "derive-v10",
         "archive": "archive-v1",
         "consolidate": "consolidate-v1",
         "review": "review-check-v1",

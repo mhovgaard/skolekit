@@ -193,3 +193,20 @@ def test_confirmed_trip_cannot_be_omitted_or_renamed_to_another_activity(omit):
         state["weekend"][0]["text"] = "ChildA: Fødselsdag"
     with pytest.raises(ValueError, match="confirmed (weekend activity|class trip)"):
         validate_composition(context, state, audit)
+
+
+@pytest.mark.parametrize("name, title", [("Emma", "Emmas fødselsdag"), ("Mads", "Mads' fødselsdag"),
+                                         ("Felix", "Felix' fødselsdag"), ("Liz", "Liz' fødselsdag"),
+                                         ("Ella-Rose", "Ella-Roses fødselsdag")])
+def test_a_birthday_childs_name_makes_the_title(name, title):
+    from skoleklar.dashboard_events import activity_title
+    assert activity_title("birthday_party", name) == title
+    # The title is an invitation, never a classmate's birth-date notice.
+    assert not birthday_notice({"type": "event", "actionability": "informational", "title": title})
+
+
+@pytest.mark.parametrize("name", [None, "", "emma", "Emma Hansen", "Emma2", "A" * 30])
+def test_anything_but_one_first_name_keeps_the_plain_label(name):
+    from skoleklar.dashboard_events import activity_title
+    assert activity_title("birthday_party", name) == "Fødselsdagsfest"
+    assert activity_title("class_trip", "Emma") == "Klassetur"
