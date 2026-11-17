@@ -32,12 +32,11 @@ Left, as at the weekend:
 - the weekday and date;
 - the season's [house artwork](weekend-artwork.md), chosen from that day's weather;
 - **Husk**: what to wear for the weather (`Jakke, hue og regntøj`), then each
-  child's lines from the board's hero for that day, read from each line's kind:
-  an optional item ends `(hvis du vil)`, homework starts `Lektie:`, and a
-  substitute (its lesson tile shows it) or a weekly routine is left out; code's
-  own markers (`Medbring:`, `Besked:`) are trimmed. The same item for both
-  children is one `Begge` item, and the day's shared row is added with its
-  `shared_kind`. Only a state without kinds is read from its markers.
+  child's lines from the board's hero for that day, read from each line's
+  presentation: an optional item ends `(hvis du vil)`, homework starts `Lektie:`
+  with its subject, a cancelled line ends `er aflyst`, and a substitute (its lesson
+  tile shows it) or a weekly routine is left out. The same item for both children
+  is one `Begge` item, and the day's shared lines are added the same way.
 
 Right, for each child:
 

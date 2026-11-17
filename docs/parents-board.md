@@ -23,37 +23,29 @@ HTML, so the two never disagree about what is shown.
 
 ## What each line is
 
-The composed week carries per line a `kinds` entry, written by code from the facts
-behind the line (`parents_board.attach_kinds`, from the audit's locations):
-`homework`, `bring`, `optional`, `deadline`, `time_change`, `change`, `substitute`,
-`trip`, `party`, `meeting`, `event`, `info`, `routine` or `more`. A composition
-cached before kinds existed gets them from its audit on the next scan.
+Every line of the board state is an object: its wording, the facts it shows by
+reference, and how it looks, which `present.present` computes from those facts
+([board generation](board-generation.md#context-slots-and-state)). Its `kind` is
+one of `homework`, `bring`, `optional`, `deadline`, `time_change`, `change`,
+`substitute`, `trip`, `party`, `meeting`, `event`, `info`, `routine` or `more`.
 
-A fact derived with [`derive-v10`](processing.md#derivation) says what it is:
-its `category` (`trip`, `party`, `meeting`, `other`), whether a change
-`moves_time`, and whether an event is `recurring`. The board takes it at its word
-and never reads the wording to second-guess it. Before these, the board guessed
-from Danish keywords (`tur`, `fest`, `samtale`, `kl. 12`, `Morgensang`), and it
-still does, only for facts derived before v10 (which stay until their source
-changes) and for lines whose state carries no kinds (an old state, a local render,
-the composed weekend rows). Precedence for an event: the owner's confirmed
-category, then a message's `activity_kind`, then the fact's `category`, then the
-keywords.
+A fact says what it is ([the fact model](processing.md#the-fact-model)): its
+`category`, whether a change `moves_time`, whether an event is `recurring`, its
+`school_subject`, its `bring_items` and whether they are `rain_gear`. The board
+takes it at its word and never reads the wording. A fact without a category is a
+plain event (`ARR.`), and a change that does not say it moves a time is not
+yellow. Precedence for an event: the owner's confirmed category, then a message's
+`activity_kind`, then the fact's `category`.
 
-Every highlight that guides the eye comes from the line's kind, never from its
-words: the checkbox (`homework`), the bold `Medbring`, `Valgfrit` and `Frist`
-labels (`bring`, `optional`, `deadline`), the `TUR`/`FEST`/`MØDE`/`ARR.` boxes,
-the yellow time-urgency marker and leaving out a weekly routine. Every deadline
-gets `Frist`, not only a line that starts with the word, so a reply or a payment
-with a date reads as one. The words are content only: a leading word that says
-what the label already says (code's own `Medbring:` marker, a `Husk` or `Tag … med`)
-is trimmed so the label is not said twice. Code still writes its markers into the
-state's text for the phone, the skoleklar MCP and older renderers.
-
-A few word reads remain as formatting, never as a highlight: homework's bold
-subject (`Mat.`, from a list of subject names), whether a packing list already
-names rain gear (the `☂ regn` note), whether another line already says the plan
-headline, the substitute's short form and the `+N punkter` line.
+Every highlight that guides the eye comes from the line's presentation, never from
+its words: the checkbox and the bold subject (`homework`, the subject in its short
+form: `Mat.`, `Eng.`, `N/T`), the bold `Medbring`, `Valgfrit`, `Frist` and `Vikar`
+labels, `Aflyst` for a cancelled line, the `TUR`/`FEST`/`MØDE`/`ARR.` boxes, the
+yellow time-urgency marker and leaving out a weekly routine. Every deadline gets
+`Frist`, so a reply or a payment with a date reads as one. The words are content
+only, and code adds nothing to the model's words. One comparison of words remains,
+and it decides no highlight: a plan line is left out when another line of the day
+already holds all its words.
 
 - **The day's plan line** on the right is the weekly plan's
   [day summary](processing.md#day-summaries) headline (`Trekanter og bogstavet T`,
@@ -65,16 +57,16 @@ headline, the substitute's short form and the `+N punkter` line.
   homework items of a day share a line at a tab stop, or right after each other
   when the first is long, and get a line each when they do not fit.
 - **Trips, parties and meetings** get a blue box: `TUR`, `FEST`, `MØDE`, and `ARR.`
-  for other events. The box replaces the `Besked:` marker.
+  for other events.
 - **Yellow marks time urgency only**: a deadline, or a `time_change` (a change
   that moves when the day or an activity starts or ends: an early finish, a new
   meeting time), within two days of the frame. A moved room or lesson, homework and
   substitutes are never yellow, even when the line names a time.
-- **Rain on an event day** shows as `☂ regn` under its date, unless its packing
-  list already names rain gear.
+- **Rain on an event day** shows as `☂ regn` under its date, unless the day's
+  things to bring are rain gear (`rain_gear`).
 - **Weekly routines** (kind `routine`: a `recurring` event, such as morning
-  singing) are never shown and never take one of a day's lines; a cancellation is
-  (`Morgensang aflyst`).
+  singing) are never shown and never take one of a day's lines (`hidden`); a
+  cancellation is (`Morgensang aflyst`).
 
 ## Days ahead and later events
 
@@ -141,7 +133,9 @@ without it, or when the topic is hidden, the line has sender and date only.
 ## The same conventions on every view
 
 - **Status:** `Opdateret 07/11 09.23` and the battery at 14 px, bold with an
-  `ÆLDRE DATA ·` prefix when the data is old (said once; no separate banner). The
+  `ÆLDRE DATA ·` prefix when the data is old (said once; no separate banner), and
+  with `Mangler: …` when a part of the board is missing
+  ([health](board-generation.md#health)). The
   parents' board has it top right, the other two bottom right, where their top
   right holds a heading.
 - **Messages at the weekend:** each child's latest message as one line

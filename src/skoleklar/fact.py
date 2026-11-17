@@ -102,8 +102,12 @@ MEANING = (
     # A birthday party's birthday child, by first name (message-events-v4).
     Field("celebrant", str, frozenset({"event"}), None, "agree", limit=24),
 )
-MEANING_NAMES = tuple(field.name for field in MEANING)
-_BY_NAME = {field.name: field for field in MEANING}
+
+
+def names() -> tuple[str, ...]:
+    """The meaning fields' names; read from `MEANING` each time, so a field added there
+    is carried everywhere without another edit."""
+    return tuple(field.name for field in MEANING)
 
 
 def fact_type(fact: dict[str, Any]) -> str | None:
@@ -126,7 +130,7 @@ def normalize(fact: dict[str, Any]) -> dict[str, Any]:
 
 def meaning(source: dict[str, Any]) -> dict[str, Any]:
     """The meaning fields and contract of a fact or a stored payload, as they are."""
-    result = {name: source[name] for name in MEANING_NAMES if name in source}
+    result = {name: source[name] for name in names() if name in source}
     if "contract" in source:
         result["contract"] = source["contract"]
     return result

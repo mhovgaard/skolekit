@@ -12,19 +12,44 @@ without meaning-bearing text are handled deterministically. Changed prose goes
 to the model as compact normalized text and relevant fields, never source HTML,
 login data or the database file.
 
-The active `derive-v10` bundle splits prose into atomic obligations, changes,
+The active `derive-v11` bundle splits prose into atomic obligations, changes,
 events and context. Its fact types (`event`, `schedule_change`, `bring`,
 `homework`, `parent_action` and others) are defined in its
-[semantic layer](../src/skoleklar/manifests/derive-v10/semantic-layer.md); the
-phone and board route by them. Each fact also says what it is, so nothing
-downstream has to guess it from the wording: an event's or a meeting's `category`
-(`trip`, `party`, `meeting`, `other`), whether a schedule change `moves_time`, and
-whether an event is `recurring` (morning singing). A field on a type it does not
-belong to is dropped, never sent for review. The fields live in the item's stored
-payload; consolidation copies them from its members (a category when they agree,
-a moved time when any says so), never from its model, and they are part of its
-cache key. Facts derived before v10 have none, and the [parents'
-board](parents-board.md#what-each-line-is) reads those as before.
+[semantic layer](../src/skoleklar/manifests/derive-v11/semantic-layer.md). Each
+fact also says what it is, so nothing downstream has to guess it from the wording:
+an event's or a meeting's `category` (`trip`, `party`, `meeting`, `birthday` for a
+classmate's birth-date notice, `other`), whether a schedule change `moves_time`,
+whether an event is `recurring` (morning singing), its `school_subject`, a
+substitute's `teacher`, a bring-item's `bring_items` and whether they are
+`rain_gear`. Message facts say the same through their own extractor
+(`message-events-v4`: `activity_kind`, `celebrant`, `bring_items`).
+
+## The fact model
+
+[`skoleklar/fact.py`](../src/skoleklar/fact.py) defines these fields once: their
+types, the fact types each one belongs to, and how consolidation joins them. A
+value on a type it does not belong to, or of the wrong shape, becomes the field's
+empty value; it is a display hint, so a wrong one is dropped rather than sent for
+review. Every stage copies a fact by that list (the store, consolidation, the brief,
+the board's context, the week view and the MCP), so a new field is added to the
+model and its extractor and nowhere else (`tests_python/test_fact_model.py`).
+`fact.kind` is what a fact is on the board, from these fields alone; no stage reads
+a title to decide it.
+
+Every fact carries the `contract` it was made under (`fact-v1`). A contract change
+is migrated, never read around: each scan re-derives the sources whose live facts
+in the board's window (this and next week's plans, anything dated in the next 18
+days) were made under an older one, the nearest first and at most 40 a scan
+(`derive --migrate`). The board's context counts any fact still on an older
+contract, and the board says so in its health line. A re-derivation that rewords
+a dedupe hint gives the fact a new stable key, and the phone's acknowledgement stays
+with the old key, so run the migration on a copy first and read its `continuity`:
+
+```sh
+uv run skoleklar derive --db COPY.db --migrate --as-of YYYY-MM-DD
+```
+
+`continuity.lost` lists the seen or ticked-off facts whose key would change.
 
 The model reads each source once. A weekly plan goes as its days and general
 blocks (subject and text), without its flattened `body_text`, the repeated

@@ -308,7 +308,7 @@ def test_what_a_derived_fact_is_reaches_the_board_context(tmp_path):
     # What is empty for a fact is left out of the model's context.
     assert facts["Skovtur"]["category"] == "trip"
     assert not {"moves_time", "recurring", "bring_items", "school_subject"} & set(facts["Skovtur"])
-    assert not set(fact_model.MEANING_NAMES) & set(facts["Skovdag"])
+    assert not set(fact_model.names()) & set(facts["Skovdag"])
     assert context["contract"] == {"current": fact_model.CONTRACT, "stale": 1}
 
     # The same fact twice is one fact; what it is joins as consolidation joins it.

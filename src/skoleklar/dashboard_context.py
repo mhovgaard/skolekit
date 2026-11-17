@@ -51,7 +51,7 @@ def collapse_duplicates(items):
             first["repeats"] = first.get("repeats", 1) + 1
             joined = fact_model.merge(first.get("type"), [{**first, "contract": fact_model.CONTRACT},
                                                          {**item, "contract": fact_model.CONTRACT}])
-            for field in fact_model.MEANING_NAMES:
+            for field in fact_model.names():
                 first.pop(field, None)
             first.update(meaning(joined))
             continue
