@@ -228,10 +228,17 @@ class SummaryRepository:
             rows = self.connection.execute(
                 """
                 SELECT d.fact_keys_json FROM day_summaries d
-                JOIN day_summary_runs run ON run.id = d.run_id AND run.status = 'complete'
+                JOIN day_summary_runs run ON run.id = d.run_id
                 JOIN records r ON r.id = run.record_id
                 JOIN record_versions v ON v.id = r.current_version_id
-                WHERE run.content_hash = v.content_hash AND d.headline IS NOT NULL
+                WHERE d.headline IS NOT NULL
+                  -- Only the run the board displays: the latest complete one for the
+                  -- plan's current content (`day_summary_days`).
+                  AND run.id = (
+                      SELECT latest.id FROM day_summary_runs latest
+                      WHERE latest.record_id = r.id AND latest.content_hash = v.content_hash
+                        AND latest.status = 'complete'
+                      ORDER BY latest.completed_at DESC, latest.id DESC LIMIT 1)
                 """
             ).fetchall()
         except sqlite3.OperationalError:

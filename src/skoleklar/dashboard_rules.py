@@ -64,7 +64,9 @@ def fact_text(fact, limit: int = LINE_LIMIT) -> str:
     if kind == "bring" and fact.get("bring_items"):
         text = ", ".join(fact["bring_items"])
     elif kind == "substitute" and fact.get("teacher"):
-        text = " · ".join(part for part in (short_name(fact["teacher"]), fact.get("school_subject")) if part)
+        # The teacher and the whole lesson scope: 'Alex W. · MAT 02'.
+        scope = " ".join(part for part in (fact.get("school_subject"), fact.get("lesson_class")) if part)
+        text = " · ".join(part for part in (short_name(fact["teacher"]), scope) if part)
     else:
         text = title
     return _fit(text or title or "Punkt", limit)

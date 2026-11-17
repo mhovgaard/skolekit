@@ -211,6 +211,10 @@ def build_state(context, slots, *, plain=False):
 
     def board_line(text, refs, day):
         members = [facts[ref] for ref in refs]
+        if all(fact_model.kind(member) == "substitute" and member.get("teacher") for member in members):
+            # A substitute is data, not judgement: its teacher and lesson come from the
+            # fact, so the line never loses them ('Ny vikar').
+            text = fact_text(members[0])
         return line(text or fact_text(members[0]), refs, members, day=day)
 
     def render(section):

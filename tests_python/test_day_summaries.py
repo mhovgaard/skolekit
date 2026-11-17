@@ -446,3 +446,20 @@ def test_a_fact_the_headline_retells_is_marked_for_the_board(tmp_path):
         context = export_context(store, now=datetime.fromisoformat("2026-09-20T19:00:00+02:00"))
     retold = {fact["title"]: fact.get("retold", False) for fact in context["items"]}
     assert retold == {"Tur i skoven": True, "Fællessang": False}
+
+
+def test_only_the_displayed_summary_says_what_is_retold(tmp_path):
+    """An older run for the same plan content never hides the current headline."""
+    import json as json_module
+    with SnapshotStore(tmp_path / "school.db") as store:
+        store_plans(store, ("ChildA", [plan(39)]))
+        [found] = store.weekly_plan_versions(weeks=[(2026, 39)])
+        for key, retold in (("old", ["stale"]), ("new", ["fresh"])):
+            run = store.begin_day_summary_run(
+                cache_key=key, record_id=found["record_id"], version_id=found["version_id"],
+                child="ChildA", content_hash=found["content_hash"], provider="t", model="m",
+                manifest_id="day-summary-v3", manifest_hash="h")
+            store.complete_day_summary_run(run, days=[{"date": "2026-09-21", "headline": "H", "text": "T.",
+                                                       "general_used": False, "fact_keys": retold}],
+                                           response_id="r", usage={})
+        assert store.retold_fact_keys() == {"fresh"}

@@ -121,6 +121,8 @@ MEANING = (
     # The school subject the item belongs to, as the source names it.
     Field("school_subject", str, frozenset({"homework", "bring", "lesson_preview", "schedule_change",
                                      "substitute"}), None, "agree", limit=40),
+    # The class or group a changed lesson is for, as the timetable writes it ('02').
+    Field("lesson_class", str, frozenset({"schedule_change", "substitute"}), None, "agree", limit=24),
     # The substitute teacher's name.
     Field("teacher", str, frozenset({"substitute"}), None, "agree", limit=60),
     # The things to bring, each a few words.
@@ -210,8 +212,9 @@ def core_annotations(keys: tuple[str, ...]) -> dict[str, Any]:
 
 def annotations() -> dict[str, Any]:
     """The meaning fields as types, for a result schema such as the MCP's."""
-    as_type = {str: str | None, bool: bool | None, list: list[str]}
-    return {field.name: as_type[field.kind] for field in MEANING} | {"contract": str | None}
+    as_type = {str: str | None, bool: bool | None}
+    return {field.name: list[field.item_kind] if field.kind is list else as_type[field.kind]
+            for field in MEANING} | {"contract": str | None}
 
 
 def public(item: dict[str, Any]) -> dict[str, Any]:

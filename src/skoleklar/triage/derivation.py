@@ -26,7 +26,7 @@ PROMPT_VERSION = _PACK.manifest_id
 TAXONOMY_VERSION = _PACK.taxonomy_version
 DERIVATION_SCHEMA = _PACK.output_schema
 # The deterministic lesson-change reader; its version moves with the fact contract.
-ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v5"
+ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v6"
 # A lesson change's identity, which must not move with the reader's version: a new
 # key would bring back every substitute and cancelled lesson the family ticked off.
 LESSON_KEY_VERSION = "routine-calendar-v3"
@@ -256,6 +256,7 @@ def _deterministic_lesson_change(
         "moves_time": False,
         "school_subject": lesson,
         "teacher": substitute or None,
+        "lesson_class": class_name or None,
         "start_time": start_time or None,
         "end_time": end_time or None,
         "audience": "child",

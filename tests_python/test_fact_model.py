@@ -222,3 +222,8 @@ def test_the_scan_logs_why_a_rederivation_failed_by_code_only():
                      "error": "OpenRouter Chat Completions API returned 429: private detail"}]})
     assert summary == {"candidate_count": 3, "contract_candidate_count": 2, "contract_failure_count": 1,
                        "failures": 0, "contract_backoff_count": 1, "contract_failure_code": "provider_http_429"}
+
+
+def test_the_mcp_schema_types_each_lists_items():
+    annotations = fact_model.annotations()
+    assert annotations["class_levels"] == list[int] and annotations["bring_items"] == list[str]

@@ -343,3 +343,17 @@ def test_a_fact_spanning_days_may_sit_on_any_of_them_but_not_outside():
     state["weekdays"][4]["children"][0]["lines"] = [line("Teatertur", ["fact-1"], [single], day=date(2026, 11, 6))]
     with pytest.raises(RuleViolation, match="displayed fact date must match"):
         validate_composition(ctx, state, misplaced)
+
+
+def test_a_substitute_keeps_its_teacher_and_whole_lesson_in_both_paths():
+    from tests_python.test_display_services import _slots
+    sub = fact("fact-1", "ChildA", "2026-11-03", "substitute", title="Alex Winther er vikar i MAT · 02",
+               teacher="Alex Winther", school_subject="MAT", lesson_class="02")
+    assert fact_text(sub) == "Alex W. · MAT 02"
+    ctx = context("2026-11-02T08:00:00", [sub])
+    # The model's vaguer words give way to the fact's own.
+    vague = _slots(ctx, {("2026-11-03", "ChildA"): [{"refs": ["fact-1"], "priority": "change", "text": "Ny vikar"}]})
+    state, _ = build_state(ctx, vague)
+    assert texts(state["weekdays"][1]["children"][0]["lines"]) == ["Alex W. · MAT 02"]
+    state, _ = fallback_composition(ctx)
+    assert texts(state["weekdays"][1]["children"][0]["lines"]) == ["Alex W. · MAT 02"]
