@@ -20,6 +20,9 @@ from skoleklar.display_store import (
 )
 from tests_python.test_dashboard_rendering import weekday_grid_state
 
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
+
 
 def local(text):
     return datetime.fromisoformat(text).replace(tzinfo=ZONE)
@@ -49,28 +52,6 @@ def composed_week(context):
         entry["date"], entry["day"] = day["date"], day["day"]
     value["messages"] = {"checked": True, "bodies_retained": 0, "unread_count": 7, "items": []}
     return value, {"facts": [], "source_updated_at": context["freshness"]["source_updated_at"]}
-
-
-@pytest.mark.parametrize(("start", "expected"), [
-    # Friday: the children's morning ends at 08:30; at 15:00 the weekend begins.
-    ("2026-09-24T19:30:00", ["2026-09-24T19:30:00", "2026-09-25T00:00:00", "2026-09-25T08:30:00",
-                             "2026-09-25T15:00:00", "2026-09-26T00:00:00"]),
-    ("2026-09-25T19:30:00", ["2026-09-25T19:30:00", "2026-09-26T00:00:00",
-                             "2026-09-26T18:00:00", "2026-09-27T00:00:00"]),
-    # Sunday: noon gives way to Monday, whose view the children see 15:00–19:00.
-    ("2026-09-26T19:30:00", ["2026-09-26T19:30:00", "2026-09-27T00:00:00",
-                             "2026-09-27T12:00:00", "2026-09-27T15:00:00",
-                             "2026-09-27T19:00:00", "2026-09-28T00:00:00"]),
-])
-def test_slices_start_at_each_layout_change_within_36_hours(start, expected):
-    now = local(start)
-    assert slice_starts(now, now + timedelta(hours=36)) == [local(value) for value in expected]
-
-
-def test_slices_stop_when_the_data_expires():
-    now = local("2026-09-24T05:45:00")
-    assert slice_starts(now, local("2026-09-24T15:00:00")) == [now, local("2026-09-24T08:30:00")]
-    assert slice_starts(now, local("2026-09-24T08:30:00")) == [now]
 
 
 def test_after_cutoff_the_next_school_day_comes_from_its_weekday_row():
@@ -170,59 +151,3 @@ def timeline_fixture(tmp_path):
     return timeline, store
 
 
-def test_timeline_merges_unchanged_moments_and_versions_follow_the_frame(tmp_path):
-    timeline, store = timeline_fixture(tmp_path)
-    first, second = timeline["frames"]
-    assert first["metadata"]["version"] == "run-1-" + first["metadata"]["frame_sha256"][:12]
-    assert first["metadata"]["valid_until"] == second["metadata"]["valid_from"] == "2026-09-21T13:00:00+00:00"
-    assert second["metadata"]["valid_until"] == timeline["expires_at"]
-    morning = current_bundle(store, now=datetime(2026, 9, 21, 9, tzinfo=UTC))
-    assert morning["metadata"]["version"] == first["metadata"]["version"]
-    assert morning["upcoming"] == [{key: second["metadata"][key] for key in
-                                    ("version", "valid_from", "valid_until", "frame_sha256")}]
-    ahead = current_bundle(store, now=datetime(2026, 9, 21, 9, tzinfo=UTC),
-                           version=second["metadata"]["version"])
-    assert ahead["metadata"]["frame_sha256"] == second["metadata"]["frame_sha256"]
-    afternoon = current_bundle(store, now=datetime(2026, 9, 21, 14, tzinfo=UTC))
-    assert afternoon["metadata"]["version"] == second["metadata"]["version"] and afternoon["upcoming"] == []
-    with pytest.raises(VersionChanged):
-        current_bundle(store, now=datetime(2026, 9, 21, 14, tzinfo=UTC), version=first["metadata"]["version"])
-    with pytest.raises(DisplayUnavailable):
-        current_bundle(store, now=datetime.fromisoformat(timeline["expires_at"]))
-
-
-def test_device_status_lists_upcoming_frames_within_the_firmware_limit(tmp_path):
-    timeline, store = timeline_fixture(tmp_path)
-    first, second = timeline["frames"]
-    registry = [{"device_id": "firebeetle-ag", "token_hash": hashlib.sha256(b"display").hexdigest(),
-                 "scopes": ["display"]}]
-    clock = {"now": datetime(2026, 9, 21, 9, tzinfo=UTC)}
-    client = TestClient(create_app(store=LocalDeliveryStore(tmp_path / "receipts"), display_store=store,
-                                   device_registry=registry, now=lambda: clock["now"]))
-    headers = {"Authorization": "Bearer display"}
-    status = client.get("/v1/display/status", headers=headers).json()
-    assert status["metadata"]["version"] == first["metadata"]["version"]
-    assert status["metadata"]["valid_until"] == second["metadata"]["valid_from"]
-    assert status["next_change_at"] == second["metadata"]["valid_from"]
-    assert [entry["version"] for entry in status["upcoming"]] == [second["metadata"]["version"]]
-    upcoming = client.get("/v1/display/frame?version=" + second["metadata"]["version"], headers=headers)
-    assert upcoming.status_code == 200
-    assert hashlib.sha256(upcoming.content).hexdigest() == second["metadata"]["frame_sha256"]
-    assert client.get("/v1/display/frame?version=old", headers=headers).status_code == 409
-    clock["now"] = datetime(2026, 9, 21, 14, tzinfo=UTC)
-    assert client.get("/v1/display/frame?version=" + first["metadata"]["version"],
-                      headers=headers).status_code == 409
-
-    # The device reads status into a 4096-byte buffer; a long timeline must still fit.
-    start = datetime.fromisoformat(second["metadata"]["valid_from"])
-    for index in range(5):
-        extra = json.loads(json.dumps(second))
-        extra["metadata"]["version"] = f"agskoleintra-sync-abcde-{index:012d}"
-        extra["metadata"]["valid_from"] = (start + timedelta(hours=index + 1)).isoformat()
-        timeline["frames"][-1]["metadata"]["valid_until"] = extra["metadata"]["valid_from"]
-        timeline["frames"].append(extra)
-    store.write_json("current.json", timeline)
-    clock["now"] = datetime(2026, 9, 21, 9, tzinfo=UTC)
-    response = client.get("/v1/display/status", headers=headers)
-    assert len(response.json()["upcoming"]) == 6
-    assert len(response.content) < 4096

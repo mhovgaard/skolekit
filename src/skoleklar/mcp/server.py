@@ -112,6 +112,7 @@ BoardFact = TypedDict("BoardFact", {
     "private_message_fact": bool, "grouped": bool,
     "cancelled": NotRequired[bool], "message_thread": NotRequired[int],
     "birthday_notice": NotRequired[bool], "confirmed_activity_kind": NotRequired[str],
+    "retold": NotRequired[bool],
     "repeats": NotRequired[int],
     # What the fact is (skoleklar.fact); the board's context leaves out an empty field.
     **{name: NotRequired[value] for name, value in fact_model.annotations().items()

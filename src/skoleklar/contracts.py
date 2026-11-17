@@ -9,7 +9,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 
 CONTRACT_NAMES = {
-    "manifest-v1",
+    "manifest-v2",
     "probe-request-v1",
     "receipt-v1",
     "sync-request-v1",

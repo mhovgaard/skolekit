@@ -41,3 +41,4 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests_python"]
+markers = ["pipeline: the typed-pipeline refactor's core set, from extraction to pixels"]

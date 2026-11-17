@@ -85,6 +85,15 @@
           "rain_gear": {
             "type": "boolean"
           },
+          "class_levels": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            }
+          },
           "audience": {
             "type": "string",
             "enum": [
@@ -206,6 +215,7 @@
           "teacher",
           "bring_items",
           "rain_gear",
+          "class_levels",
           "audience",
           "child",
           "title",

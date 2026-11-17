@@ -245,7 +245,7 @@ def test_review_checks_read_the_class_from_the_profile(monkeypatch, tmp_path):
     other_profile(tmp_path)
     assert review_checks.child_classes() == {"Alfa": 2, "Beta": 1}
     assert review_checks.class_label() == "{level}. årgang"
-    item = {"child": "Alfa", "title": "Tur for 3. klasse", "effective_date": "2026-11-20"}
+    item = {"child": "Alfa", "title": "Tur", "effective_date": "2026-11-20", "class_levels": [3]}
     verdict = review_checks.rule_verdict(item, [item], {"Alfa": 2}, "{level}. årgang")
     assert verdict == ("drop", None, "Marked for 3. årgang; Alfa is in 2. årgang.")
 

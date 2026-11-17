@@ -30,7 +30,8 @@
               "subject": "Idræt",
               "text": "Vi leger fangeleg i hallen. Jonas og Ida viser os en ny leg 🤸"
             }
-          ]
+          ],
+          "facts": []
         },
         {
           "date": "2026-03-17",
@@ -39,6 +40,18 @@
             {
               "subject": null,
               "text": "Morgenstund\n- Tur i skoven\n- Frokost\n- Leg"
+            }
+          ],
+          "facts": [
+            {
+              "id": "f1",
+              "type": "event",
+              "title": "Tur i skoven"
+            },
+            {
+              "id": "f2",
+              "type": "bring",
+              "title": "Tøj til vejret"
             }
           ]
         },
@@ -54,7 +67,8 @@
               "subject": null,
               "text": "Jonas' far Peter kommer og fortæller om sit arbejde som brandmand."
             }
-          ]
+          ],
+          "facts": []
         }
       ]
     },
@@ -64,19 +78,24 @@
           "date": "2026-03-16",
           "headline": "Bogstavet S og fangeleg",
           "text": "Du skal lære bogstavet S og høre historien om slangen Sigurd. Bagefter tegner du slangen og øver dig i at skrive S. I idræt leger I fangeleg i hallen.",
-          "general_used": false
+          "general_used": false,
+          "facts": []
         },
         {
           "date": "2026-03-17",
           "headline": "Tur i skoven",
           "text": "Klassen tager i skoven og leder efter spor fra dyr. Måske finder du fodspor eller en fjer! Husk: tøj til vejret.",
-          "general_used": true
+          "general_used": true,
+          "facts": [
+            "f1"
+          ]
         },
         {
           "date": "2026-03-18",
           "headline": "Sang, trommer og en brandmand",
           "text": "Du synger med Karin, jeres nye musiklærer, og spiller på trommer. Klassen øver også en sang til forårsfesten. Peter, som er far til en i klassen, fortæller om at være brandmand.",
-          "general_used": true
+          "general_used": true,
+          "facts": []
         }
       ]
     }
@@ -108,12 +127,14 @@
               "subject": "Natur/teknologi",
               "text": "Vi bygger en lille vindmølle af papir 🌬️"
             }
-          ]
+          ],
+          "facts": []
         },
         {
           "date": "2026-03-24",
           "weekday": "Tirsdag",
-          "blocks": []
+          "blocks": [],
+          "facts": []
         },
         {
           "date": "2026-03-25",
@@ -123,7 +144,8 @@
               "subject": "Engelsk",
               "text": "Colours - side 4-5 i bogen og en sang. I må gerne tage en yndlingsbog med."
             }
-          ]
+          ],
+          "facts": []
         }
       ]
     },
@@ -133,19 +155,102 @@
           "date": "2026-03-23",
           "headline": "Læsebog og papirvindmølle",
           "text": "I dansk taler I om, hvad der sker i kapitlet i læsebogen. I natur/teknologi bygger du en lille vindmølle af papir. Husk: læs side 30 og 31 i læsebogen.",
-          "general_used": false
+          "general_used": false,
+          "facts": []
         },
         {
           "date": "2026-03-24",
           "headline": null,
           "text": null,
-          "general_used": false
+          "general_used": false,
+          "facts": []
         },
         {
           "date": "2026-03-25",
           "headline": "Farver på engelsk",
           "text": "I engelsk lærer du farverne med side 4 og 5 i bogen og synger en sang. Du må gerne tage din yndlingsbog med.",
-          "general_used": false
+          "general_used": false,
+          "facts": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "Barnets egen gruppe med navn og bogstaver, bamse med hjem; en følsom linje udelades",
+    "input": {
+      "class_level": "2. klasse",
+      "week": {
+        "number": 17,
+        "year": 2026
+      },
+      "general": [
+        {
+          "subject": null,
+          "text": "Kære forældre\nUgens kammerat (klassens bamse) kommer med [barnet] hjem fredag.\nHilsen Lars"
+        }
+      ],
+      "days": [
+        {
+          "date": "2026-04-20",
+          "weekday": "Mandag",
+          "blocks": [
+            {
+              "subject": "Idræt",
+              "text": "Vi spiller rundbold i hallen.\n[barnet] husker fløjten.\nMedbring: idrætstøj og drikkedunk"
+            }
+          ],
+          "facts": []
+        },
+        {
+          "date": "2026-04-21",
+          "weekday": "Tirsdag",
+          "blocks": [
+            {
+              "subject": "Dansk",
+              "text": "Læsebånd: læs i din egen bog.\nBogstavhistorier i små grupper. Grupper og bogstaver:\nIda- Jonas: S, T\nEmma- [barnet]: F, H\nNoah- Liva: G, M\n[barnet] har brug for lidt ekstra støtte i læsning, det tager vi op til samtalen."
+            },
+            {
+              "subject": "Matematik",
+              "text": "Vi træner 5-tabellen med bum-leg."
+            }
+          ],
+          "facts": []
+        },
+        {
+          "date": "2026-04-24",
+          "weekday": "Fredag",
+          "blocks": [
+            {
+              "subject": "Kulturfag",
+              "text": "Vi øver skuespillet til forårsfesten."
+            }
+          ],
+          "facts": []
+        }
+      ]
+    },
+    "output": {
+      "days": [
+        {
+          "date": "2026-04-20",
+          "headline": "Rundbold og fløjten",
+          "text": "Du husker at tage fløjten med. I idræt spiller I rundbold i hallen. Husk: idrætstøj og drikkedunk.",
+          "general_used": false,
+          "facts": []
+        },
+        {
+          "date": "2026-04-21",
+          "headline": "Bogstavhistorie med Emma: F og H",
+          "text": "Du og Emma laver en bogstavhistorie med bogstaverne F og H. Først læser du i din egen bog. I matematik træner I 5-tabellen med bum-leg.",
+          "general_used": false,
+          "facts": []
+        },
+        {
+          "date": "2026-04-24",
+          "headline": "Skuespil og ugens kammerat",
+          "text": "Klassen øver skuespillet til forårsfesten. Du får ugens kammerat, klassens bamse, med hjem.",
+          "general_used": true,
+          "facts": []
         }
       ]
     }

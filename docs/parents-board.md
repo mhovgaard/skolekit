@@ -43,16 +43,15 @@ form: `Mat.`, `Eng.`, `N/T`), the bold `Medbring`, `Valgfrit`, `Frist` and `Vika
 labels, `Aflyst` for a cancelled line, the `TUR`/`FEST`/`MØDE`/`ARR.` boxes, the
 yellow time-urgency marker and leaving out a weekly routine. Every deadline gets
 `Frist`, so a reply or a payment with a date reads as one. The words are content
-only, and code adds nothing to the model's words. One comparison of words remains,
-and it decides no highlight: a plan line is left out when another line of the day
-already holds all its words.
+only, and code adds nothing to the model's words. No words are compared anywhere on
+the board.
 
 - **The day's plan line** on the right is the weekly plan's
   [day summary](processing.md#day-summaries) headline (`Trekanter og bogstavet T`,
   `Bogstavhistorie med Emma: F og H`) in the serif, before the day's other lines,
   so a week without homework still says what each day holds. It is left out when
-  the day has no summary, or when another line of the day already says it
-  (`TUR Kulturdag i teatret`).
+  the day has no summary, or when a line of the day shows a fact the headline
+  retells (`retold`, from the summary itself): `TUR Kulturdag i teatret` is said once.
 - **Homework** has a checkbox and a bold subject (`Mat.`, `Eng.`, `N/T`); two
   homework items of a day share a line at a tab stop, or right after each other
   when the first is long, and get a line each when they do not fit.

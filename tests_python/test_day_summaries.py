@@ -69,9 +69,11 @@ def answer(document, **overrides):
     for day in document["days"]:
         if day["blocks"]:
             days.append({"date": day["date"], "headline": f"Dag {day['date'][-2:]}",
-                         "text": "Du skal lære noget nyt og lege med klassen.", "general_used": False})
+                         "text": "Du skal lære noget nyt og lege med klassen.", "general_used": False,
+                         "facts": []})
         else:
-            days.append({"date": day["date"], "headline": None, "text": None, "general_used": False})
+            days.append({"date": day["date"], "headline": None, "text": None, "general_used": False,
+                         "facts": []})
     for date_value, values in overrides.items():
         next(day for day in days if day["date"] == date_value).update(values)
     return {"days": days}
@@ -83,7 +85,7 @@ class FakeClient:
         self.responses = list(responses or [])
 
     def generate(self, document, *, manifest, max_output_tokens):
-        assert manifest.manifest_id == "day-summary-v2"
+        assert manifest.manifest_id == "day-summary-v3"
         self.documents.append(copy.deepcopy(document))
         output = self.responses.pop(0)(document) if self.responses else answer(document)
         if isinstance(output, Exception):
@@ -159,17 +161,15 @@ def test_generation_sends_the_marker_never_the_childs_name(tmp_path):
     assert "Liva" not in json.dumps(document)
 
 
-def test_the_manifest_is_v2_without_household_slots():
+def test_the_manifest_is_v3_without_household_slots():
     from skoleklar.day_summaries import MANIFEST
     from skoleklar.triage.prompt_manifest import load_prompt_manifest
 
-    assert MANIFEST.manifest_id == "day-summary-v2"
-    invented = load_prompt_manifest("day-summary-v2", slots={})
+    assert MANIFEST.manifest_id == "day-summary-v3"
+    invented = load_prompt_manifest("day-summary-v3", slots={})
     assert invented.content_hash == MANIFEST.content_hash
-    assert invented.content_hash == "68b64f8e77da5baee19ee559b3ecae47e54723a98962c06e144101769e8e566a"
+    assert invented.content_hash == "f8a6d1643950c3fe2355e42213ab8cb4c12dca6d871eef64441bac6768869331"
     assert "[barnet]" in invented.render_instructions()
-    # v1 stays as it was: stored summaries keep naming the prompt that wrote them.
-    assert load_prompt_manifest("day-summary-v1", slots={}).content_hash == "764a12d3372a43e12066a0806ef51950444bc546c2003d113c00645d7e2a2140"
 
 
 def test_validation_cleans_text_and_enforces_the_contract():
@@ -178,7 +178,7 @@ def test_validation_cleans_text_and_enforces_the_contract():
                                                 "text": "Du skal  lære\nbogstavet E. 🕷️"}})
     days = validate_output(document, output)
     assert days[0] == {"date": "2026-09-21", "headline": "Bogstavet E",
-                       "text": "Du skal lære bogstavet E.", "general_used": False}
+                       "text": "Du skal lære bogstavet E.", "general_used": False, "fact_keys": []}
     assert days[2]["text"] is None
     # An empty day may use a matching general note.
     with_general = answer(document, **{"2026-09-23": {"headline": "Skov", "text": "Klassen går i skoven.",
@@ -402,3 +402,47 @@ def test_cloud_stage_logs_counts_and_a_failure_never_stops_the_sync(tmp_path, mo
         [failed] = events()
         assert failed == {"event": "day_summaries_failed", "error_type": "OpenRouterHTTPError",
                           "duration_seconds": failed["duration_seconds"]}
+
+
+def test_a_summary_names_the_facts_its_headline_retells_by_short_id_only():
+    """day-summary-v3: the model reads the day's facts as 'f1'; the store keeps stable keys."""
+    facts = [{"stable_key": "key-trip", "item_type": "event", "title": "Tur i skoven",
+              "effective_date": "2026-09-21"},
+             {"stable_key": "key-hw", "item_type": "homework", "title": "Læs s. 4", "effective_date": "2026-09-22"}]
+    document = plan_document(plan(), facts=facts)
+    assert document["days"][0]["facts"] == [{"id": "f1", "type": "event", "title": "Tur i skoven"}]
+    assert "key-trip" not in json.dumps(document)
+    keys = {"f1": "key-trip", "f2": "key-hw"}
+    days = validate_output(document, answer(document, **{"2026-09-21": {"facts": ["f1"]}}), keys=keys)
+    assert days[0]["fact_keys"] == ["key-trip"] and days[1]["fact_keys"] == []
+    # An id from another day, or an unknown one, is refused.
+    with pytest.raises(DaySummaryInvalid, match="among the day's facts"):
+        validate_output(document, answer(document, **{"2026-09-21": {"facts": ["f2"]}}), keys=keys)
+
+
+def test_a_fact_the_headline_retells_is_marked_for_the_board(tmp_path):
+    """From the plan's fact to the summary that names it, to the board's context."""
+    from datetime import datetime
+    from skoleklar.dashboard_context import export_context
+
+    with SnapshotStore(tmp_path / "school.db") as store:
+        store_plans(store, ("ChildA", [plan(39)]))
+        [candidate] = store.derivation_candidates()
+        derivation = store.begin_derivation(harvest_run_id=candidate["harvest_run_id"], cache_key="d",
+                                            provider="test", model="m", prompt_version="derive-v11",
+                                            taxonomy_version="t")
+        base = {"stream": "calendar", "audience": "child", "child": "ChildA", "summary": "S.", "end_date": None,
+                "all_day": True, "timing_rule": "explicit", "actionability": "informational",
+                "urgency": "routine", "urgency_reason": "", "confidence": 0.9, "needs_review": False,
+                "review_reason": "", "evidence": []}
+        store.complete_derivation(derivation, items=[
+            base | {"stable_key": "trip", "type": "event", "title": "Tur i skoven", "effective_date": "2026-09-21"},
+            base | {"stable_key": "song", "type": "event", "title": "Fællessang", "effective_date": "2026-09-22"},
+        ], sources=candidate["sources"], response_id="r", usage={})
+        client = FakeClient([lambda document: answer(document, **{"2026-09-21": {
+            "headline": "Tur i skoven", "facts": [document["days"][0]["facts"][0]["id"]]}})])
+        assert generate_day_summaries(store, client, model="m", today=date(2026, 9, 21))["generated_count"] == 1
+        assert store.retold_fact_keys() == {"trip"}
+        context = export_context(store, now=datetime.fromisoformat("2026-09-20T19:00:00+02:00"))
+    retold = {fact["title"]: fact.get("retold", False) for fact in context["items"]}
+    assert retold == {"Tur i skoven": True, "Fællessang": False}

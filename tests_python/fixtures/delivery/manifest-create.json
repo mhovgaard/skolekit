@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "manifest_id": "20260825T183142Z-a7f31c102938",
   "generated_at": "2026-08-25T18:31:42Z",
   "expires_at": "2026-08-27T06:31:42Z",
@@ -14,7 +14,11 @@
       "end": "2026-08-26",
       "all_day": true,
       "notes": "Meet at school with a packed lunch.",
-      "source_url": "https://x.skoleintra.dk/item/1"
+      "source_url": "https://x.skoleintra.dk/item/1",
+      "kind": "event",
+      "fact": {
+        "type": "event"
+      }
     }
   ],
   "reminders": [
@@ -26,7 +30,11 @@
       "title": "Beta · Bring mathematics book home",
       "due": "2026-08-26",
       "notes": "Needed for pages 42–44.",
-      "source_url": "https://x.skoleintra.dk/item/2"
+      "source_url": "https://x.skoleintra.dk/item/2",
+      "kind": "bring",
+      "fact": {
+        "type": "bring"
+      }
     }
   ],
   "review": [],

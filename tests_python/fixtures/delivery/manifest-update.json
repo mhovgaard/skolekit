@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "manifest_id": "20260825T193142Z-b8e42d213049",
   "generated_at": "2026-08-25T19:31:42Z",
   "expires_at": "2026-08-27T07:31:42Z",
@@ -14,7 +14,11 @@
       "end": "2026-08-26",
       "all_day": true,
       "notes": "Meet at 08:15 with a packed lunch.",
-      "source_url": "https://x.skoleintra.dk/item/1"
+      "source_url": "https://x.skoleintra.dk/item/1",
+      "kind": "event",
+      "fact": {
+        "type": "event"
+      }
     }
   ],
   "reminders": [],

@@ -31,7 +31,7 @@ SHORT_SUBJECTS = {
 SUBJECT_LIMIT = 16
 # What a line object holds: its wording and facts, then its presentation.
 LINE_FIELDS = ("text", "refs", "kind", "label", "chip", "box", "subject", "cancelled", "hidden",
-               "rain_gear", "urgent")
+               "rain_gear", "retold", "urgent")
 
 
 def short_subject(name: Any) -> str:
@@ -53,6 +53,7 @@ def present(facts: list[dict[str, Any]], *, day: date | None) -> dict[str, Any]:
     - `cancelled`: every fact behind the line is cancelled;
     - `hidden`: a weekly routine, which the board leaves out;
     - `rain_gear`: the line's things to bring are rain clothes;
+    - `retold`: the day's plan headline already retells one of its facts;
     - `urgent`: the dates (`from`, `to`) on which the line is yellow, or None.
     """
     kind = fact_model.line_kind(facts) if facts else "more"
@@ -71,6 +72,7 @@ def present(facts: list[dict[str, Any]], *, day: date | None) -> dict[str, Any]:
         "cancelled": cancelled,
         "hidden": kind == "routine",
         "rain_gear": any(fact.get("rain_gear") is True for fact in facts),
+        "retold": any(fact.get("retold") is True for fact in facts),
         "urgent": urgent,
     }
 
@@ -128,7 +130,7 @@ def validate_line(value: Any, *, limit: int = 100) -> None:
     subject = value["subject"]
     if not isinstance(subject, str) or len(subject) > SUBJECT_LIMIT or any(ord(c) < 32 for c in subject):
         raise ValueError("a board line's subject is a short word")
-    if any(type(value[key]) is not bool for key in ("box", "cancelled", "hidden", "rain_gear")):
+    if any(type(value[key]) is not bool for key in ("box", "cancelled", "hidden", "rain_gear", "retold")):
         raise ValueError("a board line's flags are booleans")
     urgent = value["urgent"]
     if urgent is not None:

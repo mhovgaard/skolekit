@@ -61,6 +61,8 @@ class Item:
     chip: str = ""
     box: bool = False
     urgent: bool = False
+    # The day's plan headline retells one of its facts.
+    retold: bool = False
 
 
 @dataclass
@@ -158,7 +160,8 @@ def make_item(entry: dict[str, Any], today: date | None) -> Item:
             runs.append(((" " if runs else "") + word, True))
     text = entry["text"]
     runs.append(((" " + text) if runs else _capital(text), False))
-    return Item(entry["kind"], runs, chip=entry["chip"], box=entry["box"], urgent=urgent_on(entry, today))
+    return Item(entry["kind"], runs, chip=entry["chip"], box=entry["box"], urgent=urgent_on(entry, today),
+                retold=entry["retold"])
 
 
 def _day_label(iso: str) -> str:
@@ -176,17 +179,11 @@ def plan_headline(data: dict[str, Any], name: str, iso: str | None) -> str:
     return ""
 
 
-def _words(text: str) -> set[str]:
-    return {word.casefold() for word in re.findall(r"\w{3,}", text)}
-
-
 def plan_item(headline: str, items: list[Item]) -> Item | None:
-    """The day's plan headline as the first line of a day ahead, unless a line already says it.
-
-    'Hundrede dages fest' adds nothing beside `FEST Hundrede dages fest`.
-    """
-    words = _words(headline)
-    if not words or any(words <= _words("".join(text for text, _ in item.runs)) for item in items):
+    """The day's plan headline as the first line of a day ahead, unless a line of the day
+    shows a fact the headline retells (day-summary-v3): `TUR Kulturdag i teatret` and
+    `Kulturdag i teatret` are said once. No words are compared."""
+    if not headline or any(item.retold for item in items):
         return None
     return Item("plan", [(headline, False)])
 

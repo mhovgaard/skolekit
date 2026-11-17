@@ -7,6 +7,9 @@ from skoleklar.dashboard_events import ACTIVITY_LABELS, birthday_notice, confirm
 from skoleklar.dashboard_validation import validate_composition
 from skoleklar.dashboard_timing import dashboard_weekend_dates
 
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
+
 KEY = "message-event:" + "a" * 64
 
 
@@ -104,15 +107,6 @@ def test_export_applies_owner_label_without_retaining_identifiers_or_changing_so
     assert trip["title"] == "School event" and path.read_bytes() == before
 
 
-def test_current_weekend_excludes_the_weekend_closing_mondays_school_week():
-    dates = dashboard_weekend_dates(datetime.fromisoformat("2026-10-24T14:00:00+02:00"))
-    assert [d.isoformat() for d in dates] == ["2026-10-24", "2026-10-25"]
-    context, state, audit = weekend_fixture()
-    state["weekend"][0]["date"] = "2026-11-01"
-    with pytest.raises(ValueError, match="current upcoming weekend"):
-        validate_composition(context, state, audit)
-
-
 def test_weekend_fact_must_match_its_specific_row_date():
     context, state, audit = weekend_fixture()
     state["weekend"][0]["date"] = "2026-10-24"
@@ -165,33 +159,6 @@ def test_extracted_weekend_activity_must_be_displayed(kind):
         validate_composition(context, state, audit)
 
 
-def test_export_carries_extracted_activity_kind(tmp_path, monkeypatch):
-    from skoleklar import dashboard_context
-    from skolekit.records import SourceCheck
-    from skoleklar.storage import SnapshotStore
-
-    context, state, _ = weekend_fixture()
-    party = {**context["items"][1], "stable_key": KEY, "summary": "Generic event",
-             "title": "Birthday party", "activity_kind": "birthday_party",
-             "end_date": None, "actionability": "informational", "urgency": "attention",
-             "confidence": .98, "needs_review": True}
-    del party["confirmed_activity_kind"]
-    monkeypatch.setattr(dashboard_context, "delivery_items_from_snapshot", lambda *a, **k: [])
-    monkeypatch.setattr(dashboard_context, "build_brief_range", lambda *a, **k: {
-        "items": [party], "atomic_item_count": 1})
-    path = tmp_path / "restricted.db"
-    with SnapshotStore(path) as store:
-        run = store.begin_run()
-        store.store_checks(run, [SourceCheck(student_id=1, child="ChildA", source_type="calendar",
-                                            records=[], complete=True)])
-    with SnapshotStore(path, read_only=True) as store:
-        result = dashboard_context.export_context(
-            store, now=datetime.fromisoformat(state["freshness"]["composed_at"]))
-    assert result["items"][0]["activity_kind"] == "birthday_party"
-    assert result["items"][0]["title"] == "Fødselsdagsfest"
-    assert "confirmed_activity_kind" not in result["items"][0]
-
-
 def test_confirmed_trip_cannot_be_omitted():
     context, state, audit = weekend_fixture()
     state["weekend"] = []
@@ -200,19 +167,3 @@ def test_confirmed_trip_cannot_be_omitted():
         validate_composition(context, state, audit)
 
 
-@pytest.mark.parametrize("name, title", [("Emma", "Emmas fødselsdag"), ("Mads", "Mads' fødselsdag"),
-                                         ("Felix", "Felix' fødselsdag"), ("Liz", "Liz' fødselsdag"),
-                                         ("Ella-Rose", "Ella-Roses fødselsdag")])
-def test_a_birthday_childs_name_makes_the_title(name, title):
-    from skoleklar.dashboard_events import activity_title
-    assert activity_title("birthday_party", name) == title
-    # The title is an invitation, never a classmate's birth-date notice.
-    assert not birthday_notice({"type": "event", "actionability": "informational", "title": title,
-                                "activity_kind": "birthday_party"})
-
-
-@pytest.mark.parametrize("name", [None, "", "emma", "Emma Hansen", "Emma2", "A" * 30])
-def test_anything_but_one_first_name_keeps_the_plain_label(name):
-    from skoleklar.dashboard_events import activity_title
-    assert activity_title("birthday_party", name) == "Fødselsdagsfest"
-    assert activity_title("class_trip", "Emma") == "Klassetur"

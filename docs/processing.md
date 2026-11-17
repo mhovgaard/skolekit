@@ -21,7 +21,9 @@ an event's or a meeting's `category` (`trip`, `party`, `meeting`, `birthday` for
 classmate's birth-date notice, `other`), whether a schedule change `moves_time`,
 whether an event is `recurring` (morning singing), its `school_subject`, a
 substitute's `teacher`, a bring-item's `bring_items` and whether they are
-`rain_gear`. Message facts say the same through their own extractor
+`rain_gear`, and the `class_levels` the source says it concerns. A changed lesson
+from the timetable carries its `start_time` and `end_time`; the brief groups and
+times a lesson's changes from those, never from their sentences. Message facts say the same through their own extractor
 (`message-events-v4`: `activity_kind`, `celebrant`, `bring_items`).
 
 ## The fact model
@@ -118,7 +120,7 @@ uv run skoleklar consolidation-report --db COPY.db
 
 ## Day summaries
 
-`day-summary-v2` retells a weekly plan as one child-friendly Danish paragraph
+`day-summary-v3` retells a weekly plan as one child-friendly Danish paragraph
 per school day. It keeps classroom activity separately from atomic obligations.
 Input omits HTML, links and attachments. Where the plan names the child it is
 for, code replaces the name with `[barnet]` (whole word, genitive `-s`, as the
@@ -129,7 +131,11 @@ so the child's own group, letters, turn or item reaches the summary as
 first names and the first names of classmates the plan puts with the child (their
 group or pair, a classmate the class celebrates), and forbids naming other
 children or adding sensitive matters; code cannot fully enforce the semantic
-naming policy. `day-summary-v1` stays for the summaries it wrote.
+naming policy. Each day also lists the facts derived from that day's plan, by a
+short id (`f1`), never their stable keys; the model names the ids its headline
+retells, and the store keeps their keys (`day_summaries.fact_keys_json`). The
+board's context then marks those facts `retold`, so the plan line is left out where
+a line of the day already shows one of them; no words are compared.
 
 Code validates day order, paired headline/text, length and relative-time rules,
 and rejects `[barnet]` or the child's own name in the output.
@@ -151,7 +157,8 @@ school days ahead, which may reach into the next week.
 ## Review checks
 
 After summaries, the scan revisits flagged facts from today through its review
-window. Rules can reject another class's fact or a vague conference window
+window. Rules can reject another class's fact, by the `class_levels` the extractor
+gave it (never by class numbers in its words), or a vague conference window
 covered by an explicit child's appointment. Class context comes from stored
 profile/typed data, not a name hardcoded in the prompt.
 

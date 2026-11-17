@@ -20,6 +20,9 @@ from skoleklar.triage.derivation import validate_items
 from skoleklar.week import week_view
 from skolekit.records import SourceCheck, SourceRecord
 
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
+
 QUIET = fact_model.Field("quiet_day", bool, frozenset({"event"}), False, "any")
 
 

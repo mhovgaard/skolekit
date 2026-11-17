@@ -32,8 +32,6 @@ from typing import Any
 
 from skoleklar.household import load_site_profile
 from skolekit.school import CLASS_LABEL
-from skolekit.wording import DANISH
-from skolekit.wording import Wording
 
 VERDICTS = ("show", "drop", "unclear")
 # The board's period: the next school day, four days ahead and two weeks of events.
@@ -41,7 +39,6 @@ WINDOW_DAYS = 18
 MAX_MODEL_ITEMS = 8
 NOTE_LIMIT = 40
 REASON_LIMIT = 200
-_CLASS = re.compile(r"\b(\d{1,2})\.?\s*(?:kl\b\.?|klasse)", re.IGNORECASE)
 _CLOCK = re.compile(r"\bkl\.?\s*\d{1,2}(?:[.:]\d{2})?\b|\b\d{1,2}[.:]\d{2}\b")
 
 
@@ -97,18 +94,9 @@ def class_label() -> str:
     return load_site_profile().school.class_label
 
 
-def school_wording() -> Wording:
-    """The school's words, such as those naming several classes (`[classes] broad`)."""
-    return load_site_profile().school.wording
-
-
 def _quotes(item: dict) -> list[str]:
     return [str(entry.get("quote") or "")[:200] for entry in item.get("evidence") or []
             if isinstance(entry, dict) and entry.get("quote")]
-
-
-def _text(item: dict) -> str:
-    return " ".join([str(item.get("title") or ""), str(item.get("summary") or ""), *_quotes(item)])
 
 
 def _stems(item: dict) -> set[str]:
@@ -117,13 +105,13 @@ def _stems(item: dict) -> set[str]:
 
 
 def rule_verdict(item: dict, items: list[dict], classes: dict[str, int],
-                 label: str = CLASS_LABEL, *,
-                 wording: Wording = DANISH) -> tuple[str, str | None, str] | None:
+                 label: str = CLASS_LABEL) -> tuple[str, str | None, str] | None:
     """(verdict, note, reason) when a rule settles the fact without a model, else None."""
-    child, text = item.get("child"), _text(item)
+    child = item.get("child")
     own = classes.get(child)
-    mentioned = {int(number) for number in _CLASS.findall(text)}
-    if own is not None and mentioned and own not in mentioned and not wording.names_several_classes(text):
+    # The class levels the extractor says the fact concerns (skoleklar.fact), never its words.
+    mentioned = set(item.get("class_levels") or [])
+    if own is not None and mentioned and own not in mentioned:
         levels = ", ".join(label.format(level=number) for number in sorted(mentioned))
         return "drop", None, f"Marked for {levels}; {child} is in {label.format(level=own)}."
     for other in items:
@@ -204,11 +192,11 @@ def check_reviews(store, *, today: date, client=None, message_mode: str = "event
     open_items = [item for item in flagged if (str(item["stable_key"]), fingerprint(item)) not in known]
     counts = {"flagged": len(flagged), "reused": len(flagged) - len(open_items),
               "rule": 0, "model": 0, "unclear": 0, "unchecked": 0, "model_failed": 0}
-    classes, label, wording = child_classes(store), class_label(), school_wording()
+    classes, label = child_classes(store), class_label()
     decided: list[tuple[dict, str, str | None, str, str]] = []
     remaining = []
     for item in open_items:
-        verdict = rule_verdict(item, items, classes, label, wording=wording)
+        verdict = rule_verdict(item, items, classes, label)
         if verdict:
             decided.append((item, *verdict, "rule"))
             counts["rule"] += 1
@@ -260,14 +248,13 @@ def main() -> None:
         items = [item for item in delivery_items_from_snapshot(store, message_mode="events-only")
                  if not item.get("completed_at") and not item.get("dismissed_at")]
         known, classes, label = stored_verdicts(store), child_classes(store), class_label()
-        wording = school_wording()
         last = (args.today + timedelta(days=WINDOW_DAYS)).isoformat()
         for item in items:
             if not item.get("needs_review") or not item.get("effective_date") \
                     or not args.today.isoformat() <= item["effective_date"] <= last:
                 continue
             stored = known.get((str(item.get("stable_key")), fingerprint(item)))
-            rule = rule_verdict(item, items, classes, label, wording=wording)
+            rule = rule_verdict(item, items, classes, label)
             outcome = (f"stored {stored['verdict']} ({stored['method']})" if stored
                        else f"rule {rule[0]}" if rule else "model" if _quotes(item) else "waits")
             print(json.dumps({"date": item["effective_date"], "child": item.get("child"),

@@ -28,34 +28,19 @@ from skoleklar.triage.prompt_manifest import load_prompt_manifest
 # manifest id: (content_hash, prompt_cache_key, sha256 of render_instructions()), as in production
 TRIAGE_MANIFESTS = {
     "derive-v11": (
-        "e94f531aea0ec6188c3a8d77909ffc0ef4707524ed34f2b5ec6c90311fe2c737",
+        "5d58f5a7c5bbc68d7ff63c2cec52b6525cca03806a5e52014419779944f7f190",
         "ag-school-derive-v11",
-        "628b336821107b1a6fe5d3bdae0ace87529aeba7da1608a3f3819e7049b6cf12",
-    ),
-    "derive-v10": (
-        "39044e3bfacc9a5e68060ba6ab6b37eb3fe9961837528da2a176068bfb153bcb",
-        "ag-school-derive-v10",
-        "5bd6990162fe8f3926f480e534fba463c9caad8399d0e5339a0e05fabbfd35cc",
+        "763d957939706ede3ca485a1a44f49882273f75dfa3df2f32b8c529cc4f2a325",
     ),
     "message-events-v4": (
         "9683fd9093734dc6782b4b497d2e0a2da293d0c31a40e93641dc632eabf24449",
         "ag-school-message-events-v4",
         "2fd7d25ddced1b2f0c71729401c704489b7c0adf2c8807b759cf7c730f369fe6",
     ),
-    "message-events-v3": (
-        "06f327e67be3099a9356bb6bd8bdee50e4590003bc31218ad481e6543dc5aa65",
-        "ag-school-message-events-v3",
-        "6ca11f86927351129b8d4c79d2f2aed88df35d7086f5354886e43237f0f6243d",
-    ),
     "message-topic-v1": (
         "5fffed7f50af226a6c97d0dcad9d80f5dd048076c1d0a1f5d230115275bcbde7",
         "ag-school-message-topic-v1",
         "d9dd8a2bdf81967e01a30cd0dfde1f596e33cbba4d800d5d7a4dbe57b9d0ef7e",
-    ),
-    "derive-v9": (
-        "0eadd3091c76d15247081086079f4247f1a2ee7dff9d5d0e4a326e8fc29a70f4",
-        "ag-school-derive-v9",
-        "fb42921ec4df5e15703e6d8c81329148310964e19427411e9169212f27c3b71f",
     ),
     "archive-v1": (
         "7e68b2924308792d9ccec1d8ad91de4c7ba8f07b34bdeb754e0998b061f98423",
@@ -78,28 +63,16 @@ TRIAGE_MANIFESTS = {
 # manifest id: (content_hash, sha256 of render_instructions()) for the invented household
 INVENTED = {
     "derive-v11": (
-        "e16213cd31127d678e390c4ad65565fbe917a74865a3015f6183d5e5fdfd3e3f",
-        "13ca5e03f203fc72e6984aaaf0cb7d4bd03556921ba97a0f119627d9ee844cbc",
-    ),
-    "derive-v10": (
-        "a6a930b3768d58123d43fffb74798990648d33d7515ecdf222483c04748815b9",
-        "88b0e0717eecbe16a035102a1e4dca1f0e118a421637b28f0cb8d90cfaa1d305",
+        "d95103d2d1d1c6d4930a77b7142a903e8828fc88a062df73f78dc955c0a45360",
+        "20a4ea41f5d6e11d7e299407ca78cd3b842631b7983f7aa185e99f529917fad7",
     ),
     "message-events-v4": (
         "164ef04868e71dc1938472dd142cf64980b831c7f1bf5928e95c42d2a38c6cff",
         "3f1b85061dd989158b2c05ffb57bf9643e6d69f7c5922beb4c54fa22f8c32136",
     ),
-    "message-events-v3": (
-        "d1d5a901473e2e3bdbf77c5b28c4965dc2a5ad4ff8acd289f6b04a6658d5026c",
-        "7af4942f8e87e4e36e9fc141f75ba7114b92e3a16248fc8c3be24f9f911bcc29",
-    ),
     "message-topic-v1": (
         "62a642273288b6c87cddeea36bb03644e72b6c0d2f655538e87bb3bcbd023cd4",
         "065b14276b2477b94dcd19a0cc512d2f1017cef09ca773f36113a355315257cd",
-    ),
-    "derive-v9": (
-        "5fb20e39ff94227dba20300f2ce577c17e627e9c9be9ebac5ac2c5f8fb22d876",
-        "a336e23086f6b87d07cf120b080d24a439b8d0d036606429548eeafc1fd12f01",
     ),
     "archive-v1": (
         "4efa045242b12a3c64b6caf9b270efd0bc5c2f38621b492692e892673f5cacef",
@@ -146,7 +119,7 @@ def test_a_slot_without_a_value_or_a_bad_triage_file_is_refused(tmp_path) -> Non
     from tests_python.synthetic_household import write_household
 
     with pytest.raises(SlotError, match="no value for child_1"):
-        load_prompt_manifest("derive-v9", slots={})
+        load_prompt_manifest("derive-v11", slots={})
     home = write_household(tmp_path)
     (home / "triage.toml").write_text('[slots]\nother_1 = "Clara"\nfriend = "X"\n', encoding="utf-8")
     with pytest.raises(SlotError, match="unknown slot 'friend'"):

@@ -16,6 +16,9 @@ from skoleklar.storage import SnapshotStore
 from tests_python.test_dashboard_events import weekend_fixture
 from tests_python.test_weather import weather_state
 
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
+
 NOW = datetime.fromisoformat("2026-10-24T14:00:00+02:00")  # Saturday: the weekend cover.
 SATURDAY, SUNDAY = "2026-10-24", "2026-10-25"
 LABEL = {SATURDAY: "Lør. 24. okt.", SUNDAY: "Søn. 25. okt."}

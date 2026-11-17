@@ -188,11 +188,13 @@ def test_another_schools_words_are_read_from_its_file(tmp_path):
     store.close()
 
 
-def test_the_review_rule_reads_the_schools_words_for_several_classes():
-    item = {"child": "Alfa", "title": "Tur for 3. klasse og hele skolen", "effective_date": "2026-11-20"}
+def test_the_review_rule_reads_the_class_levels_the_extractor_gave():
+    """Several classes are several class levels on the fact, never words in it."""
+    item = {"child": "Alfa", "title": "Tur for 3. klasse og hele skolen", "effective_date": "2026-11-20",
+            "class_levels": [2, 3]}
     assert review_checks.rule_verdict(item, [item], {"Alfa": 2}) is None
-    narrow = replace(DANISH, broad=("indskolingen",))
-    verdict = review_checks.rule_verdict(item, [item], {"Alfa": 2}, wording=narrow)
+    item["class_levels"] = [3]
+    verdict = review_checks.rule_verdict(item, [item], {"Alfa": 2})
     assert verdict == ("drop", None, "Marked for 3. klasse; Alfa is in 2. klasse.")
 
 

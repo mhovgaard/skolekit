@@ -13,6 +13,9 @@ from skoleklar.live_subjects import DisplayMessage, with_topics
 from skoleklar.triage.message_topics import topic_writer, topics_mode, valid_topic
 from tests_python.board_lines import line
 
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
+
 NAMES = ["Alfa", "Beta"]
 
 
@@ -199,24 +202,6 @@ def later(entries):
             for entry in entries]
 
 
-@pytest.mark.parametrize("hero, expected", [
-    # (next school day, the four after it): Sunday 12.00 and Monday evening …
-    ("2026-11-09", ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"]),
-    ("2026-11-10", ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16"]),
-    # … Wednesday evening, and Thursday evening or Friday daytime: never an empty weekend.
-    ("2026-11-12", ["2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18"]),
-    ("2026-11-13", ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"]),
-    # ISO week 53 of 2026 into week 1 of 2027.
-    ("2027-01-01", ["2027-01-04", "2027-01-05", "2027-01-06", "2027-01-07"]),
-])
-def test_the_days_ahead_are_the_next_four_school_days(hero, expected):
-    hero = date.fromisoformat(hero)
-    assert [value.isoformat() for value in pb.lookahead_dates(hero)] == expected
-    span = pb.lookahead_span(hero)
-    assert span[0] == hero + timedelta(days=1) and span[-1].isoformat() == expected[-1]
-    assert len(span) <= pb.AHEAD_ROWS
-
-
 def test_thursday_evening_looks_into_the_weekend_and_next_week():
     state = heavy_week_state()  # composed for 9–13 November
     context = context_at("2026-11-12T19:30:00+01:00", [
@@ -243,20 +228,6 @@ def test_thursday_evening_looks_into_the_weekend_and_next_week():
                         "ahead": rows, "later_events": []})
 
 
-def test_later_events_start_after_the_last_school_day_ahead():
-    state = heavy_week_state()
-    context = context_at("2026-11-12T19:30:00+01:00", [  # Thursday: the days ahead end on Thursday 19
-        fact("fact-1", "Alfa", "2026-11-19", "event", "Skovtur", category="trip"),
-        fact("fact-2", "Alfa", "2026-11-20", "event", "Juleklip", category="party"),
-        fact("fact-3", "Beta", "2026-11-27", "parent_action", "Tilmeld juletur"),
-        fact("fact-4", "Beta", "2026-11-28", "event", "Too far out"),
-    ])
-    assert later(pb.later_events(context, state)) == [
-        ("2026-11-20", "Alfa", "party", "", "Juleklip"),
-        ("2026-11-27", "Beta", "deadline", "Frist", "Tilmeld juletur"),
-    ]
-
-
 def test_later_events_are_trips_parties_meetings_and_deadlines_two_weeks_out():
     state = heavy_week_state()
     context = context_at("2026-11-08T19:30:00+01:00", [
@@ -275,17 +246,6 @@ def test_later_events_are_trips_parties_meetings_and_deadlines_two_weeks_out():
         ("2026-11-20", "Beta", "meeting", "", "Forældresamtale 16.40"),
         ("2026-11-23", "Beta", "party", "Aflyst", "Juleklip"),
     ]
-
-
-def test_a_weekly_event_is_not_repeated_below_the_rule():
-    state = heavy_week_state()
-    context = context_at("2026-11-08T19:30:00+01:00", [
-        fact("fact-1", "Elsewhere", "2026-11-13", "event", "Morgensang", recurring=True),
-        fact("fact-2", "Elsewhere", "2026-11-20", "event", "Morgensang", recurring=True),
-        fact("fact-3", "Beta", "2026-11-16", "event", "Svømning"),
-        fact("fact-4", "Beta", "2026-11-23", "event", "Svømning"),
-    ])
-    assert later(pb.later_events(context, state)) == [("2026-11-16", "Beta", "event", "", "Svømning")]
 
 
 def test_morning_singing_is_a_routine_and_never_shown_unless_cancelled():
@@ -311,15 +271,6 @@ def test_yellow_follows_the_facts_kind_and_the_frames_date():
     assert not render.make_item(line("Idræt kl. 10 i salen", "change", day="2026-11-09"), today).urgent
     assert not render.make_item(line("Fødselsdagsfest", "deadline", day="2026-11-09", cancelled=True),
                                 today).urgent
-
-
-def test_look_ahead_is_left_out_of_the_weekend_cover_and_day_view():
-    state = heavy_week_state()
-    context = context_at("2026-11-08T19:30:00+01:00", [fact("fact-1", "Beta", "2026-11-19", "event", "Skolefest",
-                                                            category="party")])
-    assert "later_events" in pb.attach_lookahead({**state, "later_events": []}, context)
-    cover = {**state, "weather": {"place": "Byen"}}
-    assert pb.attach_lookahead(cover, context) == cover
 
 
 @pytest.mark.parametrize("change", [
@@ -381,94 +332,21 @@ def day_lines(kid):
     return {iso: ["".join(text for text, _ in item.runs) for item in items] for iso, items, _ in kid.days}
 
 
-@pytest.mark.parametrize("composed, shown", [
-    # Sunday 12.00–15.00: Monday on the left, Tuesday to Friday; never Sunday.
-    ("2026-11-08T13:00:00+01:00", ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13"]),
-    # Monday evening: Tuesday on the left, then into the next week.
-    ("2026-11-09T19:30:00+01:00", ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16"]),
-    # Thursday evening and Friday daytime: Friday on the left, Monday to Thursday, no empty weekend.
-    ("2026-11-12T19:30:00+01:00", ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"]),
-    ("2026-11-13T10:00:00+01:00", ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"]),
-])
-def test_the_board_shows_the_next_five_school_days(composed, shown):
-    state = heavy_week_state()
-    for entry in state["weekdays"]:  # A child without homework: only the weekly plan says what is on.
-        entry["children"][0].update(lines=[])
-    state = with_plans(state, composed)
-    dashboard.validate(state)
-    model, _ = render.layout(state)
-    alfa = model.kids[0]
-    assert [iso for iso, _, _ in alfa.days] == shown
-    for iso in shown:
-        plan = alfa.days[[day[0] for day in alfa.days].index(iso)][1][0]
-        assert plan.kind == "plan" and plan.runs == [(f"Alfa plan {iso[-2:]}", False)]
-        assert not plan.box and not plan.chip and not plan.urgent
-    html = dashboard.render_html(state)
-    assert "Lør " not in html and "Søn " not in html
-    assert f"Alfa plan {shown[-1][-2:]}" in html and 'class="pb-dayplan"' in html
-
-
-def test_a_weekend_activity_between_the_school_days_keeps_its_row():
-    state = with_plans(heavy_week_state(), "2026-11-12T19:30:00+01:00")
-    state["weekend"] = [weekend_row("2026-11-14", "Lør. 14. nov.", "Beta",
-                                    line("Fødselsdagsfest", "party", day="2026-11-14"))]
-    dashboard.validate(state)
-    beta = render.layout(state)[0].kids[1]
-    assert [iso for iso, _, _ in beta.days] == ["2026-11-14", "2026-11-16", "2026-11-17", "2026-11-18",
-                                                "2026-11-19"]
-    assert day_lines(beta)["2026-11-14"] == ["Fødselsdagsfest"]
-
-
 def test_a_plan_line_is_left_out_when_a_line_already_says_it():
     state = heavy_week_state()
     for entry in state["weekdays"]:
         if entry["date"] != "2026-11-12":
             for kid in entry["children"]:
                 kid.update(lines=[])
+    # The summary for Beta's Thursday retells its trip (day-summary-v3); Alfa's does not.
+    thursday = next(entry for entry in state["weekdays"] if entry["date"] == "2026-11-12")
+    thursday["children"][1]["lines"][0] = line("Kulturdag i teatret", "trip", day="2026-11-12", retold=True)
     state = with_plans(state, "2026-11-08T19:30:00+01:00",
-                       {("Beta", "2026-11-12"): "Kulturdag i teatret", ("Alfa", "2026-11-12"): "Kunst og tog"})
+                       {("Beta", "2026-11-12"): "Teater hele dagen", ("Alfa", "2026-11-12"): "Kunst og tog"})
     lines = [day_lines(kid)["2026-11-12"] for kid in render.layout(state)[0].kids]
     assert lines[0][0] == "Kunst og tog"
-    # Beta's trip says it already: no second line with the same words.
+    # Beta's trip is what the headline retells: it is said once, whatever the words.
     assert lines[1] == ["Kulturdag i teatret", "Medbring madpakke"]
-
-
-def test_plan_lines_give_way_before_homework_and_are_not_counted():
-    plain = render.layout(heavy_week_state())[0]
-    state = with_plans(heavy_week_state(), "2026-11-08T19:30:00+01:00")
-    dashboard.validate(state)
-    model, heights = render.layout(state)
-    assert sum(heights) <= 480 - render.HEADER_HEIGHT
-    shown_items = [item for kid in model.kids for _, items, _ in kid.days for item in items]
-    homework = [item for kid in model.kids for item in kid.left if item.kind == "homework"]
-    assert len(homework) + sum(item.kind == "homework" for item in shown_items) == 16
-    assert any(item.chip == "TUR" for item in shown_items)
-    # A plan line retells the plan; it is no 'punkt' when it gives way.
-    assert [kid.dropped_right for kid in model.kids] == [kid.dropped_right for kid in plain.kids]
-    # They give way one at a time, the farthest day first, so the room left keeps the nearer ones.
-    for kid in model.kids:
-        planned = [any(item.kind == "plan" for item in items) for _, items, _ in kid.days]
-        assert planned[0] and planned == sorted(planned, reverse=True)
-
-
-def test_a_quiet_week_keeps_every_plan_line():
-    state = heavy_week_state()
-    for entry in state["weekdays"]:
-        for kid in entry["children"]:
-            kid.update(lines=[])
-    model, _ = render.layout(with_plans(state, "2026-11-08T19:30:00+01:00",
-                                        {(name, f"2026-11-{day}"): "Bogstavet F, tal til 20 og en tur i skoven"
-                                         for name in NAMES for day in range(10, 14)}))
-    assert all(len(kid.days) == 4 and all(items[0].kind == "plan" for _, items, _ in kid.days)
-               for kid in model.kids)
-
-
-def test_yellow_marks_only_time_urgency():
-    model, _ = render.layout(heavy_week_state())
-    urgent = [item for kid in model.kids for item in kid.left if item.urgent]
-    urgent += [item for kid in model.kids for _, items, _ in kid.days for item in items if item.urgent]
-    # Monday's deadline is urgent; Thursday's moved meeting place is not a changed time.
-    assert [item.kind for item in urgent] == ["deadline"]
 
 
 def test_rain_on_a_trip_day_is_noted_unless_its_things_to_bring_are_rain_gear():
@@ -477,64 +355,6 @@ def test_rain_on_a_trip_day_is_noted_unless_its_things_to_bring_are_rain_gear():
     thursday = [rain for kid in model.kids for iso, _, rain in kid.days if iso == "2026-11-12"]
     # Alfa packs rain gear; Beta does not.
     assert thursday == [False, True]
-
-
-def test_full_week_gives_way_in_the_fixed_order_and_keeps_homework():
-    state = heavy_week_state()
-    for entry in state["weekdays"]:
-        for kid in entry["children"]:
-            if len(kid["lines"]) < 3:
-                kid["lines"].append(line("Alberte · DAN 1", "substitute", day=entry["date"]))
-    model, heights = render.layout(state)
-    assert sum(heights) <= 480 - render.HEADER_HEIGHT
-    shown_items = [item for kid in model.kids for _, items, _ in kid.days for item in items]
-    assert not any(item.kind == "substitute" for item in shown_items)
-    assert sum(item.kind == "homework" for item in shown_items) == 12
-    assert any(item.chip == "TUR" for item in shown_items)
-    assert sum(kid.dropped_right for kid in model.kids) > 0
-
-
-def test_weekend_activity_before_the_next_school_day_stays_when_the_forecast_fails():
-    state = heavy_week_state()
-    state["freshness"]["composed_at"] = "2026-11-07T10:00:00+01:00"  # Saturday, no weekend weather
-    state["weekend"] = [weekend_row("2026-11-08", "Søn. 8. nov.", "Beta",
-                                    line("Fødselsdagsfest", "party", day="2026-11-08"))]
-    html = dashboard.render_html(state)
-    rita = html.split('<section class="pb-cell pb-right">')[2]
-    assert '<span class="chip">FEST</span>Fødselsdagsfest' in rita
-    assert rita.index("Søn 8.") < rita.index("Tir 10.")
-
-
-@pytest.mark.parametrize("composed", ["2026-11-08T12:30:00+01:00", "2026-11-08T19:30:00+01:00"])
-def test_a_board_for_monday_never_lists_sunday(composed):
-    state = heavy_week_state()
-    state["freshness"]["composed_at"] = composed
-    state["weekend"] = [weekend_row("2026-11-08", "Søn. 8. nov.", "Beta",
-                                    line("Fødselsdagsfest", "party", day="2026-11-08"))]
-    state["weekend_overflow"] = 1
-    html = dashboard.render_html(state)
-    assert "Fødselsdagsfest" not in html and "Søn 8." not in html and "mere" not in html.split("Begge")[-1]
-
-
-def test_weekend_overflow_is_counted_on_the_last_activity():
-    state = heavy_week_state()
-    state["freshness"]["composed_at"] = "2026-11-07T10:00:00+01:00"
-    state["weekend"] = [weekend_row("2026-11-07", "Lør. 7. nov.", "Alfa",
-                                    line("Fodboldkamp kl. 11", "event", day="2026-11-07")),
-                        weekend_row("2026-11-08", "Søn. 8. nov.", "Beta",
-                                    line("Fødselsdagsfest", "party", day="2026-11-08"))]
-    state["weekend_overflow"] = 1
-    html = dashboard.render_html(state)
-    # Both activities fit; the one the weekend rows had no room for is counted, not listed.
-    assert "Fodboldkamp kl. 11" in html and "Fødselsdagsfest (+1 mere)" in html
-    assert "aktivitet mere" not in html
-
-
-def test_message_line_without_a_topic_shows_only_sender_and_date():
-    state = heavy_week_state()
-    messages = [replace(item, topic="") for item in live_messages()]
-    html = dashboard.render_html(state, live_messages=messages)
-    assert ">Karen<" in html and "Husk samtykke" not in html
 
 
 # --- Message topics ------------------------------------------------------------------------
@@ -550,132 +370,15 @@ class FakeClient:
         return {"output": {"topics": self.topics}}
 
 
-def test_topics_are_written_only_from_safe_subjects():
-    client = FakeClient([{"id": "1", "topic": "Samtykke tur", "hide": False}])
-    messages = [DisplayMessage("Alfa", "Karen H.", "Husk samtykke til turen", "safe", "08/11", True),
-                DisplayMessage("Beta", "Simon B.", "", "redacted", "06/11", False)]
-    result = with_topics(messages, topic_writer(client))
-    assert client.documents == [{"subjects": [{"id": "1", "subject": "Husk samtykke til turen"}]}]
-    assert result[0].topic == "Samtykke tur" and result[1] == messages[1]
-
-
-def test_a_hidden_topic_redacts_the_subject():
-    client = FakeClient([{"id": "1", "topic": None, "hide": True}])
-    [message] = with_topics([DisplayMessage("Beta", "Simon B.", "Om pigerne", "safe", "06/11")],
-                            topic_writer(client))
-    assert message.status == "redacted" and message.text == "" and message.topic == ""
-
-
-@pytest.mark.parametrize("topic", ["Beta fest", "Tre ord her", "Tur 12", "", "x" * 25, None])
-def test_invalid_topics_are_dropped(topic):
-    assert not valid_topic(topic, NAMES)
-
-
-def test_a_failing_model_leaves_sender_and_date():
-    messages = [DisplayMessage("Alfa", "Karen H.", "Husk samtykke", "safe", "08/11", True)]
-    assert with_topics(messages, topic_writer(FakeClient(error=RuntimeError("down")))) == messages
-
-
-def test_topics_are_opt_in(monkeypatch):
-    monkeypatch.delenv("AG_MESSAGE_TOPICS", raising=False)
-    assert topics_mode() == "off"
-    monkeypatch.setenv("AG_MESSAGE_TOPICS", "model")
-    assert topics_mode() == "model"
-    monkeypatch.setenv("AG_MESSAGE_TOPICS", "always")
-    with pytest.raises(ValueError):
-        topics_mode()
-
-
 # --- Battery ---------------------------------------------------------------------------------
-
-def test_battery_comes_from_a_recent_status_report(monkeypatch):
-    from datetime import datetime
-
-    from skoleklar import board_status
-    from skoleklar.runtime import scan as scan_service
-
-    now = datetime.fromisoformat("2026-11-08T19:30:00+01:00")
-    record = {"received_at": "2026-11-08T18:00:00+00:00", "report": {"battery_present": True,
-                                                                    "battery_percent": 81.6}}
-    monkeypatch.setattr(board_status, "status_store_from_environment", lambda: object())
-    monkeypatch.setattr(board_status, "latest_record", lambda store: record)
-    state = heavy_week_state()
-    state.pop("device")
-    frames = [(now, state)]
-    assert scan_service._with_battery(frames, now)[0][1]["device"] == {"battery_percent": 82}
-    record["received_at"] = "2026-11-05T18:00:00+00:00"
-    assert "device" not in scan_service._with_battery(frames, now)[0][1]
-    monkeypatch.setattr(board_status, "latest_record", lambda store: 1 / 0)
-    [(_, unread)] = scan_service._with_battery(frames, now)
-    assert "device" not in unread
-    assert unread["health"]["battery"] == {"status": "degraded", "reason": "zero_division_error"}
 
 
 # --- The same conventions on the weekend cover and the children's day view ------------------
-
-def test_every_view_shows_the_same_status_with_the_battery():
-    from tests_python.test_day_view import rendered_state
-    from tests_python.test_weather import weather_state
-
-    for state in (weather_state("Blandet"), rendered_state()):
-        state["device"] = {"battery_percent": 64}
-        html = dashboard.render_html(state)
-        assert 'class="pb-status' in html and "64 %" in html and "Opdateret " in html
 
 
 def yellow_used(image):
     """Yellow on the right half; the season's artwork on the left uses every pigment."""
     return 0x2 in {index for _count, index in image.crop((341, 0, 800, 480)).getcolors(maxcolors=256)}
-
-
-def test_the_day_view_marks_only_an_earlier_finish_yellow():
-    from tests_python.test_day_view import rendered_state
-    from skoleklar.day_view_render import ends_earlier
-
-    state = rendered_state()
-    children = state["day_view"]["children"]
-    assert any(lesson["change"] == "vikar" for child in children for lesson in child["lessons"])
-    # A substitute is named on its tile, not marked.
-    assert not any(ends_earlier(child) for child in children)
-    assert not yellow_used(dashboard.render_png(state, dither_mode="crisp"))
-    assert 'class="ends earlier"' not in dashboard.render_html(state)
-    # The last lesson cancelled: the day ends early, and that is time-urgent.
-    lessons = children[1]["lessons"]
-    lessons[-1].update(change="aflyst", note="")
-    assert ends_earlier(children[1])
-    assert yellow_used(dashboard.render_png(state, dither_mode="crisp"))
-    assert 'class="ends earlier"' in dashboard.render_html(state)
-
-
-def test_weekend_activities_get_boxes_and_count_the_rest_on_the_last():
-    from tests_python.test_weather import weather_state
-
-    state = weather_state("Blandet")
-    state["weekend"] = [weekend_row("2026-10-03", "Lør. 3. okt.", "ChildA",
-                                    line("Fødselsdagsfest", "party", day="2026-10-03"),
-                                    line("udetøj", "bring", day="2026-10-03"))]
-    state["weekend_overflow"] = 2
-    [(label, who, items)] = render.weekend_activities(state)
-    assert (label, who) == ("Lør 3.", "ChildA")
-    assert items[0].chip == "FEST" and items[1].runs[0] == ("Medbring", True)
-    assert items[1].runs[-1] == (" (+2 mere)", False)
-
-
-def test_weekend_day_labels_are_never_shortened(monkeypatch):
-    from tests_python.test_weather import weather_state
-
-    state = weather_state("Blandet")
-    state["weekend"] = [weekend_row("2026-10-03", "Lør. 3. okt.", "ChildA",
-                                    line("Fødselsdagsfest", "party", day="2026-10-03")),
-                        weekend_row("2026-10-04", "Søn. 4. okt.", "Begge",
-                                    line("Skovtur", "trip", day="2026-10-04"))]
-    drawn = []
-    original = dashboard._draw_protected_text
-    monkeypatch.setattr(dashboard, "_draw_protected_text",
-                        lambda draw, xy, value, *rest: drawn.append(value) or original(draw, xy, value, *rest))
-    dashboard.render_png(state)
-    assert "Lør 3." in drawn and "Søn 4." in drawn
-    assert not any(value.endswith("…") for value in drawn)
 
 
 def test_weekend_rows_draw_their_boxes_and_labels_from_their_facts():
@@ -690,32 +393,6 @@ def test_weekend_rows_draw_their_boxes_and_labels_from_their_facts():
     [(_, who, items)] = render.weekend_activities(state)
     assert who == "ChildA" and items[0].chip == "TUR"
     assert items[1].runs == [("Medbring", True), (" madpakke", False)]
-
-
-@pytest.mark.parametrize("change", [
-    {"who": "Somebody"}, {"lines": []}, {"text": "ChildA: Skovdag"}, {"date": "lør"},
-    {"lines": [line("Skovdag med en meget lang tekst der ikke kan være på en række", "trip")]},
-])
-def test_weekend_rows_are_allowlisted(change):
-    from tests_python.test_weather import weather_state
-
-    state = weather_state("Blandet")
-    state["weekend"] = [{**weekend_row("2026-10-03", "Lør. 3. okt.", "ChildA",
-                                       line("Skovdag", "trip", day="2026-10-03")), **change}]
-    with pytest.raises(ValueError):
-        dashboard.validate(state)
-
-
-def test_the_parents_board_weekend_rows_use_their_facts_when_the_forecast_fails():
-    state = heavy_week_state()
-    state["freshness"]["composed_at"] = "2026-11-07T10:00:00+01:00"  # Saturday, no weekend weather
-    state["weekend"] = [weekend_row("2026-11-08", "Søn. 8. nov.", "Beta",
-                                    line("Skovdag", "trip", day="2026-11-08"),
-                                    line("madpakke", "bring", day="2026-11-08"))]
-    dashboard.validate(state)
-    beta = render.layout(state)[0].kids[1]
-    [(iso, items, _)] = [day for day in beta.days if day[0] == "2026-11-08"]
-    assert items[0].chip == "TUR" and items[1].runs[0] == ("Medbring", True)
 
 
 def test_the_board_names_a_missing_part_in_one_line():

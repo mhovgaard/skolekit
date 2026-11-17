@@ -359,7 +359,7 @@ def create_app(
         try:
             pointer = delivery_store.read_json("current.json")
             manifest = delivery_store.read_json(pointer["object"])
-            validate_contract("manifest-v1", manifest)
+            validate_contract("manifest-v2", manifest)
         except (DeliveryObjectNotFoundError, KeyError, TypeError, ValueError):
             event("manifest_unavailable", device_id=value["device_id"])
             return JSONResponse({"error": "manifest_unavailable"}, status_code=503)
@@ -381,7 +381,7 @@ def create_app(
         manifest_name = f"manifests/{value['manifest_id']}.json"
         try:
             manifest = delivery_store.read_json(manifest_name)
-            validate_contract("manifest-v1", manifest)
+            validate_contract("manifest-v2", manifest)
         except (DeliveryObjectNotFoundError, ValueError):
             return JSONResponse({"error": "unknown_manifest"}, status_code=409)
         known_keys = {

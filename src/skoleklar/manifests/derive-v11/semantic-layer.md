@@ -37,6 +37,7 @@ family-relevant facts; it is not a summary of every sentence in the source.
 | `teacher` | text, null | A `substitute`'s name. Every other type is null. |
 | `bring_items` | list of text | For a `bring`, each thing to bring in a few words, without a verb. Every other type has none. |
 | `rain_gear` | true, false | For a `bring`: the things are rain clothes or rubber boots. |
+| `class_levels` | list of 0–10 | The class levels the source says the item is for; empty when it names none. Code compares them with the child's class. |
 
 The board and the phone use these fields as they are; they never re-read the
 title to work out what an item is, its subject or what to bring.

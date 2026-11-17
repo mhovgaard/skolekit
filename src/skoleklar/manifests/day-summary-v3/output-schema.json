@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "headline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 48
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 480
+          },
+          "general_used": {
+            "type": "boolean"
+          },
+          "facts": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "string",
+              "maxLength": 8
+            }
+          }
+        },
+        "required": [
+          "date",
+          "headline",
+          "text",
+          "general_used",
+          "facts"
+        ]
+      }
+    }
+  },
+  "required": [
+    "days"
+  ]
+}

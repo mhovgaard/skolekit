@@ -15,6 +15,9 @@ from skoleklar.dashboard_rules import (
 from skoleklar.dashboard_validation import RuleViolation, validate_composition
 from tests_python.test_dashboard_timeline import composed_week, context_at, local, party
 
+# This refactor's core set: `pytest -m pipeline` (docs/maintenance.md).
+pytestmark = pytest.mark.pipeline
+
 
 def fact(ref, child, day, kind="event", **values):
     base = {"ref": ref, "child": child, "effective_date": day, "end_date": None, "type": kind,

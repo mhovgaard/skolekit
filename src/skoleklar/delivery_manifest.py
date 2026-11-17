@@ -5,6 +5,7 @@ import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+from skoleklar import fact as fact_model
 from skoleklar import health as stage_health
 from skoleklar.brief import build_brief, render_brief_text
 from skoleklar.contracts import validate_contract
@@ -58,6 +59,7 @@ def build_delivery_manifest(
             review.append(
                 {
                     "stable_key": item["stable_key"],
+                    **_typed(item),
                     "title": _phone_title(item),
                     "summary": _limited(str(item["summary"]), 1000),
                     "reason": _limited(reason, 500),
@@ -67,6 +69,7 @@ def build_delivery_manifest(
         if item_type in CALENDAR_TYPES:
             value = {
                 "stable_key": item["stable_key"],
+                **_typed(item),
                 "state": item.get("state", "active"),
                 "title": _phone_title(item),
                 "start": item["effective_date"],
@@ -80,6 +83,7 @@ def build_delivery_manifest(
         else:
             value = {
                 "stable_key": item["stable_key"],
+                **_typed(item),
                 "state": item.get("state", "active"),
                 "list": (
                     "School · Bring home"
@@ -119,7 +123,7 @@ def build_delivery_manifest(
         # First, so cutting a long brief never loses it.
         brief_body = f"⚠️ {missing}\n\n{brief_body}"
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "manifest_id": f"{generated.strftime('%Y%m%dT%H%M%SZ')}-{suffix}",
         "generated_at": generated_text,
         "expires_at": expires_text,
@@ -135,12 +139,12 @@ def build_delivery_manifest(
     }
     if coverage is not None:
         manifest["coverage"] = coverage
-    validate_contract("manifest-v1", manifest)
+    validate_contract("manifest-v2", manifest)
     return manifest
 
 
 def publish_manifest(store: Any, manifest: dict[str, Any]) -> dict[str, Any]:
-    validate_contract("manifest-v1", manifest)
+    validate_contract("manifest-v2", manifest)
     object_name = f"manifests/{manifest['manifest_id']}.json"
     try:
         store.write_json(object_name, manifest, create_only=True)
@@ -190,6 +194,8 @@ def delivery_items_from_snapshot(
         if not members:
             continue
         item = dict(consolidated)
+        # The derived facts it stands for, by stable key: what a day summary may retell.
+        item["source_fact_keys"] = [member["stable_key"] for member in members]
         for field in (
             "first_delivered_at",
             "last_delivered_at",
@@ -227,6 +233,13 @@ def _ended_before(item: dict[str, Any], target_date: date) -> bool:
         if _valid_date(value):
             return date.fromisoformat(value) < target_date
     return False
+
+
+def _typed(item: dict[str, Any]) -> dict[str, Any]:
+    """What the fact is, as every reader gets it (skoleklar.fact): its board kind and
+    its typed fields. The phone reads these, never a title, to know what an entry is."""
+    fact = {key: value for key, value in fact_model.public(item).items() if key != "contract"}
+    return {"kind": fact_model.kind(item), "fact": fact}
 
 
 def _phone_title(item: dict[str, Any]) -> str:

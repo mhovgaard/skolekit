@@ -16,6 +16,7 @@ fills it) is all it takes for the field to reach the board.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -69,23 +70,33 @@ class Field:
     # The values allowed, for every type or per type.
     values: frozenset[Any] | dict[str, frozenset[Any]] | None = None
     limit: int = 80
+    # A text field's form, such as a clock time.
+    pattern: str | None = None
+    # A list's items: short text, or whole numbers up to `limit`.
+    item_kind: type = str
 
     def holds(self, value: Any, fact_type: str | None) -> bool:
         if fact_type not in self.types or value is None:
             return False
         if self.kind is list:
-            return (isinstance(value, list) and 0 < len(value) <= 8
-                    and all(_short_text(item, self.limit) for item in value))
+            def fits(item: Any) -> bool:
+                if self.item_kind is int:
+                    return type(item) is int and 0 <= item <= self.limit
+                return _short_text(item, self.limit)
+            return isinstance(value, list) and 0 < len(value) <= 8 and all(fits(item) for item in value)
         if self.kind is str:
             allowed = self.values.get(fact_type) if isinstance(self.values, dict) else self.values
-            return _short_text(value, self.limit) and (allowed is None or value in allowed)
+            return (_short_text(value, self.limit) and (allowed is None or value in allowed)
+                    and (self.pattern is None or re.fullmatch(self.pattern, value) is not None))
         return isinstance(value, self.kind)
 
     def normal(self, value: Any, fact_type: str | None) -> Any:
         """`value` where it means something for `fact_type`, else `empty`."""
         if not self.holds(value, fact_type):
             return list(self.empty) if isinstance(self.empty, list) else self.empty
-        return [" ".join(item.split()) for item in value] if self.kind is list else value
+        if self.kind is list:
+            return sorted(set(value)) if self.item_kind is int else [" ".join(item.split()) for item in value]
+        return value
 
 
 def _short_text(value: Any, limit: int) -> bool:
@@ -94,6 +105,8 @@ def _short_text(value: Any, limit: int) -> bool:
 
 
 CATEGORIES = frozenset({"trip", "party", "meeting", "birthday", "other"})
+TYPES = frozenset({"homework", "bring", "event", "schedule_change", "substitute", "parent_action",
+                   "reminder", "context", "routine", "lesson_preview"})
 ACTIVITY_KINDS = frozenset({"birthday_party", "class_trip", "class_event", "social_activity"})
 
 MEANING = (
@@ -114,6 +127,13 @@ MEANING = (
     Field("bring_items", list, frozenset({"bring"}), [], "union", limit=60),
     # Whether the things to bring are rain clothes or boots.
     Field("rain_gear", bool, frozenset({"bring"}), False, "any"),
+    # The class levels (årgange) the source says a fact concerns; none when it names none.
+    Field("class_levels", list, TYPES, [], "union", limit=10, item_kind=int),
+    # When a changed lesson starts and ends, as the timetable gives it.
+    Field("start_time", str, frozenset({"schedule_change", "substitute"}), None, "agree",
+          limit=5, pattern=r"[0-2]\d:[0-5]\d"),
+    Field("end_time", str, frozenset({"schedule_change", "substitute"}), None, "agree",
+          limit=5, pattern=r"[0-2]\d:[0-5]\d"),
     # A message event's category (message-events-v4).
     Field("activity_kind", str, frozenset({"event"}), None, "agree", ACTIVITY_KINDS),
     # A birthday party's birthday child, by first name (message-events-v4).

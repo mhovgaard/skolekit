@@ -32,7 +32,7 @@ Keep access logs and diagnostics free of tokens and school content.
 ## Phone
 
 Exact JSON definitions are in [contracts](../src/skoleklar/contracts/):
-`sync-request-v1`, `manifest-v1`, `receipt-v1` and `probe-request-v1`.
+`sync-request-v1`, `manifest-v2`, `receipt-v1` and `probe-request-v1`.
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -41,7 +41,9 @@ Exact JSON definitions are in [contracts](../src/skoleklar/contracts/):
 | `POST /v1/receipts` | Report applied keys and failed native writes |
 
 An unchanged or inapplicable manifest returns 204. A manifest carries calendar,
-reminder and review entries with stable keys/revisions and expiry. The Shortcut
+reminder and review entries with stable keys/revisions and expiry. Each entry
+says what it is like every other reader gets it ([the fact model](processing.md#the-fact-model)):
+its board `kind` and its typed `fact` (type, category, things to bring, subject …). The Shortcut
 matches embedded markers before writing, leaves unchanged items alone, updates
 changed items, and refuses ambiguous duplicate matches. It does not delete
 native entries. Exactly one phone performs reconciliation; other family members

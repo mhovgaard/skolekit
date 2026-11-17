@@ -93,10 +93,10 @@ def test_a_new_database_runs_every_migration_once(tmp_path):
             "SELECT version, name, checksum FROM schema_migrations ORDER BY version").fetchall()
         assert [(row[0], row[1]) for row in rows] == [
             (1, "baseline"), (2, "typed_sources"), (3, "bookings"), (4, "views"),
-            (5, "item_archive"), (6, "message_celebrant")]
+            (5, "item_archive"), (6, "message_celebrant"), (7, "summary_fact_keys")]
         assert [row[2] for row in rows] == [m.checksum for m in migrations.migrations()]
     with SnapshotStore(tmp_path / "new.db") as store:
-        assert store.connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 6
+        assert store.connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 7
 
 
 def test_an_older_database_is_marked_as_baseline_without_rerunning_it(tmp_path):
@@ -106,7 +106,7 @@ def test_an_older_database_is_marked_as_baseline_without_rerunning_it(tmp_path):
         connection.execute("INSERT INTO harvest_runs(started_at, status, schema_version) "
                            "VALUES ('2026-09-13T05:45:00Z', 'complete', 1)")
     with SnapshotStore(path) as store:
-        assert migrations.current_version(store.connection) == 6
+        assert migrations.current_version(store.connection) == 7
         assert store.connection.execute("SELECT count(*) FROM harvest_runs").fetchone()[0] == 1
 
 
@@ -128,7 +128,7 @@ def test_the_old_startup_upgrade_still_brings_an_older_file_to_the_baseline(tmp_
     with SnapshotStore(path) as store:
         columns = {row[1] for row in store.connection.execute("PRAGMA table_info(derivations)")}
         assert "purpose" in columns
-        assert migrations.current_version(store.connection) == 6
+        assert migrations.current_version(store.connection) == 7
 
 
 def test_a_file_that_does_not_match_the_baseline_is_refused_untouched(tmp_path):
@@ -169,7 +169,7 @@ def test_a_version_5_database_gains_the_celebrant_column_and_keeps_its_facts(tmp
         store.connection.commit()
     monkeypatch.setattr(migrations, "migrations", lambda: real)
     with SnapshotStore(path) as store:
-        assert migrations.current_version(store.connection) == 6
+        assert migrations.current_version(store.connection) == 7
         [row] = store.connection.execute("SELECT activity_kind, celebrant FROM message_event_facts").fetchall()
         assert tuple(row) == ("birthday_party", None)
 

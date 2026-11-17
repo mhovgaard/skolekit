@@ -113,6 +113,10 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
     # neutral per-export number instead of the opaque thread handle.
     thread_of = {item["stable_key"]: item["message_thread_ref"]
                  for item in items if item.get("message_thread_ref")}
+    # Facts a day summary's headline retells (day-summary-v3), so the board says them once.
+    retold_keys = store.retold_fact_keys()
+    retold = {item["stable_key"] for item in items
+              if retold_keys & {item["stable_key"], *(item.get("source_fact_keys") or [])}}
     thread_numbers = {}
     context_items = []
     # Facts made under an older contract than the board reads; the scan re-derives them.
@@ -125,6 +129,8 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
             stale_contract += 1
         if item.get("state") == "cancelled":
             fact["cancelled"] = True
+        if retold & {item["stable_key"], *(item.get("member_stable_keys") or [])}:
+            fact["retold"] = True
         thread = thread_of.get(item["stable_key"])
         if thread:
             fact["message_thread"] = thread_numbers.setdefault(thread, len(thread_numbers) + 1)

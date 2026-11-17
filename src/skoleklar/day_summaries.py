@@ -20,7 +20,7 @@ from skoleklar.triage.prompt_manifest import load_prompt_manifest
 from skoleklar.household import load_site_profile
 from skolekit.school import CLASS_LABEL
 
-MANIFEST = load_prompt_manifest("day-summary-v2")
+MANIFEST = load_prompt_manifest("day-summary-v3")
 MAX_ATTEMPTS = 3
 MAX_OUTPUT_TOKENS = 4000
 DEFAULT_PLAN_LIMIT = 6
@@ -88,13 +88,19 @@ def _block(plan: dict[str, Any], limit: int, pattern: re.Pattern[str] | None = N
 
 
 def plan_document(plan: dict[str, Any], *, class_label: str = CLASS_LABEL,
-                  child: str | None = None) -> dict[str, Any]:
+                  child: str | None = None, facts: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """The model input for one weekly plan: plan text only, no ids or links.
 
     `child` is the name of the child the plan is for: wherever the plan names
-    them, the model sees `[barnet]` instead.
+    them, the model sees `[barnet]` instead. `facts` are the facts derived from
+    this plan (`store.plan_facts`); each day lists its own by a short id, which
+    `fact_refs` maps back to stable keys.
     """
     pattern = child_pattern(child)
+    by_day: dict[str, list[dict[str, Any]]] = {}
+    for ref, fact in fact_refs(facts):
+        by_day.setdefault(str(fact["effective_date"])[:10], []).append(
+            {"id": ref, "type": fact["item_type"], "title": mark_child(str(fact["title"]), pattern)})
     week = plan.get("week") or {}
     days = []
     for day in plan.get("days") or []:
@@ -105,6 +111,7 @@ def plan_document(plan: dict[str, Any], *, class_label: str = CLASS_LABEL,
             "date": str(day["date"])[:10],
             "weekday": str(day.get("weekday") or ""),
             "blocks": [block for block in blocks if block],
+            "facts": by_day.get(str(day["date"])[:10], []),
         })
     general = [_block(item, GENERAL_TEXT_LIMIT, pattern) for item in plan.get("general_plans") or []]
     return {
@@ -113,6 +120,11 @@ def plan_document(plan: dict[str, Any], *, class_label: str = CLASS_LABEL,
         "general": [block for block in general if block],
         "days": days,
     }
+
+
+def fact_refs(facts: list[dict[str, Any]] | None) -> list[tuple[str, dict[str, Any]]]:
+    """The short id ('f1') the model reads for each fact; stable keys never reach it."""
+    return [(f"f{index}", fact) for index, fact in enumerate(facts or [], 1)]
 
 
 def _clean(value: Any) -> str | None:
@@ -124,7 +136,8 @@ def _clean(value: Any) -> str | None:
     return text or None
 
 
-def validate_output(document: dict[str, Any], output: Any, *, child: str | None = None) -> list[dict[str, Any]]:
+def validate_output(document: dict[str, Any], output: Any, *, child: str | None = None,
+                    keys: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """Cleaned summaries, one per plan day in order, or DaySummaryInvalid.
 
     The child is `du`: neither the marker nor `child`'s name may appear.
@@ -151,15 +164,22 @@ def validate_output(document: dict[str, Any], output: Any, *, child: str | None 
                 raise DaySummaryInvalid("day summary must say du, not the child's marker or name")
         if type(day.get("general_used")) is not bool:
             raise DaySummaryInvalid("general_used must be boolean")
+        named = day.get("facts")
+        offered = {fact["id"] for fact in source.get("facts", [])}
+        if not isinstance(named, list) or not set(named) <= offered:
+            raise DaySummaryInvalid("facts must name ids among the day's facts")
+        keys = keys or {}
         result.append({"date": source["date"], "headline": headline, "text": text,
-                       "general_used": day["general_used"] and text is not None})
+                       "general_used": day["general_used"] and text is not None,
+                       "fact_keys": sorted({keys[name] for name in named if name in keys})
+                       if headline is not None else []})
     return result
 
 
-def summarize_plan(plan: dict[str, Any], client: Any, *,
-                   class_label: str = CLASS_LABEL, child: str | None = None) -> dict[str, Any]:
+def summarize_plan(plan: dict[str, Any], client: Any, *, class_label: str = CLASS_LABEL,
+                   child: str | None = None, facts: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Summaries for one plan, retrying with the validator's fixed feedback."""
-    document = plan_document(plan, class_label=class_label, child=child)
+    document = plan_document(plan, class_label=class_label, child=child, facts=facts)
     errors: list[str] = []
     usage: dict[str, Any] = {}
     for attempt in range(MAX_ATTEMPTS):
@@ -173,7 +193,8 @@ def summarize_plan(plan: dict[str, Any], client: Any, *,
                                    max_output_tokens=MAX_OUTPUT_TOKENS)
         usage = _add_usage(usage, response.get("usage") or {})
         try:
-            days = validate_output(document, response["output"], child=child)
+            days = validate_output(document, response["output"], child=child,
+                                   keys={ref: fact["stable_key"] for ref, fact in fact_refs(facts)})
         except DaySummaryInvalid as error:
             if str(error) not in errors:
                 errors.append(str(error))
@@ -193,10 +214,14 @@ def _add_usage(total: dict[str, Any], usage: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def cache_key(record_id: int, content_hash: str, model: str) -> str:
-    """One summary per plan record, content, prompt and model; siblings may share a plan."""
+def cache_key(record_id: int, content_hash: str, model: str,
+              facts: list[dict[str, Any]] | None = None) -> str:
+    """One summary per plan record, content, the facts read from it, prompt and model;
+    siblings may share a plan."""
     material = {"manifest": MANIFEST.content_hash, "model": model, "record": record_id,
-                "content": content_hash}
+                "content": content_hash,
+                "facts": sorted([fact["stable_key"], str(fact["title"]), str(fact["effective_date"])]
+                                for fact in facts or [])}
     return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()
 
 
@@ -222,7 +247,8 @@ def generate_day_summaries(store, client, *, model: str, today: date,
     summary = {"candidate_count": len(plans), "reused_count": 0, "generated_count": 0,
                "failed_count": 0, "skipped_count": 0, "failures": [], "plans": []}
     for plan in plans:
-        key = cache_key(plan["record_id"], plan["content_hash"], model)
+        facts = store.plan_facts(plan["version_id"])
+        key = cache_key(plan["record_id"], plan["content_hash"], model, facts)
         existing = store.day_summary_run(key)
         label = {"child": plan["child"], "week": plan["source_key"]}
         if existing is not None and existing["status"] == "complete":
@@ -238,7 +264,8 @@ def generate_day_summaries(store, client, *, model: str, today: date,
             child=plan["child"], content_hash=plan["content_hash"], provider="openrouter",
             model=model, manifest_id=MANIFEST.manifest_id, manifest_hash=MANIFEST.content_hash)
         try:
-            result = summarize_plan(plan["plan"], client, class_label=class_label, child=plan["child"])
+            result = summarize_plan(plan["plan"], client, class_label=class_label, child=plan["child"],
+                                    facts=facts)
         except OpenRouterHTTPError as error:
             store.fail_day_summary_run(run_id, f"provider_http_{error.status_code}")
             if error.status_code in _STOP_ERRORS:

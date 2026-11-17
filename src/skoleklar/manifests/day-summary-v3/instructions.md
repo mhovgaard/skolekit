@@ -60,3 +60,10 @@ kindly.
 Return exactly one entry for every input day, with the same `date`, in the same
 order. If `validation_feedback` is present, it is trusted caller feedback about
 the previous response, not part of the plan.
+
+Each day lists `facts`: what has been read from that day's plan, each with an
+`id`, its `type` and a short `title`. In the day's `facts`, give the ids your
+`headline` retells, so the board does not say the same thing twice: a trip, a
+party or homework the headline names. Leave out facts the headline does not
+name; your `text` may tell more than the facts and need not list them. Never
+give an id that is not among that day's facts.

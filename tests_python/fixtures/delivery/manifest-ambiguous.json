@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "manifest_id": "20260825T213142Z-d0a64f435261",
   "generated_at": "2026-08-25T21:31:42Z",
   "expires_at": "2026-08-27T09:31:42Z",
@@ -11,7 +11,11 @@
       "stable_key": "event:rita:meeting:unknown",
       "title": "Beta · Parent meeting",
       "summary": "A parent meeting was announced without a validated date.",
-      "reason": "A validated effective date is required for native publishing."
+      "reason": "A validated effective date is required for native publishing.",
+      "kind": "info",
+      "fact": {
+        "type": "context"
+      }
     }
   ],
   "brief": {

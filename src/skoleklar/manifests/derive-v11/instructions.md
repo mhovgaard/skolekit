@@ -79,3 +79,6 @@ name as the source writes it; null otherwise. `bring_items`: for a `bring`, each
 thing to bring as a few words without a verb (`regntøj`, `gummistøvler`,
 `madpakke`); an empty list for every other type. `rain_gear`: true when the things
 to bring are rain clothes or rubber boots, false otherwise.
+`class_levels`: the class levels (0 for børnehaveklasse, 1–10) the source says the
+item is for, when it names them (`kun for 3. klasse` is `[3]`, `0.–2. klasse` is
+`[0, 1, 2]`); an empty list when it names none or means the child's own class.
