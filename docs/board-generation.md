@@ -65,9 +65,13 @@ attached), the children's view, the weather, the days ahead, the battery, the
 composition cache, the plain board and facts on an older contract. Each is `ok`, or
 `degraded` with a fixed reason (an exception's type, never its message). The
 status line of every view then names what is missing, `Mangler: vejret, dagene frem
-· Opdateret 08/11 19.30`, in bold; the phone brief adds the same line for the stages
-that ran before it, and the run summary lists the degraded ones. The composition
-cache is recorded but not named on the board: a missing cache only costs a model call.
+· Opdateret 08/11 19.30`, in bold (`Mangler 3 dele` when more than two are missing,
+so it fits its corner); the phone brief starts with the same line for the stages
+that ran before it, and the run summary lists the degraded ones. Health belongs to
+the scan: the composition and facts entries are set on every frame, never cached
+with a week's composition. A review check whose model call failed is degraded too.
+The composition cache is recorded but not named on the board: a missing cache only
+costs a model call.
 
 ## Frame construction and verification
 
