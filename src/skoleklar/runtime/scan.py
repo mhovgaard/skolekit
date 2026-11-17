@@ -52,6 +52,7 @@ from skoleklar.pipeline import (
     StageResult,
 )
 from skoleklar.runtime.config import load_runtime_config, require_writer
+from skoleklar import health
 from skoleklar.storage import SnapshotStore
 from skoleklar.triage.prompt_manifest import household_slots
 from skoleklar.triage.review_checks import apply_verdicts
@@ -122,11 +123,16 @@ def _stage_summary(stage: str, payload: dict[str, Any] | None) -> dict[str, Any]
     if not isinstance(payload, dict):
         return {}
     if stage == "derive":
-        return {
+        summary = {
             key: int(payload[key])
-            for key in ("candidate_count", "failures")
+            for key in ("candidate_count", "contract_candidate_count", "failures")
             if isinstance(payload.get(key), int)
         }
+        # How many seen or ticked-off facts a re-derivation gave a new key; never which.
+        continuity = payload.get("continuity")
+        if isinstance(continuity, dict) and isinstance(continuity.get("lost_count"), int):
+            summary["lost_key_count"] = continuity["lost_count"]
+        return summary
     if stage == "consolidate":
         return {
             key: int(payload[key])
@@ -174,16 +180,18 @@ def _dashboard_failure_code(error: Exception) -> str:
     """Classify composition failures without logging source or model content."""
     text = str(error).casefold()
     known = {
-        "dashboard date labels must follow selected school week": "wrong_school_week",
+        "dashboard dates must follow the selected school week": "wrong_school_week",
         "private event row must include its retained bring-item": "missing_private_event_item",
-        "displayed substitute must retain name and lesson/class": "incomplete_substitute",
+        "a board line names an unknown fact": "unknown_reference",
+        "a board line must look as its facts say": "presentation_mismatch",
+        "a displayed fact must be on the line its audit names": "audit_location_mismatch",
         "audit must account for each context fact exactly once": "incomplete_audit",
         "displayed fact date must match dashboard location": "misplaced_fact",
         "confirmed weekend activity must be displayed": "missing_weekend_activity",
         "cancelled activity must not appear as a plan": "cancelled_activity_shown",
         "distinct weekend activities must not share a row": "merged_distinct_activities",
         "weekend overflow": "weekend_overflow_miscounted",
-        "birthday notice cannot take a row from an activity": "notice_displaced_activity",
+        "birthday notice is not a family activity": "birthday_notice_shown",
     }
     for marker, code in known.items():
         if marker in text:
@@ -245,8 +253,11 @@ def _ingest_delivery_state(snapshot: SnapshotStore, delivery: Any) -> dict[str, 
     return {"completed_item_count": completed, "delivered_item_count": delivered}
 
 
-def _check_reviews(database: Path, *, model: str, message_mode: str, today) -> None:
-    """Settle the facts flagged for review in the board's period; a failure never stops the sync."""
+def _check_reviews(database: Path, *, model: str, message_mode: str, today) -> dict[str, str]:
+    """Settle the facts flagged for review in the board's period; a failure never stops the sync.
+
+    Returns the stage's health entry, which the board and the brief show.
+    """
     from skoleklar.settings import openrouter_api_key
     from skoleklar.triage.derivation import OpenRouterClient
     from skoleklar.triage.review_checks import check_reviews
@@ -259,13 +270,17 @@ def _check_reviews(database: Path, *, model: str, message_mode: str, today) -> N
     except Exception as error:
         _event("review_checks_failed", error_type=type(error).__name__,
                duration_seconds=round(time.monotonic() - started, 3))
-        return
+        return health.degraded(error)
     _event("stage_completed", stage="review_checks",
            duration_seconds=round(time.monotonic() - started, 3), **counts)
+    return health.ok()
 
 
-def _generate_day_summaries(database: Path, *, model: str, message_mode: str, today) -> None:
-    """Retell each new weekly plan per day; a failure never stops the sync."""
+def _generate_day_summaries(database: Path, *, model: str, message_mode: str, today) -> dict[str, str]:
+    """Retell each new weekly plan per day; a failure never stops the sync.
+
+    Returns the stage's health entry: degraded when it failed or a plan failed.
+    """
     from skoleklar.settings import openrouter_api_key
     from skoleklar.day_summaries import generate_day_summaries
     from skoleklar.triage.derivation import OpenRouterClient
@@ -278,12 +293,13 @@ def _generate_day_summaries(database: Path, *, model: str, message_mode: str, to
     except Exception as error:
         _event("day_summaries_failed", error_type=type(error).__name__,
                duration_seconds=round(time.monotonic() - started, 3))
-        return
+        return health.degraded(error)
     _event("stage_completed", stage="day_summaries",
            duration_seconds=round(time.monotonic() - started, 3),
            **{key: result[key] for key in ("candidate_count", "reused_count", "generated_count",
                                            "failed_count", "skipped_count")},
            **({"failures": result["failures"]} if result["failures"] else {}))
+    return health.degraded("plan_failed") if result["failed_count"] else health.ok()
 
 
 def _day_summary_extras(snapshot: SnapshotStore):
@@ -302,7 +318,7 @@ def _day_summary_extras(snapshot: SnapshotStore):
             if not reported:
                 reported.append(True)
                 _event("day_summaries_unattached", error_type=type(error).__name__)
-            return state
+            return health.record(state, "day_summaries", health.degraded(error))
     return extras
 
 
@@ -327,7 +343,7 @@ def _day_view_extras(snapshot: SnapshotStore):
             if not reported:
                 reported.append(True)
                 _event("day_view_unattached", error_type=type(error).__name__)
-            return state
+            return health.record(state, "day_view", health.degraded(error))
         if "day_view" in result:
             _event("day_view_attached", date=result["day_view"]["date"],
                    lesson_count=sum(len(child["lessons"]) for child in result["day_view"]["children"]))
@@ -348,7 +364,7 @@ def _with_weekend_weather(state: dict[str, Any], now: datetime, *, fetch=None) -
         result = attach_weather(state, now, **({"fetch": fetch} if fetch else {}))
     except Exception as error:
         _event("weather_failed", error_type=type(error).__name__)
-        return state
+        return health.record(state, "weather", health.degraded(error))
     if "weather" in result:
         _event("weather_attached", verdict=result["weather"]["verdict"],
                day_count=len(result["weather"]["days"]))
@@ -370,13 +386,18 @@ def _forecast_once():
     return fetch
 
 
-def _load_composition_cache(runtime: Runtime) -> dict[str, Any]:
-    """Last run's compositions by key; a missing or unreadable cache only costs a model call."""
+def _load_composition_cache(runtime: Runtime, scan_health: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Last run's compositions by key; a missing or unreadable cache only costs a model call.
+
+    An unreadable cache is recorded in `scan_health`; the board names no missing part for it.
+    """
     try:
         data = runtime.read_private("composition-cache.json")
         return {} if data is None else json.loads(data)["weeks"]
     except Exception as error:
         _event("composition_cache_unavailable", error_type=type(error).__name__)
+        if scan_health is not None:
+            scan_health["composition_cache"] = health.degraded(error)
         return {}
 
 
@@ -400,7 +421,7 @@ def _with_battery(frames, now, store=None):
             return frames
     except Exception as error:
         _event("device_battery_unavailable", error_type=type(error).__name__)
-        return frames
+        return [(at, health.record(state, "battery", health.degraded(error))) for at, state in frames]
     device = {"battery_percent": round(level)}
     return [(at, {**state, "device": device}) for at, state in frames]
 
@@ -412,10 +433,11 @@ def _with_lookahead(frame, lookahead, at):
         return attach_lookahead(frame, lookahead(at))
     except Exception as error:
         _event("lookahead_failed", error_type=type(error).__name__)
-        return frame
+        return health.record(frame, "lookahead", health.degraded(error))
 
 
-def _dashboard_frames(now, context_at, compose_week, cached, model, stage, extras=None, lookahead=None):
+def _dashboard_frames(now, context_at, compose_week, cached, model, stage, extras=None, lookahead=None,
+                      scan_health=None):
     """Compose each school week once and derive the state for every layout change.
 
     Returns the (start, state) frames, the composition key, state and audit per
@@ -423,10 +445,10 @@ def _dashboard_frames(now, context_at, compose_week, cached, model, stage, extra
     reuses that composition. `extras` adds data the model never composes, such as
     the day summaries, to each frame's state. `lookahead(at)` is a context reaching
     two weeks out, for the parents' board's days ahead and later events.
+    `scan_health` holds the earlier stages' health entries; every frame carries them.
     """
     from skoleklar.dashboard_composition import composition_key, reuse_composition
     from skoleklar.dashboard_timeline import TIMELINE_HOURS, school_week, slice_starts, slice_state
-    from skoleklar.parents_board import attach_kinds
     weeks = {}
 
     def week_state(context, at):
@@ -450,8 +472,6 @@ def _dashboard_frames(now, context_at, compose_week, cached, model, stage, extra
                 except Exception as error:
                     state, audit = _fallback_week(context, week, error)
                     fallback = True
-            # A composition cached before line kinds existed gets them from its audit.
-            attach_kinds(state, audit, context)
             weeks[week] = {"key": key, "state": state, "audit": audit,
                            "reused": reused is not None, "fallback": fallback}
         return weeks[week]["state"]
@@ -467,7 +487,8 @@ def _dashboard_frames(now, context_at, compose_week, cached, model, stage, extra
         context = first if at == now else context_at(at)
         state = week_state(context, at)
         stage["name"] = "weather"
-        frame = _with_weekend_weather(slice_state(state, context), at, fetch=fetch)
+        frame = health.merge(slice_state(state, context), scan_health or {})
+        frame = _with_weekend_weather(frame, at, fetch=fetch)
         if extras is not None:
             stage["name"] = "extras"
             frame = extras(frame)
@@ -538,7 +559,10 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
             model=model,
         )
         _run_quietly("harvest", lambda: asyncio.run(pipeline.harvest(harvest)))
-        derive = DeriveRequest(db=str(database), model=model, message_mode=message_mode)
+        # A fact the board reads must carry the current contract (skoleklar.fact):
+        # the scan re-derives those in the board's window that do not.
+        derive = DeriveRequest(db=str(database), model=model, message_mode=message_mode,
+                               migrate=True, as_of=target_date.isoformat())
         _run_quietly("derive", lambda: pipeline.derive(derive))
         archive_plan = ArchiveRequest(as_of=target_date.isoformat(), db=str(database), model=model,
                                       dry_run=True, message_mode=message_mode)
@@ -548,9 +572,13 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
         consolidate = ConsolidateRequest(as_of=target_date.isoformat(), db=str(database),
                                          limit=200, model=model, message_mode=message_mode)
         _run_quietly("consolidate", lambda: pipeline.consolidate(consolidate))
-        _generate_day_summaries(database, model=model, message_mode=message_mode,
-                                today=target_date)
-        _check_reviews(database, model=model, message_mode=message_mode, today=target_date)
+        # What the board and the brief say is missing (skoleklar.health).
+        scan_health = {
+            "day_summaries": _generate_day_summaries(database, model=model, message_mode=message_mode,
+                                                     today=target_date),
+            "review_checks": _check_reviews(database, model=model, message_mode=message_mode,
+                                            today=target_date),
+        }
 
         _check_invariants(database)
         _prepare_sqlite(database)
@@ -565,7 +593,8 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
                 items = apply_verdicts(snapshot, delivery_items_from_snapshot(
                     snapshot, message_mode=message_mode))
                 coverage = snapshot.message_coverage(mode=message_mode, processor=message_processor)
-                manifest = build_delivery_manifest(items, target_date=target_date, coverage=coverage)
+                manifest = build_delivery_manifest(items, target_date=target_date, coverage=coverage,
+                                                   health=scan_health)
                 publish_manifest(delivery_store, manifest)
                 outcomes["iphone"] = {"status": "published", "artifact_id": manifest["manifest_id"]}
             except Exception as error:
@@ -591,8 +620,8 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
                         lambda at: export_context(snapshot, now=at, message_mode=message_mode,
                                                   confirmations=confirmations),
                         lambda context: compose(context, client),
-                        _load_composition_cache(runtime), model, stage,
-                        extras=_frame_extras(snapshot),
+                        _load_composition_cache(runtime, scan_health), model, stage,
+                        extras=_frame_extras(snapshot), scan_health=scan_health,
                         lookahead=lambda at: export_context(snapshot, now=at, days=CONTEXT_DAYS,
                                                             message_mode=message_mode,
                                                             confirmations=confirmations))
@@ -642,6 +671,10 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
     failed = [v for v in outcomes.values() if v["status"] == "failed"]
     summary = {"status": "partial" if failed else "complete", "refresh_id": refresh_id,
                "finished_at": datetime.now(UTC).isoformat(), "outputs": outcomes}
+    # What the scan missed without failing (skoleklar.health), when anything.
+    degraded = {stage: entry for stage, entry in scan_health.items() if entry["status"] == "degraded"}
+    if degraded:
+        summary["health"] = degraded
     runtime.write_control("latest-run.json", summary)
     _event("sync_completed", **summary)
     return summary

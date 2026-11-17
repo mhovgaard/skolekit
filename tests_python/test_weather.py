@@ -174,14 +174,12 @@ def test_incomplete_forecast_is_an_error_not_a_guess():
         weather.build_weather(holes, weather.weekend_dates(SATURDAY_MORNING), CONFIG, SATURDAY_MORNING)
 
 
-def test_attach_only_during_the_weekend_and_only_for_schema_two():
+def test_attach_only_during_the_weekend():
     def fetch(_config, _days):
         raise AssertionError("no forecast is fetched outside the weekend")
 
     state = weekday_grid_state("2026-09-30T08:00:00+02:00")
     assert weather.attach_weather(state, at("2026-09-30T08:00:00"), config=CONFIG, fetch=fetch) is state
-    legacy = {"schema_version": 1}
-    assert weather.attach_weather(legacy, SATURDAY_MORNING, config=CONFIG, fetch=fetch) is legacy
     forced = weather.weekend_weather(
         at("2026-09-30T08:00:00"), config=CONFIG, force=True,
         fetch=lambda _config, days: forecast(*SCENARIOS["Udedag"]) if days == [SATURDAY, date(2026, 10, 4)] else {})
@@ -277,7 +275,7 @@ def test_weekend_mode_puts_activities_left_and_weather_right():
     assert '<figure class="wx-cover" data-artwork=' in left and "<figcaption>" not in left
     assert '<img src="data:image/webp;base64,' in left
     # The parents' board's boxes on the activities, its message lines and total.
-    assert ('<ul class="wk-list"><li><b>Lør 26.</b><span><span class="chip">TUR</span>'
+    assert ('<ul class="wk-list"><li><b>Lør 26.</b><span><b>Begge</b> <span class="chip">TUR</span>'
             'Familietur kl. 11</span></li></ul>') in left
     assert "Mandag" not in left and "Skolebog" not in left
     assert "7 ulæste i alt" in left and 'class="messages compact"' in left
@@ -419,14 +417,6 @@ def test_renderer_allowlists_the_weather_object(change):
         validate(state)
 
 
-def test_weather_needs_schema_two():
-    from tests_python.test_dashboard_rendering import state as legacy_state
-    value = legacy_state()
-    value["weather"] = weather_state()["weather"]
-    with pytest.raises(ValueError, match="schema version 2"):
-        validate(value)
-
-
 def test_cloud_job_keeps_the_dashboard_when_the_forecast_fails(monkeypatch):
     events = []
     monkeypatch.setattr(scan_service, "_event", lambda name, **fields: events.append((name, fields)))
@@ -437,7 +427,10 @@ def test_cloud_job_keeps_the_dashboard_when_the_forecast_fails(monkeypatch):
         raise TimeoutError("forecast provider timed out")
 
     monkeypatch.setattr(weather, "attach_weather", boom)
-    assert scan_service._with_weekend_weather(state, SATURDAY_MORNING) is state
+    kept = scan_service._with_weekend_weather(state, SATURDAY_MORNING)
+    # The board stays as it was, and says that the weather is missing.
+    assert {**kept, "health": None} == {**state, "health": None}
+    assert kept["health"] == {"weather": {"status": "degraded", "reason": "timeout_error"}}
     assert events == [("weather_failed", {"error_type": "TimeoutError"})]
 
     events.clear()

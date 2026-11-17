@@ -283,6 +283,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Limit derivation to a source type; repeat to include more than one",
     )
     derive.add_argument("--limit", type=int, help="Maximum candidate groups to process")
+    derive.add_argument(
+        "--migrate",
+        action="store_true",
+        help="Also re-derive the board's facts made under an older contract, and report "
+             "which seen or ticked-off facts would lose their stable key; try it on a copy first",
+    )
+    derive.add_argument("--as-of", help="The day the board's window starts (YYYY-MM-DD; default today)")
+    derive.add_argument("--migrate-limit", type=int, default=40,
+                        help="Most sources --migrate re-derives in one run")
     derive.add_argument("--model", default=DEFAULT_MODEL)
     derive.add_argument(
         "--message-mode", choices=["off", "events-only"]

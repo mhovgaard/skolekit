@@ -163,16 +163,16 @@ def _v2_context(now, items=(), messages=None):
 
 
 def _slots(context, lines=None, omitted=()):
-    """A v2 answer for the context's calendar; `lines` maps (date, child) to line dicts."""
+    """A dashboard-v3 answer for the context's calendar; `lines` maps (date, child) to line dicts."""
     from skoleklar.dashboard_composition import school_calendar
     calendar = school_calendar(context)
     lines = lines or {}
 
     def child(day, name):
-        return {'name': name, 'heading': '', 'lines': lines.get((day, name), [])}
+        return {'name': name, 'lines': lines.get((day, name), [])}
     return {'hero': {'children': [child(calendar['hero']['date'], name) for name in context['children']]},
             'weekdays': [{'date': day['date'], 'children': [child(day['date'], name) for name in context['children']],
-                          'shared': None, 'summary': ''} for day in calendar['weekdays']],
+                          'shared': None} for day in calendar['weekdays']],
             'omitted': list(omitted), 'limitations': []}
 
 
@@ -229,7 +229,10 @@ def test_composition_retry_names_the_rule_and_its_facts_then_falls_back_to_the_c
     feedback = provider.documents[1]['validation_feedback']
     assert 'private event row must include its retained bring-item [fact-2; fact-1 at' in feedback
     assert 'add its ref to that event' in feedback
-    assert state['weekdays'][2]['children'][0]['lines'] == ['Besked: Klassearrangement; tag madpakke med']
+    # The model's words are kept as written; nothing is added to them.
+    [line] = state['weekdays'][2]['children'][0]['lines']
+    assert (line['text'], line['refs'], line['kind']) == (
+        'Klassearrangement; tag madpakke med', ['fact-1', 'fact-2'], 'event')
 
     stubborn = Client([hiding])
     with pytest.raises(ValueError) as failure:
@@ -296,8 +299,7 @@ def test_composition_builds_message_rows_from_allowed_source_metadata():
          'unread': False, 'new_thread': False, 'new_message': True,
          'latest_unretrieved': True},
     ]
-    assert result['hero']['children'][0] == {'name': 'ChildA', 'heading': 'Ingen punkter', 'lines': [],
-                                             'kinds': []}
+    assert result['hero']['children'][0] == {'name': 'ChildA', 'lines': []}
 
 
 @pytest.mark.parametrize('attribute,value', [('versioning_enabled',True),('retention_period',60),('default_event_based_hold',True)])

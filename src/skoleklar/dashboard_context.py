@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from skoleklar import fact as fact_model
 from skoleklar.brief import build_brief_range
 from skoleklar.dashboard_timing import dashboard_focus, new_messages_since
 from skoleklar.dashboard_events import (ACTIVITY_LABELS, activity_title, birthday_notice, confirmed_activity,
@@ -26,26 +27,33 @@ FIELDS = ("type", "child", "title", "summary", "effective_date", "end_date",
 _SAME_FACT = ("type", "child", "title", "effective_date", "end_date", "actionability",
               "private_message_fact", "cancelled", "activity_kind", "confirmed_activity_kind",
               "message_thread", "birthday_notice")
-# What a fact is, when its derivation said so (derive-v10); the board reads these, not the title.
-SHAPE = ("category", "moves_time", "recurring")
+
+
+def meaning(item):
+    """What a fact is (skoleklar.fact), leaving out what is empty for it."""
+    return {key: value for key, value in fact_model.meaning(item).items()
+            if key != "contract" and value not in (None, [], False)}
 
 
 def collapse_duplicates(items):
     """One fact per distinct thing; repeats of the same fact add to its `repeats` count.
 
     Five identical substitute periods or a notice published to both classes under
-    one child become one fact, so the layout step never has to find them.
+    one child become one fact, so the layout step never has to find them. What
+    the fact is joins as consolidation joins it (`skoleklar.fact.merge`).
     """
     kept = {}
     result = []
     for item in items:
         key = tuple(re.sub(r"\s+", " ", str(item.get(k) or "")).strip().casefold() for k in _SAME_FACT)
         if key in kept:
-            kept[key]["repeats"] = kept[key].get("repeats", 1) + 1
-            # A repeat derived later may say what the fact is (derive-v10).
-            for field in SHAPE:
-                if kept[key].get(field) is None and item.get(field) is not None:
-                    kept[key][field] = item[field]
+            first = kept[key]
+            first["repeats"] = first.get("repeats", 1) + 1
+            joined = fact_model.merge(first.get("type"), [{**first, "contract": fact_model.CONTRACT},
+                                                         {**item, "contract": fact_model.CONTRACT}])
+            for field in fact_model.MEANING_NAMES:
+                first.pop(field, None)
+            first.update(meaning(joined))
             continue
         kept[key] = item
         result.append(item)
@@ -107,11 +115,14 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
                  for item in items if item.get("message_thread_ref")}
     thread_numbers = {}
     context_items = []
+    # Facts made under an older contract than the board reads; the scan re-derives them.
+    stale_contract = 0
     for index, item in enumerate(brief["items"], 1):
         fact = {"ref": f"fact-{index}", **{k: item[k] for k in FIELDS},
-                              "private_message_fact": item["stable_key"].startswith("message-event:"),
-                              "grouped": bool(item.get("grouped")),
-                              **{k: item[k] for k in SHAPE if item.get(k) is not None}}
+                "private_message_fact": item["stable_key"].startswith("message-event:"),
+                "grouped": bool(item.get("grouped")), **meaning(item)}
+        if not fact_model.current(item):
+            stale_contract += 1
         if item.get("state") == "cancelled":
             fact["cancelled"] = True
         thread = thread_of.get(item["stable_key"])
@@ -129,8 +140,6 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
             fact["activity_kind"] = item["activity_kind"]
             # 'Emmas fødselsdag' when the invitation names the birthday child.
             fact["title"] = activity_title(item["activity_kind"], item.get("celebrant"))
-        if fact.get("cancelled") and (kind or fact.get("activity_kind")):
-            fact["title"] += " aflyst"
         context_items.append(fact)
     context_items = collapse_duplicates(context_items)
     children = sorted({row["child"] for row in checks})
@@ -167,7 +176,7 @@ def export_context(store, *, now, days=10, stale_hours=36, message_mode="events-
                       "expires_at": (updated + timedelta(hours=stale_hours)).isoformat(), "status": status},
         "harvest_run_id": run["id"], "source_checks": source_checks, "weekly_plans": weekly_plans,
         "items": context_items, "atomic_item_count": brief["atomic_item_count"],
-        "messages": messages,
+        "messages": messages, "contract": {"current": fact_model.CONTRACT, "stale": stale_contract},
     }
 
 

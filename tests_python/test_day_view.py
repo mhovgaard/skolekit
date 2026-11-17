@@ -10,6 +10,7 @@ from skoleklar.day_view import attach_day_view, build_day_view, clothing, day_le
 from skolekit.records import SourceCheck, SourceRecord, calendar_source_key
 from skoleklar.storage import SnapshotStore
 from tests_python.test_dashboard_browser_layout import CHROME
+from tests_python.board_lines import line
 from tests_python.test_dashboard_rendering import dashboard, weekday_grid_state
 
 
@@ -87,8 +88,11 @@ def test_clothes_follow_the_school_day_weather(weather, expected):
 
 def view_state(composed="2026-09-21T07:00:00+02:00"):
     state = weekday_grid_state(composed)
-    state["hero"]["children"][0]["lines"] = ["Medbring: idrætstøj", "Vikar: Mette H. · DAN 1.B"]
-    state["hero"]["children"][1]["lines"] = ["Medbring: idrætstøj", "Lektie: læs s. 4"]
+    day = state["hero"]["date"]
+    state["hero"]["children"][0]["lines"] = [line("idrætstøj", "bring", day=day),
+                                             line("Mette H. · DAN 1.B", "substitute", day=day)]
+    state["hero"]["children"][1]["lines"] = [line("idrætstøj", "bring", day=day),
+                                             line("læs s. 4", "homework", day=day)]
     return state
 
 
@@ -105,9 +109,11 @@ def test_view_is_attached_only_in_its_window_and_for_the_hero_day():
     assert "day_view" not in attach_day_view(view_state("2026-09-21T10:00:00+02:00"), lookup)
     assert "day_view" not in attach_day_view(view_state(), lambda day: {})
     # At 15:00 the view shows Tuesday; a hero still on Monday would list the wrong things.
-    assert "day_view" not in attach_day_view(view_state("2026-09-21T16:00:00+02:00"), lookup)
+    still_monday = view_state("2026-09-21T16:00:00+02:00")
+    still_monday["hero"].update(day="Mandag 21. sep.", date="2026-09-21")
+    assert "day_view" not in attach_day_view(still_monday, lookup)
     tuesday = view_state("2026-09-21T16:00:00+02:00")
-    tuesday["hero"]["day"] = "Tirsdag 22. sep."
+    assert tuesday["hero"]["date"] == "2026-09-22"
     assert attach_day_view(tuesday, lookup)["day_view"]["label"] == "I morgen"
 
 
@@ -286,19 +292,15 @@ def test_the_remember_list_reads_each_lines_kind():
 
     state = rendered_state()
     child = state["hero"]["children"][0]
-    # The repeated line is dropped with its kind, so 'Læs s. 4' keeps its own.
-    child["lines"] = ["Medbring: idrætstøj", "hinkesten", "Vikar: Mette · DAN", "Medbring: idrætstøj", "Læs s. 4"]
-    child["kinds"] = ["bring", "optional", "substitute", "bring", "homework"]
-    state["hero"]["children"][1].update(lines=[], kinds=[])
+    # The repeated line is dropped, and each line reads as its kind says.
+    child["lines"] = [line("idrætstøj", "bring"), line("hinkesten", "optional"), line("Mette · DAN", "substitute"),
+                      line("Læs s. 4", "homework"), line("Fødselsdagsfest", "party", cancelled=True)]
+    state["hero"]["children"][1].update(lines=[line("idrætstøj", "bring")])
     for day in state["weekdays"]:
-        day.update(shared="Morgensang", shared_kind="routine")
+        day.update(shared=[line("Morgensang", "routine")])
     dashboard.validate(state)
     items = [what for who, what in remember_items(state) if who != "Tøj"]
-    assert items == ["Idrætstøj", "Hinkesten (hvis du vil)", "Lektie: Læs s. 4"]
-    # A state without kinds is read from its markers, as before.
-    child.pop("kinds")
-    child["lines"] = ["Valgfrit: hinkesten"]
-    for day in state["weekdays"]:
-        day.update(shared=None)
-        day.pop("shared_kind")
-    assert [what for who, what in remember_items(state) if who != "Tøj"] == ["Hinkesten (hvis du vil)"]
+    assert items == ["Idrætstøj", "Hinkesten (hvis du vil)", "Lektie: Læs s. 4", "Fødselsdagsfest er aflyst"]
+    child["lines"] = [line("s. 4", "homework", school_subject="Matematik")]
+    state["hero"]["children"][1].update(lines=[])
+    assert [what for who, what in remember_items(state) if who != "Tøj"] == ["Lektie: Mat. s. 4"]

@@ -33,6 +33,7 @@ from mcp import types
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
+from skoleklar import fact as fact_model
 from skoleklar import week as week_service
 from skoleklar.dashboard_context import export_context
 from skoleklar.records_copy import (
@@ -61,11 +62,14 @@ READ = types.ToolAnnotations(read_only_hint=True, destructive_hint=False, idempo
 
 # --- The results' shapes: the output schema an agent sees ----------------------------------------
 
+# What a fact is comes from the one fact model (skoleklar.fact), so a new field
+# reaches the MCP's schema without an edit here.
 WeekFact = TypedDict("WeekFact", {
     "stable_key": str, "child": str | None, "item_type": str | None, "title": str | None,
     "summary": str | None, "effective_date": str | None, "end_date": str | None, "all_day": bool,
     "actionability": str | None, "urgency": str | None, "needs_review": bool,
-    "acknowledged_at": str | None, "completed_at": str | None, "from": str})
+    "acknowledged_at": str | None, "completed_at": str | None, "from": str,
+    **fact_model.annotations()})
 
 
 class WeekBooking(TypedDict):
@@ -107,29 +111,22 @@ class WeeklyPlanWeek(TypedDict):
     year: int
 
 
-class BoardFact(TypedDict):
-    ref: str
-    type: str | None
-    child: str | None
-    title: str | None
-    summary: str | None
-    effective_date: str | None
-    end_date: str | None
-    actionability: str | None
-    urgency: str | None
-    confidence: float | str | None
-    needs_review: bool | int | None
-    private_message_fact: bool
-    grouped: bool
-    cancelled: NotRequired[bool]
-    message_thread: NotRequired[int]
-    birthday_notice: NotRequired[bool]
-    confirmed_activity_kind: NotRequired[str]
-    activity_kind: NotRequired[str]
-    category: NotRequired[str]
-    moves_time: NotRequired[bool]
-    recurring: NotRequired[bool]
-    repeats: NotRequired[int]
+BoardFact = TypedDict("BoardFact", {
+    "ref": str, "type": str | None, "child": str | None, "title": str | None,
+    "summary": str | None, "effective_date": str | None, "end_date": str | None,
+    "actionability": str | None, "urgency": str | None, "confidence": float | str | None,
+    "needs_review": bool | int | None, "private_message_fact": bool, "grouped": bool,
+    "cancelled": NotRequired[bool], "message_thread": NotRequired[int],
+    "birthday_notice": NotRequired[bool], "confirmed_activity_kind": NotRequired[str],
+    "repeats": NotRequired[int],
+    # What the fact is (skoleklar.fact); the board's context leaves out an empty field.
+    **{name: NotRequired[value] for name, value in fact_model.annotations().items()
+       if name != "contract"}})
+
+
+class ContractCount(TypedDict):
+    current: str
+    stale: int
 
 
 class ThreadState(TypedDict):
@@ -157,7 +154,8 @@ BoardContext = TypedDict("BoardContext", {
     "schema_version": int, "source": str, "as_of": str | None, "context_version": int, "now": str,
     "timezone": str, "from": str, "to": str, "children": list[str], "freshness": Freshness,
     "harvest_run_id": int, "source_checks": list[SourceCheck], "weekly_plans": list[WeeklyPlanWeek],
-    "items": list[BoardFact], "atomic_item_count": int, "messages": BoardMessages})
+    "items": list[BoardFact], "atomic_item_count": int, "messages": BoardMessages,
+    "contract": ContractCount})
 
 
 class TraceRow(TypedDict):

@@ -64,7 +64,7 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
         ("stage", "duration_seconds"),
         frozenset({
             # derive
-            "candidate_count", "failures",
+            "candidate_count", "failures", "contract_candidate_count", "lost_key_count",
             # consolidate
             "input_count", "output_count", "reduction_count", "dropped_group_count",
             "unknown_id_count", "repeated_id_count", "omitted_id_count",
@@ -101,7 +101,7 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
     ),
     "device_battery_unavailable": (("error_type",), frozenset()),
     "dashboard_failed": (("failure_stage", "error_type", "failure_code"), frozenset({"attempts"})),
-    "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset()),
+    "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset({"health"})),
     "sync_failed": (("error_type",), frozenset()),
 }
 
@@ -299,7 +299,6 @@ class Scan:
         monkeypatch.setattr(dashboard_timeline, "slice_starts", self._slice_starts)
         monkeypatch.setattr(dashboard_timeline, "slice_state",
                             lambda state, context: {**state, "at": context["now"]})
-        monkeypatch.setattr(parents_board, "attach_kinds", self._attach_kinds)
         monkeypatch.setattr(parents_board, "attach_lookahead",
                             lambda frame, context: {**frame, "ahead_days": context["days"]})
         monkeypatch.setattr(weather, "attach_weather", self._weather)
@@ -390,10 +389,6 @@ class Scan:
     def _slice_starts(self, now, until):
         self.calls.append(("slices", now.isoformat(), until.isoformat()))
         return list(SLICES)
-
-    def _attach_kinds(self, state, audit, context):
-        self.calls.append(("kinds", state["composed_for"]))
-        return state
 
     def _weather(self, state, now, *, fetch=None):
         assert callable(fetch)
@@ -619,6 +614,8 @@ def test_complete_scan_passes_these_requests_to_each_service(scan, caplog) -> No
         "derive": {
             "run_id": None, "source": None, "limit": None, "dry_run": False,
             "model": "synthetic/model-1", "backfill_since": None, "message_mode": "events-only",
+            # The board's facts made under an older contract are re-derived (skoleklar.fact).
+            "migrate": True, "as_of": "2026-11-12", "migrate_limit": 40,
         },
         "archive_plan": {
             "as_of": "2026-11-12", "model": "synthetic/model-1", "dry_run": True,
@@ -681,9 +678,6 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
     assert [call for call in scan.calls if call[0] == "compose"] == [
         ("compose", SLICES[2].isoformat())
     ]
-    assert [call[1] for call in scan.calls if call[0] == "kinds"] == [
-        "cached", SLICES[2].isoformat()
-    ]
     assert ("live", ["Alfa", "Beta"], None) in scan.calls
     assert ("timeline", REFRESH_ID, 3, []) in scan.calls
     first, second, third = (state for _, state in scan.frames)
@@ -693,6 +687,8 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
         "day_view": {"date": "2026-11-12", "children": [
             {"lessons": ["Dansk", "Matematik", "Musik"]}, {"lessons": ["Engelsk", "Idræt"]}]},
         "ahead_days": 18, "device": {"battery_percent": 82},
+        # The earlier stages' health reaches every frame (skoleklar.health).
+        "health": {"day_summaries": {"status": "ok"}, "review_checks": {"status": "ok"}},
     }
     assert "day_view" not in second
     assert third["weather"]["verdict"] == "dry"
@@ -866,6 +862,12 @@ def test_board_extras_failures_are_logged_and_never_stop_the_board(scan, caplog)
         scan.lines[-1],
     ]
     assert "private detail" not in caplog.text
+    # The board says what is missing instead of only logging it.
+    for _, state in scan.frames:
+        assert {stage: entry["status"] for stage, entry in state["health"].items()} == {
+            "day_summaries": "degraded", "review_checks": "ok", "composition_cache": "degraded",
+            "weather": "degraded", "day_view": "degraded", "lookahead": "degraded", "battery": "degraded"}
+        assert state["health"]["weather"] == {"status": "degraded", "reason": "key_error"}
 
 
 def test_day_view_off_attaches_no_children_view(scan, caplog) -> None:
@@ -920,7 +922,7 @@ def test_failed_fallback_fails_the_board_and_keeps_the_phone(scan, caplog) -> No
     def compose(context, client):
         raise dashboard_composition.CompositionFailed(
             "Dashboard composition failed validation: ValueError: "
-            "dashboard date labels must follow selected school week", ["private detail"])
+            "dashboard dates must follow the selected school week", ["private detail"])
 
     def fallback(context):
         raise TypeError("private detail")

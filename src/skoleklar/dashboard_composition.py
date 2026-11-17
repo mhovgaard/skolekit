@@ -11,7 +11,7 @@ from skoleklar.dashboard_rules import finalize
 from skoleklar.dashboard_validation import validate_composition
 from skoleklar.triage.prompt_manifest import load_prompt_manifest
 
-MANIFEST = load_prompt_manifest("dashboard-v2")
+MANIFEST = load_prompt_manifest("dashboard-v3")
 COMPOSITION_MAX_OUTPUT_TOKENS = 8000
 # The board is built elastically from the model's slots, so a rejected attempt is rare.
 COMPOSITION_MAX_ATTEMPTS = 3
@@ -67,46 +67,6 @@ def _activity_label(value):
     except ValueError:
         return text
     return parsed.strftime("%d/%m %H:%M" if "T" in text else "%d/%m")
-
-
-def _compact_state(state):
-    """Remove repeated empty-state prose and compact identical weekend activities."""
-    sections = [
-        state.get("hero", {}),
-        *(state.get("weekdays", []) if state.get("schema_version") == 2 else state.get("horizon", [])),
-    ]
-    empty_labels = {"ingen punkter", "ingen registrerede punkter"}
-    for section in sections:
-        for child in section.get("children", []):
-            if str(child.get("heading", "")).strip().casefold() in empty_labels:
-                child["lines"] = [
-                    line for line in child.get("lines", [])
-                    if str(line).strip().casefold() not in empty_labels
-                ]
-            child["lines"] = [
-                re.sub(r"^Valgfrit:\s+(?:medbring|tag)\s+", "Valgfrit: ", str(line),
-                       flags=re.IGNORECASE)
-                for line in child.get("lines", [])
-            ]
-    names = [child.get("name", "") for child in state.get("hero", {}).get("children", [])]
-    short_days = {
-        "mandag": "Man.", "tirsdag": "Tir.", "onsdag": "Ons.",
-        "torsdag": "Tor.", "fredag": "Fre.", "lørdag": "Lør.", "søndag": "Søn.",
-    }
-    for item in state.get("weekend", []):
-        day = str(item.get("day", ""))
-        first, separator, rest = day.partition(" ")
-        if separator and first.casefold() in short_days:
-            item["day"] = f"{short_days[first.casefold()]} {rest}"
-    if len(names) == 2 and all(names):
-        pattern = re.compile(
-            rf"^{re.escape(names[0])}: (.+); {re.escape(names[1])}: \1$",
-            re.IGNORECASE,
-        )
-        for item in state.get("weekend", []):
-            match = pattern.fullmatch(str(item.get("text", "")))
-            if match:
-                item["text"] = f"Begge: {match.group(1)}"
 
 
 def _message_items(context):
@@ -185,7 +145,7 @@ def school_calendar(context):
 def composition_key(context, model):
     """What the model output depends on; run ids, freshness times and inbox rows are left out."""
     stable = {key: value for key, value in context.items()
-              if key not in {"now", "freshness", "harvest_run_id", "messages", "source_checks"}}
+              if key not in {"now", "freshness", "harvest_run_id", "messages", "source_checks", "contract"}}
     stable["status"] = context.get("freshness", {}).get("status")
     stable["source_checks"] = [{key: check.get(key) for key in ("child", "source", "status")}
                                for check in context.get("source_checks", [])]

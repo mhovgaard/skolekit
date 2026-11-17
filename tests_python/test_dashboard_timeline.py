@@ -42,11 +42,11 @@ def composed_week(context):
     value = weekday_grid_state(context["now"])
     value["freshness"] = dict(context["freshness"])
     value["week_label"] = calendar["week_label"]
-    value["hero"]["day"] = calendar["hero"]["day"]
+    value["hero"].update(day=calendar["hero"]["day"], date=calendar["hero"]["date"],
+                         children=[{"name": name, "lines": []} for name in context["children"]])
     value["weekend"] = []
-    for index, (day, entry) in enumerate(zip(calendar["weekdays"], value["weekdays"])):
+    for day, entry in zip(calendar["weekdays"], value["weekdays"]):
         entry["date"], entry["day"] = day["date"], day["day"]
-        entry["children"][0]["lines"] = [f"Punkt {index + 1}"]
     value["messages"] = {"checked": True, "bodies_retained": 0, "unread_count": 7, "items": []}
     return value, {"facts": [], "source_updated_at": context["freshness"]["source_updated_at"]}
 
@@ -107,7 +107,8 @@ def test_weekend_rows_follow_the_slice_refill_from_facts_and_other_weeks_are_ref
     assert saturday["weekend_overflow"] == 1
     # At Sunday midnight Saturday is over: Sunday's party gets a row and nothing is left over.
     sunday = slice_state(week, at("2026-09-20T00:00:00", items))
-    assert sunday["weekend"] == [{"day": "Søn. 20. sep.", "text": "ChildA: Fødselsdagsfest", "kinds": ["party"]}]
+    assert [(row["day"], row["who"], [entry["text"] for entry in row["lines"]]) for row in sunday["weekend"]] == [
+        ("Søn. 20. sep.", "ChildA", ["Fødselsdagsfest"])]
     assert sunday["weekend_overflow"] == 0
     noon = slice_state(week, at("2026-09-20T12:00:00", items))
     assert noon["hero"] == week["hero"] and [row["day"] for row in noon["weekend"]] == ["Søn. 20. sep."]
@@ -148,11 +149,11 @@ def test_one_scan_composes_each_school_week_once_and_reuses_unchanged_weeks(monk
     assert cache_events() == [("2026-09-21", "reused", None), ("2026-09-28", "reused", None)]
     # A cached week that no longer validates is recomposed, and the log says why.
     stale = json.loads(json.dumps(cached))
-    stale[weeks[date(2026, 9, 21)]["key"]]["state"]["hero"]["day"] = "Mandag 5. okt."
+    stale[weeks[date(2026, 9, 21)]["key"]]["state"]["hero"]["date"] = "2026-10-05"
     calls.clear()
     scan_service._dashboard_frames(now, context_at, compose_week, stale, "model", stage)
     assert calls == [now.isoformat()]
-    assert cache_events()[0] == ("2026-09-21", "rejected", "dashboard date labels must follow selected school week")
+    assert cache_events()[0] == ("2026-09-21", "rejected", "dashboard dates must follow the selected school week")
     calls.clear()
     _, other_model, _ = scan_service._dashboard_frames(now, context_at, compose_week, cached, "other", stage)
     assert len(calls) == 2 and not any(week["reused"] for week in other_model.values())

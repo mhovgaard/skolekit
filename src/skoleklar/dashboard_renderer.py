@@ -168,17 +168,6 @@ def is_stale(data: dict[str, Any]) -> bool:
                 timestamp(fresh["expires_at"]) <= datetime.now(timezone.utc)))
 
 
-def freshness_label(data: dict[str, Any]) -> str:
-    prefix = "ÆLDRE / UFULDSTÆNDIGE DATA · " if is_stale(data) else ""
-    fresh = data.get("freshness")
-    if not fresh:
-        return prefix + data["updated_label"]
-    value = timestamp(fresh["source_updated_at"])
-    months = ("jan.", "feb.", "mar.", "apr.", "maj", "jun.",
-              "jul.", "aug.", "sep.", "okt.", "nov.", "dec.")
-    return prefix + f"Opdateret {value.day}. {months[value.month - 1]} {value.year} kl. {value:%H:%M}"
-
-
 def validate(data: dict[str, Any]) -> None:
     """Allowlist the complete device state; do not accept hidden source payloads."""
     def obj(value, allowed, required):
@@ -199,119 +188,85 @@ def validate(data: dict[str, Any]) -> None:
         if type(value) is not int or value < 0:
             raise ValueError("counts must be non-negative integers")
 
-    def kinds(child):
-        """The parents' board's per-line kinds, when present: one known kind per line."""
-        from skoleklar.parents_board import KINDS
-        if "kinds" in child and (data["schema_version"] != 2 or not isinstance(child["kinds"], list)
-                                 or len(child["kinds"]) != len(child["lines"])
-                                 or any(kind not in KINDS for kind in child["kinds"])):
-            raise ValueError("line kinds must match the lines one to one")
+    def lines(value, limit, label):
+        from skoleklar.present import validate_line
+        if not isinstance(value, list) or len(value) > limit:
+            raise ValueError(f"too many {label} lines")
+        for entry in value:
+            validate_line(entry)
 
     def children(value, limit):
         if not isinstance(value, list) or len(value) != 2:
             raise ValueError("exactly two children are required")
         for child in value:
-            obj(child, {"name", "heading", "lines", "kinds"}, {"name", "heading", "lines"})
+            obj(child, {"name", "lines"}, {"name", "lines"})
             line(child["name"], 24, "child.name")
-            line(child["heading"], 48, "child.heading")
-            if not isinstance(child["lines"], list) or len(child["lines"]) > limit:
-                raise ValueError("too many child lines")
-            for text in child["lines"]:
-                line(text, 100, "child.lines[]")
-            kinds(child)
+            lines(child["lines"], limit, "child")
         if value[0]["name"] == value[1]["name"]:
             raise ValueError("children must be distinct")
 
-    obj(data, {"schema_version", "week_label", "updated_label", "hero", "weekend", "past_summary",
-               "horizon", "later", "weekdays", "horizon_label", "footer", "messages", "freshness",
-               "weather", "day_weather", "weekend_overflow", "day_summaries", "review_count",
-               "day_view", "ahead", "later_events", "device"},
-              {"schema_version", "week_label", "updated_label", "hero", "messages"})
-    if type(data["schema_version"]) is not int or data["schema_version"] not in {1, 2}:
-        raise ValueError("schema_version must be 1 or 2")
-    for key in ("week_label", "updated_label", "past_summary", "horizon_label", "footer"):
-        line(data.get(key, ""), 160, key)
-    obj(data["hero"], {"state", "day", "children"}, {"state", "day", "children"})
-    line(data["hero"]["state"], 30, "hero.state")
-    line(data["hero"]["day"], 30, "hero.day")
-    children(data["hero"]["children"], 5 if data["schema_version"] == 2 else 3)
+    def iso_day(value, label):
+        try:
+            return date.fromisoformat(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"{label} must be an ISO date") from error
+
+    obj(data, {"schema_version", "week_label", "updated_label", "hero", "weekdays", "weekend",
+               "weekend_overflow", "messages", "freshness", "weather", "day_weather", "day_summaries",
+               "review_count", "day_view", "ahead", "later_events", "device", "health"},
+              {"schema_version", "week_label", "updated_label", "hero", "weekdays", "messages",
+               "freshness"})
+    if type(data["schema_version"]) is not int or data["schema_version"] != 3:
+        raise ValueError("schema_version must be 3")
+    for key in ("week_label", "updated_label"):
+        line(data[key], 160, key)
+    hero = data["hero"]
+    obj(hero, {"state", "day", "date", "children"}, {"state", "day", "date", "children"})
+    line(hero["state"], 30, "hero.state")
+    line(hero["day"], 30, "hero.day")
+    iso_day(hero["date"], "hero date")
+    children(hero["children"], 5)
+    names = [c["name"] for c in hero["children"]]
+    weekdays = data["weekdays"]
+    if not isinstance(weekdays, list) or len(weekdays) != 5:
+        raise ValueError("the board state has five weekdays")
+    for day in weekdays:
+        obj(day, {"date", "day", "children", "shared"}, {"date", "day", "children", "shared"})
+        if iso_day(day["date"], "weekday date").weekday() >= 5:
+            raise ValueError("weekday entries must be Monday through Friday")
+        line(day["day"], 16, "weekdays[].day")
+        children(day["children"], 3)
+        if [c["name"] for c in day["children"]] != names:
+            raise ValueError("child order must match the hero")
+        lines(day["shared"], 2, "shared")
     weekend = data.get("weekend", [])
     if not isinstance(weekend, list) or len(weekend) > 2:
         raise ValueError("at most two weekend activities")
-    for item in weekend:
-        obj(item, {"day", "text", "kinds"}, {"day", "text"})
-        line(item["day"], 16, "weekend[].day")
-        line(item["text"], 100, "weekend[].text")
-        if len(item["text"]) > 48:
+    for row in weekend:
+        obj(row, {"date", "day", "who", "lines"}, {"date", "day", "who", "lines"})
+        iso_day(row["date"], "weekend date")
+        line(row["day"], 16, "weekend[].day")
+        if row["who"] not in [*names, "Begge"]:
+            raise ValueError("a weekend row belongs to a child or both")
+        lines(row["lines"], 3, "weekend")
+        if not row["lines"] or any(len(entry["text"]) > 48 for entry in row["lines"]):
             raise ValueError("weekend activity text must fit display")
-        if "kinds" in item:
-            from skoleklar.parents_board import KINDS
-            parts = [part for part in item["text"].split(";") if part.strip()]
-            if (not isinstance(item["kinds"], list) or len(item["kinds"]) != len(parts)
-                    or any(kind not in KINDS for kind in item["kinds"])):
-                raise ValueError("a weekend row has one known kind per part")
     overflow = data.get("weekend_overflow", 0)
     if type(overflow) is not int or not 0 <= overflow <= 9:
         raise ValueError("weekend_overflow must be a count from 0 to 9")
     review = data.get("review_count", 0)
     if type(review) is not int or not 0 <= review <= 99:
         raise ValueError("review_count must be a count from 0 to 99")
-    names = [c["name"] for c in data["hero"]["children"]]
-    if data["schema_version"] == 1:
-        if "horizon" not in data or not isinstance(data["horizon"], list) or len(data["horizon"]) > 3:
-            raise ValueError("at most three horizon days")
-        for day in data["horizon"]:
-            obj(day, {"day", "children", "shared"}, {"day", "children"})
-            line(day["day"], 16, "horizon[].day")
-            children(day["children"], 2)
-            if [c["name"] for c in day["children"]] != names:
-                raise ValueError("child order must match the hero")
-            if day.get("shared") is not None:
-                line(day["shared"], 100, "horizon[].shared")
-        later = data.get("later", [])
-        if not isinstance(later, list) or len(later) > 2:
-            raise ValueError("at most two folded lookahead days")
-        if "later" in data and (len(data["horizon"]) != 3 or len(later) != 2):
-            raise ValueError("five-day lookahead requires three unfolded and two folded days")
-        for item in later:
-            obj(item, {"day", "summary"}, {"day", "summary"})
-            line(item["day"], 16, "later[].day")
-            line(item["summary"], 100, "later[].summary")
-    else:
-        if "horizon" in data or "later" in data:
-            raise ValueError("schema version 2 uses weekdays instead of horizon and later")
-        if data.get("footer"):
-            raise ValueError("schema version 2 reserves the fixed weekend area")
-        weekdays = data.get("weekdays")
-        if not isinstance(weekdays, list) or len(weekdays) != 5:
-            raise ValueError("schema version 2 requires five weekdays")
-        for day in weekdays:
-            obj(day, {"date", "day", "children", "shared", "summary", "shared_kind"},
-                {"date", "day", "children", "shared", "summary"})
-            if "shared_kind" in day:
-                from skoleklar.parents_board import KINDS
-                if day["shared"] is None or day["shared_kind"] not in KINDS:
-                    raise ValueError("a shared kind needs a shared line and a known kind")
-            try:
-                weekday_date = datetime.fromisoformat(day["date"]).date()
-            except (TypeError, ValueError) as error:
-                raise ValueError("weekday date must be ISO format") from error
-            if weekday_date.weekday() >= 5:
-                raise ValueError("weekday entries must be Monday through Friday")
-            line(day["day"], 16, "weekdays[].day")
-            line(day["summary"], 100, "weekdays[].summary")
-            children(day["children"], 3)
-            if [c["name"] for c in day["children"]] != names:
-                raise ValueError("child order must match the hero")
-            if day["shared"] is not None:
-                line(day["shared"], 100, "weekdays[].shared")
+    if "health" in data:
+        from skoleklar.health import validate_health
+        validate_health(data["health"])
     if {"ahead", "later_events", "device"} & set(data):
         from skoleklar.parents_board import validate_parents_board
         validate_parents_board(data, names)
     if "day_weather" in data:
         days = data["day_weather"]
-        if data["schema_version"] != 2 or not isinstance(days, list) or len(days) > 5:
-            raise ValueError("day weather is at most five school days in schema version 2")
+        if not isinstance(days, list) or len(days) > 5:
+            raise ValueError("day weather is at most five school days")
         for day in days:
             obj(day, {"date", "icon", "low", "high", "rain_mm"}, {"date", "icon", "low", "high", "rain_mm"})
             try:
@@ -330,9 +285,8 @@ def validate(data: dict[str, Any]) -> None:
         focus = focus_date(data)
         if focus:
             shown |= {value.isoformat() for value in lookahead_dates(date.fromisoformat(focus))}
-        if (data["schema_version"] != 2 or not isinstance(days, list)
-                or len(days) > 5 + LOOKAHEAD_DAYS):
-            raise ValueError("day summaries cover at most the shown school days in schema version 2")
+        if not isinstance(days, list) or len(days) > 5 + LOOKAHEAD_DAYS:
+            raise ValueError("day summaries cover at most the shown school days")
         if len({day.get("date") if isinstance(day, dict) else None for day in days}) != len(days):
             raise ValueError("one day summary per date")
         for day in days:
@@ -352,8 +306,6 @@ def validate(data: dict[str, Any]) -> None:
                 elif child["headline"] is not None or child["text"] is not None:
                     raise ValueError("only an ok day summary carries text")
     if "weather" in data:
-        if data["schema_version"] != 2:
-            raise ValueError("weather requires schema version 2")
         weather = data["weather"]
         obj(weather, {"place", "verdict", "reason", "label", "days", "note"},
             {"place", "verdict", "reason", "label", "days"})
@@ -431,16 +383,15 @@ def validate(data: dict[str, Any]) -> None:
         for key in ("unread", "new_thread", "new_message", "latest_unretrieved", "new"):
             if key in item and type(item[key]) is not bool:
                 raise ValueError("message flags must be boolean")
-    if "freshness" in data:
-        fresh = data["freshness"]
-        obj(fresh, {"source_updated_at", "composed_at", "expires_at", "status"},
-                   {"source_updated_at", "composed_at", "expires_at", "status"})
-        if fresh["status"] not in {"fresh", "stale", "partial", "unknown"}:
-            raise ValueError("invalid freshness status")
-        for key in ("source_updated_at", "composed_at", "expires_at"):
-            timestamp(fresh[key])
-        if timestamp(fresh["expires_at"]) <= timestamp(fresh["source_updated_at"]):
-            raise ValueError("expiry must follow source update")
+    fresh = data["freshness"]
+    obj(fresh, {"source_updated_at", "composed_at", "expires_at", "status"},
+               {"source_updated_at", "composed_at", "expires_at", "status"})
+    if fresh["status"] not in {"fresh", "stale", "partial", "unknown"}:
+        raise ValueError("invalid freshness status")
+    for key in ("source_updated_at", "composed_at", "expires_at"):
+        timestamp(fresh[key])
+    if timestamp(fresh["expires_at"]) <= timestamp(fresh["source_updated_at"]):
+        raise ValueError("expiry must follow source update")
     if "day_view" in data:
         from skoleklar.day_view_render import validate_day_view
         validate_day_view(data)
@@ -509,317 +460,19 @@ def wrapped_lines(draw: ImageDraw.ImageDraw, value: str, width: int,
     return result
 
 
-# A wrapped line of one item is indented by this much, so it reads as the same item
-# and not as a new one (the HTML uses a hanging indent for the same reason).
-HANG = 8
-# The extra space between two items in the hero, used only while everything fits.
-ITEM_GAP = 4
-
-
-def hanging_lines(draw: ImageDraw.ImageDraw, value: str, width: int, style: str,
-                  limit: int = 2, *, first: int = 0) -> list[tuple[int, str]]:
-    """Wrap one item as (x offset, text) rows: the first at `first`, the rest at HANG."""
-    selected = styled_font(style)[0]
-    words = str(value).split()
-    result: list[tuple[int, str]] = []
-    while words and len(result) < limit:
-        offset = HANG if result else first
-        line = words.pop(0)
-        while words and draw.textbbox((0, 0), line + " " + words[0], font=selected)[2] <= width - offset:
-            line += " " + words.pop(0)
-        result.append((offset, line))
-    if words:
-        offset, line = result[-1]
-        result[-1] = (offset, fit(draw, line + " " + " ".join(words), width - offset, selected))
-    return result
-
-
-def draw_hero_detail(draw: ImageDraw.ImageDraw, xy: tuple[int, int], value: str,
-                     colour: str, width: int, style: str = "small") -> None:
-    """Keep dense hero facts complete by stepping down before truncating."""
-    styles = ("small", "micro", "nano")
-    for style in styles[styles.index(style):]:
-        selected = styled_font(style)[0]
-        if draw.textbbox((0, 0), value, font=selected)[2] <= width:
-            _draw_protected_text(draw, xy, value, selected, colour)
-            return
-    draw_text(draw, xy, value, "nano", colour, width)
-
-
 def day_weather(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """The optional per-school-day weather, keyed by ISO date."""
     return {item["date"]: item for item in data.get("day_weather", [])}
 
 
 def focus_date(data: dict[str, Any]) -> str | None:
-    """The school date the hero details, as the clock policy sees it at composition."""
-    composed = data.get("freshness", {}).get("composed_at")
-    return dashboard_focus(timestamp(composed)).school_date.isoformat() if composed else None
+    """The school date the hero details."""
+    return data["hero"]["date"]
 
 
 def temperature_range(item: dict[str, Any]) -> str:
     low, high = item["low"], item["high"]
     return f"{high}°" if low == high else f"{low}–{high}°"
-
-
-def new_suffix(messages: dict[str, Any]) -> str:
-    """' (1 NY)' while messages are new: the last 24 hours, or since the weekend began."""
-    count = messages.get("new_count", 0)
-    return f" ({count} NY)" if count else ""
-
-
-def new_arrivals(data: dict[str, Any]) -> list[str]:
-    """'Child · Sender' for each inbox row that counts as new."""
-    messages = data.get("messages", {})
-    if not messages.get("checked") or is_stale(data):
-        return []
-    return [f'{item["children"][0]} · {item["participant"]}'
-            for item in messages.get("items", []) if item.get("new")]
-
-
-def hero_visual_items(lines: list[str]) -> list[list[str]]:
-    """The hero's items, each as the segments that start a new row.
-
-    A substitute is one item of two segments, teacher then class, so both stay
-    visible without shrinking below panel legibility.
-    """
-    result: list[list[str]] = []
-    for original in lines:
-        line = short_substitute(original)
-        if str(line).casefold().startswith("vikar ") and "·" in line:
-            person, scope = line.rsplit("·", 1)
-            result.append([person.strip(), scope.strip()])
-        elif (result and len(result[-1]) == 1 and str(line).startswith("Medbring:")
-              and str(result[-1][0]).startswith("Medbring:")):
-            # One bring list wraps tighter than a repeated label per item.
-            result[-1][0] += "; " + str(line)[len("Medbring:"):].strip()
-        else:
-            result.append([line])
-    return result
-
-
-def hero_visual_lines(lines: list[str]) -> list[str]:
-    """The hero's segments in order, one per forced row."""
-    return [segment for item in hero_visual_items(lines) for segment in item]
-
-
-def display_heading(child: dict[str, Any]) -> str:
-    """Hide malformed headings that only repeat the already-visible child name."""
-    heading = str(child.get("heading", "")).strip()
-    name = str(child.get("name", "")).strip()
-    return "" if heading.casefold() == name.casefold() else heading
-
-
-def _html_text_width(value: str) -> float:
-    """Conservatively approximate 12 px Georgia text without a browser or Pillow."""
-    narrow = " .,:;!'|ijlIrtf()[]"
-    wide = "MWmw@%ÆØÅæøå"
-    return sum(3.2 if char in narrow else 9.0 if char in wide else
-               7.2 if char.isupper() else 6.0 for char in value)
-
-
-def _html_line_fragments(value: str, *, width: int = 148) -> list[str]:
-    """Wrap a dashboard line before HTML layout so its height is deterministic."""
-    words = str(value).split()
-    if not words:
-        return [""]
-    result: list[str] = []
-    current = ""
-    for word in words:
-        # Long tokens are rare in the dashboard, but splitting them prevents a
-        # single token from silently overflowing a child column.
-        chunks: list[str] = []
-        chunk = ""
-        for char in word:
-            if chunk and _html_text_width(chunk + char) > width:
-                chunks.append(chunk)
-                chunk = char
-            else:
-                chunk += char
-        if chunk:
-            chunks.append(chunk)
-        for chunk in chunks:
-            candidate = f"{current} {chunk}".strip()
-            if current and _html_text_width(candidate) > width:
-                result.append(current)
-                current = chunk
-            else:
-                current = candidate
-    if current:
-        result.append(current)
-    return result
-
-
-def _weekday_child_rows(child: dict[str, Any]) -> int:
-    return ((1 if display_heading(child) else 0)
-            + sum(len(_html_line_fragments(line)) for line in child.get("lines", [])))
-
-
-PINNED_WEEKDAYS = 2
-# Headings that ask the reader to decide or prepare something.
-PREPARE_HEADINGS = frozenset({"Valgfrit", "Afklar"})
-
-
-def _first_relevant_date(data: dict[str, Any]) -> date:
-    """First school date selected by the shared Copenhagen timing policy."""
-    composed = timestamp(data["freshness"]["composed_at"])
-    return dashboard_focus(composed).school_date
-
-
-def pinned_weekdays(data: dict[str, Any]) -> set[int]:
-    """Indexes of the next two school days; these are never folded."""
-    days = data.get("weekdays", [])
-    start = _first_relevant_date(data)
-    dates = [date.fromisoformat(day["date"]) for day in days]
-    upcoming = [index for index, value in enumerate(dates) if value >= start]
-    pinned = upcoming[:PINNED_WEEKDAYS]
-    if len(pinned) < PINNED_WEEKDAYS:
-        # Late in the week: top up with the nearest remaining days.
-        rest = sorted((i for i in range(len(days)) if i not in pinned),
-                      key=lambda i: (abs((dates[i] - start).days), -dates[i].toordinal()))
-        pinned += rest[: PINNED_WEEKDAYS - len(pinned)]
-    return set(pinned)
-
-
-def _fold_weekday_layout(data: dict[str, Any], heights: list[int],
-                         available_height: int, *, strict: bool = False) -> list[dict[str, Any]]:
-    """Apply the shared temporal folding policy to measured row heights.
-
-    `strict` is for the fixed panel, where rows that do not fit would overlap
-    the weekend section; the browser folds any remaining overflow itself.
-    """
-    days = data.get("weekdays", [])
-    if not days:
-        return []
-    folded: set[int] = set()
-    pinned = pinned_weekdays(data)
-    # Past days fold first (oldest first), then the future days farthest away.
-    start = _first_relevant_date(data)
-    candidates = sorted(
-        (index for index in range(len(days)) if index not in pinned),
-        key=lambda index: (
-            date.fromisoformat(days[index]["date"]) < start,
-            abs((date.fromisoformat(days[index]["date"]) - start).days),
-            -date.fromisoformat(days[index]["date"]).toordinal(),
-        ),
-        reverse=True,
-    )
-    # A day that is already over never needs its detail: fold it regardless of room.
-    past = {index for index in candidates if date.fromisoformat(days[index]["date"]) < start}
-    folded |= past
-    def fits():
-        return sum(25 if i in folded else height for i, height in enumerate(heights)) <= available_height
-
-    for index in candidates:
-        if fits():
-            break
-        if len(folded) >= min(3, len(candidates)) and index not in past:
-            break
-        folded.add(index)
-    if strict and not fits():
-        # The hero already shows its own day in full, so that row folds first;
-        # then any day, farthest first. Freed room returns to the nearest days.
-        hero = start.isoformat()
-        overflow = sorted(range(len(days)), key=lambda index: (
-            days[index]["date"] != hero,
-            -abs((date.fromisoformat(days[index]["date"]) - start).days)))
-        for index in overflow:
-            if fits():
-                break
-            folded.add(index)
-        for index in reversed(candidates):
-            if index in folded and index not in past and days[index]["date"] != hero:
-                folded.discard(index)
-                if not fits():
-                    folded.add(index)
-    result = [
-        {"day": day, "folded": index in folded, "pinned": index in pinned,
-         "rank": candidates.index(index) if index in candidates else None,
-         "past": index in past,
-         "height": 25 if index in folded else heights[index]}
-        for index, day in enumerate(days)
-    ]
-    spare = max(0, available_height - sum(item["height"] for item in result))
-    expandable = [item for item in result if not item["folded"]]
-    if expandable:
-        addition, remainder = divmod(spare, len(expandable))
-        for index, item in enumerate(expandable):
-            item["height"] += addition + (1 if index < remainder else 0)
-    return result
-
-
-def weekday_layout(data: dict[str, Any], *, available_height: int = 309) -> list[dict[str, Any]]:
-    """Choose HTML folds by density, starting with dates farthest from today."""
-    days = data.get("weekdays", [])
-
-    def expanded_height(day):
-        child_rows = [max(1, _weekday_child_rows(child)) for child in day["children"]]
-        shared_rows = len(_html_line_fragments(day["shared"], width=314)) if day.get("shared") else 0
-        # HTML uses a fixed 15 px line band and 10 px vertical padding. Count
-        # wrapped visual lines here as well as logical state lines. Never cap an
-        # expanded row: a row that does not fit must be folded, not clipped.
-        return max(42, 10 + max(child_rows or [1]) * 15 + shared_rows * 15)
-
-    return _fold_weekday_layout(
-        data, [expanded_height(day) for day in days], available_height
-    )
-
-
-def _eink_child_lines(draw: ImageDraw.ImageDraw, child: dict[str, Any],
-                      width: int = 153) -> list[tuple[int, str]]:
-    """A week-table cell as (x offset, text) rows, wrapped lines hanging."""
-    result = []
-    for line in display_lines(child):
-        result.extend(hanging_lines(draw, line, width, "micro", limit=2))
-    return result
-
-
-def eink_weekday_layout(data: dict[str, Any], draw: ImageDraw.ImageDraw,
-                        *, available_height: int = 309) -> list[dict[str, Any]]:
-    """Measure 14 px panel text and fold rows before any detail is clipped."""
-    heights = []
-    for day in data.get("weekdays", []):
-        child_rows = [
-            (1 if display_heading(child) else 0) + len(_eink_child_lines(draw, child))
-            for child in day["children"]
-        ]
-        shared_rows = (len(wrapped_lines(draw, day["shared"], 324, "micro_b", limit=2))
-                       if day.get("shared") else 0)
-        heights.append(max(48, 10 + max(child_rows or [1]) * 17 + shared_rows * 17))
-    return _fold_weekday_layout(data, heights, available_height, strict=True)
-
-
-def weekend_rows(data: dict[str, Any]) -> list[dict[str, str]]:
-    """Turn compact weekend facts into day + two child columns or one shared row."""
-    names = [child["name"] for child in data["hero"]["children"]]
-    result = []
-    for item in data.get("weekend", []):
-        text = str(item["text"]).strip()
-        row = {"day": str(item["day"]), names[0]: "", names[1]: "", "shared": "", "kinds": item.get("kinds")}
-        for name in names:
-            prefix = name + ":"
-            if text.casefold().startswith(prefix.casefold()):
-                row[name] = text[len(prefix):].strip()
-                break
-        else:
-            row["shared"] = text
-        result.append(row)
-    return result
-
-
-def weekend_row_parts(row: dict[str, str], names: list[str]) -> tuple[str, str]:
-    """('Beta:', 'Fest kl. 14') for a weekend row: whose it is, then the activity.
-
-    A row spans both child columns, so the prefix says whose it is; a shared row
-    keeps its own 'Begge:' and has no prefix when it names nobody.
-    """
-    for name in names:
-        if row.get(name):
-            return f"{name}:", row[name]
-    head, separator, rest = row["shared"].partition(":")
-    if separator and head.strip().casefold() == "begge":
-        return f"{head.strip()}:", rest.strip()
-    return "", row["shared"]
 
 
 def panel_palette() -> list[int]:
@@ -970,152 +623,10 @@ def pack_panel_frame(image: Image.Image) -> bytes:
                  for index in range(0, len(pixels), 2))
 
 
-def inbox_height(draw: ImageDraw.ImageDraw, data: dict[str, Any], live_messages=None) -> int:
-    """Height the hero panel's inbox block draws, from its rule to its last row."""
-    if live_messages is not None:
-        subjects = [len(wrapped_lines(draw, item.text, 126, "micro"))
-                    for item in live_messages[:2] if item.status != "redacted"]
-        return 91 + 16 * max(subjects, default=0) + 4
-    if data.get("messages", {}).get("checked") and not is_stale(data):
-        return 97
-    return 40
-
-
-def draw_inbox_child(draw: ImageDraw.ImageDraw, xy: tuple[int, int], name: str,
-                     status: str, width: int = 126) -> None:
-    """A child's name with its message status right after it, the status kept whole."""
-    status_font = styled_font("micro_b")[0]
-    room = width - (int(draw.textlength(status, font=status_font)) + 8 if status else 0)
-    name_font = styled_font("body_b")[0]
-    shown = fit(draw, name, room, name_font)
-    draw_text(draw, xy, shown, "body_b", WHITE)
-    if status:
-        # Two pixels down puts the 14 px status on the 16 px name's baseline.
-        draw_text(draw, (xy[0] + int(draw.textlength(shown, font=name_font)) + 8, xy[1] + 2),
-                  status, "micro_b", WHITE)
-
-
-def draw_hero_panel(draw: ImageDraw.ImageDraw, data: dict[str, Any], live_messages=None) -> None:
-    hero = data["hero"]
-    draw_text(draw, (28, 22), hero["state"], "small_b", WHITE)
-    today = day_weather(data).get(focus_date(data))
-    if today:
-        label = temperature_range(today)
-        width = int(draw.textlength(label, font=styled_font("body_b")[0]))
-        draw_icon(draw, today["icon"], 312 - width - 36, 10, 30, HERO_ICON_COLOURS)
-        draw_text(draw, (312 - width, 20), label, "body_b", WHITE)
-    draw_text(draw, (28, 41), hero["day"], "hero", WHITE, 284)
-    # Dense hero detail may push the inbox down as far as its own rows allow
-    # before anything is shortened.
-    detail_limit = HEIGHT - inbox_height(draw, data, live_messages) - 8
-    hero_columns = ((28, 140), (178, 134))
-    detail_bottom = 0
-    for index, child in enumerate(hero["children"]):
-        x, column_width = hero_columns[index]
-        draw_text(draw, (x, 101), child["name"], "name", WHITE, column_width)
-        heading = display_heading(child)
-        heading_lines = []
-        if heading:
-            heading_lines = wrapped_lines(draw, heading, column_width, "micro_b", limit=2)
-            for row, line in enumerate(heading_lines):
-                draw_text(draw, (x, 134 + row * 17), line, "micro_b", WHITE, column_width)
-        line_top = 134 + len(heading_lines) * 17 + (4 if heading_lines else 0)
-        # Step down to the 14 px face before shortening any line.
-        for style, pitch in (("small", 18), ("micro", 15)):
-            items = [
-                [row for part, segment in enumerate(item)
-                 for row in hanging_lines(draw, segment, column_width, style, limit=12,
-                                          first=HANG if part else 0)]
-                for item in hero_visual_items(child.get("lines", []))
-            ]
-            rows = sum(len(item) for item in items)
-            if line_top + rows * pitch <= detail_limit:
-                break
-        # Space between items only while every row still fits.
-        gap = ITEM_GAP if line_top + rows * pitch + max(0, len(items) - 1) * ITEM_GAP <= detail_limit else 0
-        placed, y = [], line_top
-        for item in items:
-            for offset, line in item:
-                placed.append((y, offset, line))
-                y += pitch
-            y += gap
-        visible = [row for row in placed if row[0] + pitch <= detail_limit]
-        if visible and len(visible) < len(placed):
-            top, offset, line = visible[-1]
-            visible[-1] = (top, offset, fit(draw, line + "…", column_width - offset,
-                                            styled_font(style)[0]))
-        for top, offset, line in visible:
-            draw_hero_detail(draw, (x + offset, top), line, WHITE, column_width - offset, style)
-        detail_bottom = max(detail_bottom, visible[-1][0] + pitch if visible else line_top)
-
-    weekend = data.get("weekend", [])
-    if weekend and data["schema_version"] == 1:
-        draw_text(draw, (28, 224), "WEEKEND", "micro_b", WHITE)
-        if len(weekend) == 1:
-            draw_text(draw, (28, 242), weekend[0]["day"], "micro_b", WHITE, 284)
-            draw_text(draw, (28, 258), weekend[0]["text"], "small", WHITE, 284)
-        else:
-            for row, item in enumerate(weekend):
-                y = 242 + row * 30
-                draw_text(draw, (28, y), item["day"], "micro_b", WHITE, 284)
-                draw_text(draw, (28, y + 14), item["text"], "small", WHITE, 284)
-    messages = data.get("messages", {})
-    message_top = max(304, detail_bottom + 8) if data["schema_version"] == 2 else (
-        306 if len(weekend) == 2 else (282 if weekend else 278)
-    )
-    draw.line((28, message_top, 312, message_top), fill=WHITE, width=1)
-    if live_messages is not None:
-        unread = int(messages.get("unread_count", sum(bool(item.unread) for item in live_messages)))
-        draw_text(draw, (28, message_top + 12), f"BESKEDER · {unread} ULÆSTE{new_suffix(messages)}", "small_b", WHITE)
-        by_child = {item.child: item for item in live_messages[:2]}
-        for index, child in enumerate(hero["children"]):
-            item = by_child.get(child["name"])
-            if item is None and index < len(live_messages):
-                item = live_messages[index]
-            if item is None:
-                continue
-            x = 28 + index * 158
-            draw_inbox_child(draw, (x, message_top + 38), child["name"],
-                             "ULÆST" if item.unread else "")
-            draw_text(draw, (x, message_top + 57), item.activity, "micro", WHITE, 126)
-            sender = item.sender + (" (redacted)" if item.status == "redacted" else "")
-            draw_text(draw, (x, message_top + 73), sender, "small_b", WHITE, 126)
-            if item.status != "redacted":
-                for row, subject_line in enumerate(wrapped_lines(draw, item.text, 126, "micro")):
-                    draw_text(draw, (x, message_top + 91 + row * 16), subject_line,
-                              "micro", WHITE, 126)
-    elif messages.get("checked") and not is_stale(data):
-        unread = int(messages.get("unread_count", sum(bool(item.get("unread")) for item in messages.get("items", []))))
-        draw_text(draw, (28, message_top + 12), f"BESKEDER · {unread} ULÆSTE{new_suffix(messages)}", "small_b", WHITE)
-        for index, child in enumerate(hero["children"]):
-            item = next((row for row in messages.get("items", []) if child["name"] in row.get("children", [])), None)
-            if item is None:
-                continue
-            x = 28 + index * 158
-            status = "NY" if item.get("new") else "ULÆST" if item.get("unread") else "SET"
-            draw_inbox_child(draw, (x, message_top + 38), child["name"], status)
-            draw_text(draw, (x, message_top + 57), item.get("activity", ""), "micro", WHITE, 126)
-            draw_text(draw, (x, message_top + 73), item["participant"], "small_b", WHITE, 126)
-    else:
-        draw_text(draw, (28, message_top + 18), "BESKEDER IKKE TJEKKET", "small_b", WHITE)
-
-
 def review_label(data: dict[str, Any]) -> str:
     """'2 punkter at tjekke' for this week's uncertain facts the board leaves out."""
     count = data.get("review_count", 0)
     return f"{count} {'punkt' if count == 1 else 'punkter'} at tjekke" if count else ""
-
-
-def corner_freshness(data: dict[str, Any]) -> str:
-    """'Opdateret 31/10 05.45', prefixed when the data is old or partial."""
-    prefix = "ÆLDRE DATA · " if is_stale(data) else ""
-    if review_label(data):
-        prefix += review_label(data) + " · "
-    fresh = data.get("freshness")
-    if not fresh:
-        return prefix + data["updated_label"]
-    value = timestamp(fresh["source_updated_at"]).astimezone(ZONE)
-    return prefix + f"Opdateret {value.day}/{value.month} {value:%H.%M}"
 
 
 def draw_freshness_corner(draw: ImageDraw.ImageDraw, data: dict[str, Any]) -> None:
@@ -1142,12 +653,6 @@ def weekend_state_label(data: dict[str, Any], day: dict[str, Any]) -> str:
     composed = data.get("freshness", {}).get("composed_at")
     today = timestamp(composed).astimezone(ZONE).date().isoformat() if composed else day["date"]
     return "Weekend" if day["date"] <= today else "Weekend · i morgen"
-
-
-def weekend_overflow_label(data: dict[str, Any]) -> str:
-    """'+2 aktiviteter mere' for weekend activities the two rows cannot hold."""
-    count = data.get("weekend_overflow", 0)
-    return f"+{count} {'aktivitet' if count == 1 else 'aktiviteter'} mere" if count else ""
 
 
 def weekend_day_name(day: dict[str, Any]) -> str:
@@ -1344,118 +849,10 @@ def render_png(data: dict[str, Any], *, live_messages=None,
         # and keep diffusion out of the text and the right-hand forecast.
         panel.paste(panel_artwork(select_artwork(data["weather"]["days"][0])), ART_ORIGIN)
         return panel
-    if data["schema_version"] == 2:
-        # One row per child: the next school day on the left, the days ahead on the right.
-        from skoleklar.parents_board_render import draw_parents_board
-        draw_parents_board(draw, data, live_messages)
-        return panel_result()
-    draw_hero_panel(draw, data, live_messages)
-    draw_freshness_corner(draw, data)
-
-    # The week's dates, as in the browser, so the day rows can use short labels.
-    week_heading = short_date(data.get("horizon_label", "")) or "SKOLEUGEN"
-    draw_adaptive_text(draw, (368, 24), week_heading, ("section", "body_b"), BLACK, 404)
-    draw_text(draw, (448, 54), hero["children"][0]["name"], "small_b", BLACK, 153)
-    draw_text(draw, (619, 54), hero["children"][1]["name"], "small_b", BLACK, 153)
-
-    if data["schema_version"] == 2:
-        y = 76
-        forecast = day_weather(data)
-        for layout in eink_weekday_layout(data, draw, available_height=309):
-            day = layout["day"]
-            draw.line((368, y - 5, 772, y - 5), fill=BLACK, width=1)
-            if layout["folded"]:
-                # 'ONS. 11/11' fits the day column; the summary starts on the child column.
-                draw_text(draw, (368, y + 3), compact_panel_date(day["day"]).upper(), "micro_b", BLACK, 76)
-                draw_text(draw, (448, y + 3), day["summary"], "micro", BLACK, 324)
-            else:
-                label = day["day"].split(maxsplit=1)
-                draw_text(draw, (368, y + 2), label[0].upper(), "small_b", BLACK, 62)
-                if len(label) > 1:
-                    draw_text(draw, (368, y + 18), label[1], "small", BLACK, 62)
-                if day.get("date") in forecast:
-                    draw_icon(draw, forecast[day["date"]]["icon"], 418, y - 1, 22, ICON_COLOURS)
-                for child_index, child in enumerate(day["children"][:2]):
-                    x = 448 + child_index * 171
-                    heading = display_heading(child)
-                    if heading in PREPARE_HEADINGS:
-                        draw_marked_text(draw, (x, y + 2), heading, "body_b", 153)
-                    elif heading:
-                        draw_text(draw, (x, y + 2), heading, "body_b", BLUE, 153)
-                    line_top = y + 20 if heading else y + 2
-                    for row, (offset, line) in enumerate(_eink_child_lines(draw, child)):
-                        draw_text(draw, (x + offset, line_top + row * 17), line, "micro", BLACK,
-                                  153 - offset)
-                if day.get("shared"):
-                    shared = wrapped_lines(draw, day["shared"], 324, "micro_b", limit=2)
-                    # Six pixels above the row's edge, so the marker clears the next rule.
-                    shared_top = y + layout["height"] - len(shared) * 17 - 6
-                    for row, line in enumerate(shared):
-                        draw_marked_text(draw, (448, shared_top + row * 17), line, "micro_b", 324)
-            y += layout["height"]
-        draw.line((368, 386, 772, 386), fill=BLACK, width=2)
-        draw_text(draw, (368, 394), "WEEKEND", "micro_b", BLUE)
-        overflow = weekend_overflow_label(data)
-        if overflow:
-            # An aside on the right of the heading row, so it never reads as a column title.
-            overflow_font = styled_font("micro")[0]
-            draw_text(draw, (772 - int(draw.textlength(overflow, font=overflow_font)), 394),
-                      overflow, "micro", BLACK)
-        rows = weekend_rows(data)
-        if rows:
-            # One activity per row across both child columns, named by its bold prefix.
-            names = [child["name"] for child in hero["children"]]
-            for row_index, item in enumerate(rows[:2]):
-                item_y = 415 + row_index * 21
-                draw_text(draw, (368, item_y), compact_panel_date(item["day"]).upper(),
-                          "micro_b", BLACK, 76)
-                prefix, text = weekend_row_parts(item, names)
-                x = 448
-                if prefix:
-                    draw_text(draw, (x, item_y), prefix, "micro_b", BLACK, 324)
-                    x += int(draw.textlength(prefix, font=styled_font("micro_b")[0])) + 4
-                draw_text(draw, (x, item_y), text, "micro", BLACK, 772 - x)
-        else:
-            draw_text(draw, (448, 415), "Ingen registrerede aktiviteter", "micro", BLACK, 324)
-    else:
-        for index, day in enumerate(data.get("horizon", [])):
-            y = 100 + index * 90
-            draw.line((368, y - 8, 772, y - 8), fill=BLACK, width=1)
-            label = day["day"].split(maxsplit=1)
-            draw_text(draw, (368, y), label[0].upper(), "small_b", BLACK, 62)
-            if len(label) > 1:
-                draw_text(draw, (368, y + 18), label[1], "small", BLACK, 62)
-            for child_index, child in enumerate(day.get("children", [])[:2]):
-                x = 448 + child_index * 171
-                heading = display_heading(child)
-                if heading in PREPARE_HEADINGS:
-                    draw_marked_text(draw, (x, y), heading, "body_b", 153)
-                elif heading:
-                    draw_text(draw, (x, y), heading, "body_b", BLUE, 153)
-                line_top = y + 22 if heading else y
-                for row, (offset, line) in enumerate(_eink_child_lines(draw, child)):
-                    draw_text(draw, (x + offset, line_top + row * 18), line, "small", BLACK,
-                              153 - offset)
-            if day.get("shared"):
-                draw_marked_text(draw, (448, y + 60), day["shared"], "small_b", 324)
-
-        later = data.get("later", [])
-        if later:
-            draw.line((368, 365, 772, 365), fill=BLACK, width=2)
-            draw_text(draw, (368, 374), "DEREFTER", "micro_b", BLACK)
-            for row, item in enumerate(later):
-                y = 394 + row * 20
-                draw_text(draw, (368, y), item["day"].upper(), "micro_b", BLACK, 92)
-                draw_text(draw, (466, y), item["summary"], "micro", BLACK, 306)
-            footer_y = 449
-        else:
-            footer_y = 432
-        if data.get("footer"):
-            draw.line((368, footer_y - 8, 772, footer_y - 8), fill=BLACK, width=2)
-            draw_text(draw, (368, footer_y), data["footer"], "micro_b", BLACK, 404)
-
+    # One row per child: the next school day on the left, the days ahead on the right.
+    from skoleklar.parents_board_render import draw_parents_board
+    draw_parents_board(draw, data, live_messages)
     return panel_result()
-
 
 DASHBOARD_CSS = """
 /* Sizes are written as Nu: N design pixels of the 800x480 panel. The panel is a
@@ -1749,171 +1146,6 @@ def esc(value: Any) -> str:
     return html.escape(str(value))
 
 
-_MONTH_ABBREVIATIONS = {
-    "januar": "jan.", "februar": "feb.", "marts": "mar.", "april": "apr.", "maj": "maj",
-    "juni": "jun.", "juli": "jul.", "august": "aug.", "september": "sep.", "oktober": "okt.",
-    "november": "nov.", "december": "dec.",
-}
-_MONTH_AFTER_DAY = re.compile(r"(?<=\d\. )(" + "|".join(_MONTH_ABBREVIATIONS) + r")\b", re.I)
-
-
-def short_date(value: str) -> str:
-    """'30. september' -> '30. sep.' (only after a day number, so names are safe)."""
-    return _MONTH_AFTER_DAY.sub(lambda m: _MONTH_ABBREVIATIONS[m.group(1).lower()], value)
-
-
-def compact_panel_date(value: str) -> str:
-    """Use a numeric month where the fixed e-ink day column is narrow."""
-    result = short_date(value)
-    for month, abbreviation in enumerate((
-        "jan.", "feb.", "mar.", "apr.", "maj", "jun.",
-        "jul.", "aug.", "sep.", "okt.", "nov.", "dec.",
-    ), start=1):
-        result = re.sub(rf"(\d{{1,2}})\.\s+{re.escape(abbreviation)}", rf"\1/{month}",
-                        result, flags=re.I)
-    return result
-
-
-def short_freshness(data: dict[str, Any]) -> str:
-    """A corner-sized update stamp, e.g. 'opd. 29/9 22:07'."""
-    fresh = data.get("freshness")
-    review = review_label(data) + " · " if review_label(data) else ""
-    if not fresh:
-        return review + data["updated_label"]
-    value = timestamp(fresh["source_updated_at"])
-    return f"{review}opd. {value.day}/{value.month} {value:%H:%M}"
-
-
-_SUBSTITUTE_LINE = re.compile(r"^Vikar:\s*(?P<teacher>[^·]+?)\s*·\s*(?P<lesson>.+)$", re.I)
-
-
-def short_substitute(line: str) -> str:
-    """'Vikar: Thorbjørn Z. G. · DAN 00' -> 'Vikar Thorbjørn · DAN 00'.
-
-    The state keeps the full teacher, subject and class (that is validated); the
-    display keeps the first name, subject and class so the item fits one line.
-    """
-    match = _SUBSTITUTE_LINE.match(str(line).strip())
-    if not match:
-        return line
-    first_name = match.group("teacher").split()[0]
-    return f"Vikar {first_name} · {match.group('lesson').strip()}"
-
-
-def display_entries(child: dict[str, Any]) -> list[tuple[str, str | None]]:
-    """(line, kind) without lines that only repeat the heading or an earlier line.
-
-    A dropped line takes its kind with it; a state without kinds gives None.
-    """
-    heading = display_heading(child).casefold()
-    seen = {heading} if heading else set()
-    lines = child.get("lines") or []
-    kinds = child.get("kinds") or []
-    kinds = kinds if len(kinds) == len(lines) else [None] * len(lines)
-    result = []
-    for raw, kind in zip(lines, kinds):
-        line = short_substitute(raw)
-        key = " ".join(str(line).split()).casefold()
-        if key and key not in seen:
-            seen.add(key)
-            result.append((line, kind))
-    return result
-
-
-def display_lines(child: dict[str, Any]) -> list[str]:
-    """Drop lines that only repeat the heading or an earlier line."""
-    return [line for line, _ in display_entries(child)]
-
-
-def folded_cell(child: dict[str, Any]) -> str:
-    """One short line for a folded day: the child's own heading, else a dash."""
-    heading = str(child.get("heading", "")).strip()
-    return heading if heading and heading.casefold() != "ingen punkter" else "–"
-
-
-def child_html(child: dict[str, Any]) -> str:
-    lines = "".join(f"<span>{esc(line)}</span>" for line in display_lines(child))
-    heading = display_heading(child)
-    tone = " prepare" if heading in PREPARE_HEADINGS else ""
-    category = f'<strong class="category{tone}">{esc(heading)}</strong>' if heading else ""
-    return f'<section class="child"><h2>{esc(child["name"])}</h2>{category}{lines}</section>'
-
-
-def weekday_child_html(child: dict[str, Any]) -> str:
-    # One span per logical line. The browser wraps; the layout never guesses.
-    return child_html(child)
-
-
-_HERO_WEEKDAYS = {
-    "man": "Mandag", "tir": "Tirsdag", "ons": "Onsdag",
-    "tor": "Torsdag", "fre": "Fredag",
-}
-
-
-def hero_day_label(value: str) -> str:
-    """Expand a compact weekday label for the large left-panel heading."""
-    first, separator, rest = str(value).partition(" ")
-    expanded = _HERO_WEEKDAYS.get(first.rstrip(".").casefold(), first)
-    return f"{expanded} {rest}" if separator else expanded
-
-
-def today_weather_html(item: dict[str, Any] | None) -> str:
-    if not item:
-        return ""
-    return (f'<div class="wx-today">{icon_svg(item["icon"], HTML_HERO_ICON_COLOURS)}'
-            f'{esc(temperature_range(item))}</div>')
-
-
-def _hero_views(data: dict[str, Any], hero: dict[str, Any]) -> str:
-    """Embed each available school day plus the weekend for clock-based selection."""
-    if data["schema_version"] != 2:
-        children = "".join(child_html(child) for child in hero["children"])
-        return (
-            f'<div class="hero-view" data-default><div class="state">{esc(hero["state"])}</div>'
-            f'<h1>{esc(short_date(hero["day"]))}</h1><div class="hero-grid">{children}</div>'
-            "</div>"
-        )
-
-    composed = timestamp(data["freshness"]["composed_at"])
-    detailed_date = dashboard_focus(composed).school_date.isoformat()
-    forecast = day_weather(data)
-    views = []
-    for day in data["weekdays"]:
-        is_default = day["date"] == detailed_date
-        children_data = hero["children"] if is_default else day["children"]
-        children = "".join(child_html(child) for child in children_data)
-        label = hero["day"] if is_default else hero_day_label(day["day"])
-        default = " data-default" if is_default else ""
-        state = hero["state"] if is_default else "Skoledag"
-        views.append(
-            f'<div class="hero-view" data-school-date="{esc(day["date"])}"{default}>'
-            f'{today_weather_html(forecast.get(day["date"]))}'
-            f'<div class="state">{esc(state)}</div><h1>{esc(short_date(label))}</h1>'
-            f'<div class="hero-grid">{children}</div></div>'
-        )
-    if not any(" data-default" in view for view in views):
-        children = "".join(child_html(child) for child in hero["children"])
-        views.insert(0, (
-            f'<div class="hero-view" data-default><div class="state">{esc(hero["state"])}</div>'
-            f'<h1>{esc(short_date(hero["day"]))}</h1><div class="hero-grid">{children}</div></div>'
-        ))
-
-    rows = "".join(
-        f'<li><b>{esc(item["day"])}</b><span>{esc(item["text"])}</span></li>'
-        for item in data.get("weekend", [])
-    )
-    content = (
-        f'<ul>{rows}</ul>' if rows
-        else '<p class="weekend-empty">Ingen registrerede weekendaktiviteter</p>'
-    )
-    views.append(
-        '<div class="hero-view weekend-view" data-weekend-view>'
-        '<div class="state">Weekend</div><h1>Weekend</h1>'
-        f'<section class="weekend-panel">{content}</section></div>'
-    )
-    return "".join(views)
-
-
 def _arc_path(start: float, end: float, radius: float) -> str:
     """An SVG arc over the top of a half circle centred on (100, 100)."""
     def point(fraction: float) -> str:
@@ -2028,7 +1260,7 @@ def render_html(data: dict[str, Any], *, live_messages=None, now: datetime | Non
             .replace('<main class="dashboard">',
                      f'<main class="dashboard day-view" data-now="{esc(display_now.isoformat())}">')
         )
-    if data["schema_version"] == 2 and not data.get("weather"):
+    if not data.get("weather"):
         from skoleklar.parents_board_render import body_html as parents_body
         body, css = parents_body(data, live_messages)
         return (
@@ -2039,140 +1271,20 @@ def render_html(data: dict[str, Any], *, live_messages=None, now: datetime | Non
             .replace('<main class="dashboard">',
                      f'<main class="dashboard parents" data-now="{esc(display_now.isoformat())}">')
         )
-    hero = data["hero"]
-    hero_views = _hero_views(data, hero)
-    horizon = []
-    row_tracks = []
-    if data["schema_version"] == 2:
-        forecast = day_weather(data)
-        for layout in weekday_layout(data, available_height=309):
-            day = layout["day"]
-            day_label = "<br>".join(esc(part) for part in day["day"].split(maxsplit=1))
-            if day.get("date") in forecast:
-                day_label += icon_svg(forecast[day["date"]]["icon"], HTML_ICON_COLOURS)
-            children = "".join(weekday_child_html(child) for child in day.get("children", []))
-            shared = f'<p class="shared">{esc(day["shared"])}</p>' if day.get("shared") else ""
-            # Both the full and the folded form are in the page. The Python fold is the
-            # baseline (no script); FOLD_SCRIPT refolds by measurement in the browser.
-            row_tracks.append("min-content" if layout["folded"] else "auto")
-            rank = "" if layout["rank"] is None else f' data-fold-rank="{layout["rank"]}"'
-            rank += ' data-past="1"' if layout["past"] else ""
-            horizon.append(
-                f'<article class="day{" folded" if layout["folded"] else ""}"{rank}>'
-                f'<h3>{day_label}</h3><div class="day-grid">{children}</div>{shared}'
-                + "".join(f'<p class="folded-cell">{esc(folded_cell(child))}</p>' for child in day.get("children", []))
-                + "</article>"
-            )
-    else:
-        for day in data.get("horizon", []):
-            row_tracks.append("min-content")
-            children = "".join(weekday_child_html(child) for child in day.get("children", []))
-            shared = f'<p class="shared">{esc(day["shared"])}</p>' if day.get("shared") else ""
-            day_label = "<br>".join(esc(part) for part in day["day"].split(maxsplit=1))
-            horizon.append(f'<article class="day"><h3>{day_label}</h3><div class="day-grid">{children}</div>{shared}</article>')
-    days_html = (
-        f'<div class="days" style="grid-template-rows:{" ".join(row_tracks)}">{"".join(horizon)}</div>'
-        if horizon else ""
-    )
-    weekend = data.get("weekend", [])
-    weekend_html = ""
-    week_weekend_html = ""
-    if weekend:
-        legacy_weekend_rows = "".join(f'<li><b>{esc(item["day"])}</b><span>{esc(item["text"])}</span></li>' for item in weekend)
-        if data["schema_version"] == 2:
-            # One activity per row: its day in the day column, then whose it is and
-            # what, across both child columns (as on the panel).
-            names = [child["name"] for child in hero["children"]]
-            rows = []
-            for item in weekend_rows(data):
-                prefix, text = weekend_row_parts(item, names)
-                whose = f"<b>{esc(prefix)}</b> " if prefix else ""
-                rows.append(f'<li><b>{esc(compact_panel_date(item["day"]))}</b>'
-                            f'<span>{whose}{esc(text)}</span></li>')
-            overflow = weekend_overflow_label(data)
-            week_weekend_html = (
-                '<section class="week-weekend"><h3>Weekend'
-                + (f'<span>{esc(overflow)}</span>' if overflow else "")
-                + f'</h3><ul>{"".join(rows)}</ul></section>'
-            )
-        else:
-            weekend_html = f'<section class="weekend"><h3>Weekend</h3><ul>{legacy_weekend_rows}</ul></section>'
-    elif data["schema_version"] == 2:
-        week_weekend_html = (
-            '<section class="week-weekend"><h3>Weekend</h3>'
-            '<p>Ingen registrerede aktiviteter</p></section>'
-        )
-    later = data.get("later", [])
-    later_html = ""
-    if later:
-        later_rows = "".join(f'<li><b>{esc(item["day"])}</b><span>{esc(item["summary"])}</span></li>' for item in later)
-        later_html = f'<section class="later"><h3>Derefter</h3><ul>{later_rows}</ul></section>'
-    messages = data.get("messages", {})
-    if live_messages is not None:
-        unread = int(messages.get("unread_count", sum(bool(item.unread) for item in live_messages)))
-        by_child = {item.child: item for item in live_messages[:2]}
-        rows = []
-        for child in hero["children"]:
-            index = hero["children"].index(child)
-            item = by_child.get(child["name"])
-            if item is None and index < len(live_messages):
-                item = live_messages[index]
-            if item is None:
-                continue
-            label = " · ".join(x for x in (item.activity, "ulæst" if item.unread else "") if x)
-            sender = item.sender + (" (redacted)" if item.status == "redacted" else "")
-            subject = f'<span class="subject">{esc(item.text)}</span>' if item.status != "redacted" else ""
-            rows.append(f'<li class="live-message"><b class="message-child">{esc(child["name"])}</b><small>{esc(label)}</small><b>{esc(sender)}</b>{subject}</li>')
-        message_html = f'<h3>Beskeder · {unread} ulæste{new_suffix(messages)}</h3><ul class="message-grid">' + "".join(rows) + '</ul>'
-    elif messages.get("checked") and not is_stale(data):
-        rows = []
-        for child in hero["children"]:
-            item = next((row for row in messages.get("items", []) if child["name"] in row.get("children", [])), None)
-            if item is None:
-                continue
-            state = "ny" if item.get("new") else "ulæst" if item.get("unread") else "set"
-            rows.append(f'<li><b class="message-child">{esc(child["name"])}</b><small>{esc(item.get("activity", ""))} · {state}</small><b>{esc(item["participant"])}</b></li>')
-        unread = int(messages.get("unread_count", sum(bool(item.get("unread")) for item in messages.get("items", []))))
-        message_html = f'<h3>Beskeder · {unread} ulæste{new_suffix(messages)}</h3><ul class="message-grid">{"".join(rows)}</ul>'
-    else:
-        message_html = '<h3>Beskeder ikke tjekket</h3>'
-    if data.get("weather"):
-        # At the weekend: each child's latest message and the unread total, as on the
-        # parents' board.
-        from skoleklar.parents_board_render import message_html as one_message, message_lines
-        lines, total = message_lines(data, live_messages)
-        from skoleklar.parents_board_render import total_html
-        message_html = "".join(one_message(message, name) for name, message in lines[:2]) + total_html(total)
-    if is_stale(data) and not data.get("weather"):
-        stale_banner = f'<div class="stale">{esc(freshness_label(data))}</div>'
-    elif is_stale(data):
-        # At the weekend, old data is said once, in bold in the status.
-        stale_banner = ""
-    else:
-        stale_banner = ""
-        if not data.get("weather"):
-            message_html += f'<p class="updated">{esc(short_freshness(data))}</p>'
-    if data.get("weather"):
-        # Weekend: activities on the left, weather on the right; no school-week table.
-        from skoleklar.parents_board_render import status_html
-        hero_top, compact = weekend_hero_html(data), " compact"
-        right_panel = weather_html(data["weather"]).replace("</section>", status_html(data) + "</section>", 1)
-    else:
-        hero_top, compact = hero_views + weekend_html, ""
-        right_panel = (
-            f'<section class="week"><div class="week-top"><h2>{esc(short_date(data.get("horizon_label", "Skoledage")))}</h2>'
-            f'<div class="labels"><span>{esc(hero["children"][0]["name"])}</span>'
-            f'<span>{esc(hero["children"][1]["name"])}</span></div>'
-            f'{days_html}{later_html}</div>{week_weekend_html}</section>'
-        )
-    from skoleklar.parents_board_render import SHARED_CSS
+    # Weekend: activities, each child's latest message and the unread total on the
+    # left, as on the parents' board; the weather on the right; no school-week table.
+    from skoleklar.parents_board_render import SHARED_CSS, message_html as one_message, message_lines
+    from skoleklar.parents_board_render import status_html, total_html
+    lines, total = message_lines(data, live_messages)
+    message_html = "".join(one_message(message, name) for name, message in lines[:2]) + total_html(total)
+    right_panel = weather_html(data["weather"]).replace("</section>", status_html(data) + "</section>", 1)
     return (
         HTML_TEMPLATE
         .replace("{{CSS}}", _dashboard_css(SHARED_CSS + WEEKEND_UNIFORM_CSS))
         .replace("{{SCRIPT}}", FOLD_SCRIPT)
         .replace("{{BODY}}", (
-            f'<section class="hero{" weekend-art" if data.get("weather") else ""}"><div class="hero-top">{stale_banner}{hero_top}'
-            f'</div><div class="hero-foot"><section class="messages{compact}">{message_html}</section></div></section>'
+            f'<section class="hero weekend-art"><div class="hero-top">{weekend_hero_html(data)}'
+            f'</div><div class="hero-foot"><section class="messages compact">{message_html}</section></div></section>'
             f'{right_panel}'
         ))
         .replace('<main class="dashboard">',

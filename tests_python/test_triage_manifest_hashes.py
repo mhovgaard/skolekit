@@ -27,6 +27,11 @@ from skoleklar.triage.prompt_manifest import load_prompt_manifest
 
 # manifest id: (content_hash, prompt_cache_key, sha256 of render_instructions()), as in production
 TRIAGE_MANIFESTS = {
+    "derive-v11": (
+        "e94f531aea0ec6188c3a8d77909ffc0ef4707524ed34f2b5ec6c90311fe2c737",
+        "ag-school-derive-v11",
+        "628b336821107b1a6fe5d3bdae0ace87529aeba7da1608a3f3819e7049b6cf12",
+    ),
     "derive-v10": (
         "39044e3bfacc9a5e68060ba6ab6b37eb3fe9961837528da2a176068bfb153bcb",
         "ag-school-derive-v10",
@@ -72,6 +77,10 @@ TRIAGE_MANIFESTS = {
 
 # manifest id: (content_hash, sha256 of render_instructions()) for the invented household
 INVENTED = {
+    "derive-v11": (
+        "e16213cd31127d678e390c4ad65565fbe917a74865a3015f6183d5e5fdfd3e3f",
+        "13ca5e03f203fc72e6984aaaf0cb7d4bd03556921ba97a0f119627d9ee844cbc",
+    ),
     "derive-v10": (
         "a6a930b3768d58123d43fffb74798990648d33d7515ecdf222483c04748815b9",
         "88b0e0717eecbe16a035102a1e4dca1f0e118a421637b28f0cb8d90cfaa1d305",
@@ -178,7 +187,7 @@ def test_each_triage_stage_uses_its_pinned_manifest() -> None:
     assert {stage: manifest.manifest_id for stage, manifest in loaded.items()} == {
         "message-facts": "message-events-v4",
         "message-topic": "message-topic-v1",
-        "items": "derive-v10",
+        "items": "derive-v11",
         "archive": "archive-v1",
         "consolidate": "consolidate-v1",
         "review": "review-check-v1",

@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from skoleklar import fact as fact_model
 from skoleklar.triage.prompt_manifest import DEFAULT_SLOTS, PromptManifest, load_prompt_manifest
 from skolekit.records import canonical_hash
 from skolekit.items import read_lesson
@@ -20,16 +21,17 @@ PROVIDER = "openrouter"
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 # What doesn't depend on the household's names is read once; the filled manifest
 # (its hash and its few-shots) is read when a stage runs (prompt_manifest.py).
-_PACK = load_prompt_manifest("derive-v10", slots=DEFAULT_SLOTS)
+_PACK = load_prompt_manifest("derive-v11", slots=DEFAULT_SLOTS)
 PROMPT_VERSION = _PACK.manifest_id
 TAXONOMY_VERSION = _PACK.taxonomy_version
 DERIVATION_SCHEMA = _PACK.output_schema
-ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v3"
+# The deterministic lesson-change reader; its version moves with the fact contract.
+ROUTINE_CALENDAR_FILTER_VERSION = "routine-calendar-v4"
 
 
 def derivation_manifest() -> PromptManifest:
     """The derivation's manifest with the household's names in its slots."""
-    return load_prompt_manifest("derive-v10")
+    return load_prompt_manifest("derive-v11")
 
 
 DROP_KEYS = {
@@ -243,14 +245,14 @@ def _deterministic_lesson_change(
             "type": item_type,
         }
     )
-    return {
+    return fact_model.normalize({
         "dedupe_hint": f"{source_key}:{item_type}",
         "stream": "schedule",
         "type": item_type,
         # A lesson slot never moves the day's times on its own: never yellow.
-        "category": None,
-        "moves_time": False if item_type == "schedule_change" else None,
-        "recurring": False,
+        "moves_time": False,
+        "school_subject": lesson,
+        "teacher": substitute or None,
         "audience": "child",
         "child": child,
         "title": title,
@@ -273,7 +275,7 @@ def _deterministic_lesson_change(
             }
         ],
         "stable_key": stable_key,
-    }
+    })
 
 
 def _response_text(payload: dict[str, Any]) -> str:
@@ -486,7 +488,7 @@ def validate_items(
         if item["timing_rule"] == "no_derived_date":
             item["effective_date"] = None
             item["end_date"] = None
-        _what_it_is(item)
+        fact_model.normalize(item)
         evidence_valid = bool(item["evidence"])
         for evidence in item["evidence"]:
             if not _evidence_present(evidence["quote"], evidence_haystack):
@@ -509,23 +511,6 @@ def validate_items(
         ).hexdigest()
         result.append(item)
     return result
-
-
-CATEGORIES = {"event": {"trip", "party", "meeting", "other"}, "parent_action": {"meeting"}}
-
-
-def _what_it_is(item: dict[str, Any]) -> None:
-    """Keep `category`, `moves_time` and `recurring` only where they mean something.
-
-    A value on the wrong type becomes null; they are display hints, so a wrong one
-    is dropped rather than sent for review. An event without a category stays
-    null, and the board then reads its title as it did before these fields.
-    """
-    if item.get("category") not in CATEGORIES.get(item["type"], set()):
-        item["category"] = None
-    if item["type"] != "schedule_change" or not isinstance(item.get("moves_time"), bool):
-        item["moves_time"] = None
-    item["recurring"] = item.get("recurring") is True and item["type"] in {"event", "routine"}
 
 
 def _evidence_present(quote: str, haystack: str) -> bool:

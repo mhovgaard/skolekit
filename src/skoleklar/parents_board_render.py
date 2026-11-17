@@ -22,7 +22,9 @@ from functools import lru_cache
 from typing import Any
 
 from skoleklar import dashboard_renderer as board
-from skoleklar.parents_board import ROUTINES, EVENT_KINDS, event_kind, lookahead_span, text_kind
+from skoleklar import health
+from skoleklar.parents_board import lookahead_span
+from skoleklar.present import urgent_on
 
 WIDTH, HEIGHT = board.WIDTH, board.HEIGHT
 SPLIT = board.PANEL_SPLIT_X
@@ -35,8 +37,6 @@ TEXT_X = RIGHT_X + DATE_WIDTH + 8
 TAB = 166
 HEADER_HEIGHT = 43
 DIVIDER = 2
-URGENT_DAYS = 2
-CHIPS = {"trip": "TUR", "party": "FEST", "meeting": "MØDE", "event": "ARR."}
 SHORT_DAYS = ("Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn")
 # (size, bold, serif) per style; 14 px is the panel's legibility floor.
 STYLES = {
@@ -53,35 +53,6 @@ LEFT_PAD = (7, 9)
 RIGHT_PAD = (8, 9)
 BEGGE_PAD = (6, 8)
 NAME_HEIGHT = 25
-_SUBJECTS = (
-    ("Natur/teknologi", "N/T"), ("Natur og teknologi", "N/T"), ("N/T", "N/T"),
-    ("Matematik", "Mat."), ("Mat.", "Mat."), ("Mat", "Mat."), ("Engelsk", "Eng."), ("Eng.", "Eng."),
-    ("Dansk", "Dansk"), ("Tysk", "Tysk"), ("Fransk", "Fransk"), ("Historie", "Historie"),
-    ("Kristendomskundskab", "Kristendom"), ("Kristendom", "Kristendom"), ("Samfundsfag", "Samfundsfag"),
-    ("Geografi", "Geografi"), ("Biologi", "Biologi"), ("Fysik/kemi", "Fysik/kemi"), ("Musik", "Musik"),
-    ("Billedkunst", "Billedkunst"), ("Idræt", "Idræt"), ("Madkundskab", "Madkundskab"),
-    ("Håndværk og design", "Håndværk"), ("Læsning", "Læsning"),
-)
-_SUBJECT = re.compile(
-    r"^(?P<subject>" + "|".join(re.escape(name) for name, _ in _SUBJECTS) + r")(?=[\s:–-])[\s:–-]+(?P<rest>.+)$",
-    re.IGNORECASE)
-_LABELS = ((re.compile(r"^medbring\b:?\s*", re.I), "Medbring"), (re.compile(r"^valgfrit\b:?\s*", re.I), "Valgfrit"),
-           (re.compile(r"^frist\b:?\s*", re.I), "Frist"))
-# The bold label a line's kind gives it, whatever its words.
-KIND_LABELS = {"bring": "Medbring", "optional": "Valgfrit", "deadline": "Frist"}
-# Leading words that say what the label already says: code's own markers and the
-# verbs a line may start with. Trimmed only so the label is not said twice.
-_SAID_BY_LABEL = {
-    "bring": re.compile(r"^(?:(?:medbring|husk)\b:?\s*)+", re.I),
-    "optional": re.compile(r"^(?:(?:valgfrit|medbring|husk)\b:?\s*)+", re.I),
-    "deadline": re.compile(r"^(?:frist\b:?\s*)+", re.I),
-}
-# 'Tag madpakke med', 'husk at tage tøj med' (after 'husk' is trimmed): only the things.
-_TAKE_ALONG = re.compile(r"^(?:at\s+)?tage?\s+(?P<what>.+?)\s+med\.?$", re.I)
-_GENERIC_HEADING = {"medbring", "lektier", "frist", "ændring", "vikar", "arrangement", "info", "og",
-                    "ingen", "punkter"}
-
-
 @dataclass
 class Item:
     """One thing on the board: a homework item, a bring line, an event …"""
@@ -90,8 +61,6 @@ class Item:
     chip: str = ""
     box: bool = False
     urgent: bool = False
-    # The kind was read from the line's words: the state carried none for it.
-    guessed: bool = False
 
 
 @dataclass
@@ -172,63 +141,24 @@ def _styles(family: str, item: Item | None = None) -> tuple[str, str]:
 
 # --- Content ---------------------------------------------------------------------------
 
-def _clean(text: str) -> str:
-    text = re.sub(r"\s+", " ", str(text)).strip()
-    return re.sub(r"^besked:\s*", "", text, flags=re.IGNORECASE)
-
-
 def _capital(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def homework_runs(text: str) -> list[tuple[str, bool]]:
-    """'Mat. s. 25–26' as a bold subject and its task; the `Lektie:` marker goes."""
-    text = re.sub(r"^lektie[r]?:\s*", "", _clean(text), flags=re.IGNORECASE)
-    match = _SUBJECT.match(text)
-    if match:
-        subject = next(short for name, short in _SUBJECTS if name.casefold() == match["subject"].casefold())
-        return [(subject, True), (" " + match["rest"].strip(), False)]
-    return [(_capital(text), False)]
+def make_item(entry: dict[str, Any], today: date | None) -> Item:
+    """The board item for one line of the state: what `present` returned, drawn as it is.
 
-
-def make_item(text: str, kind: str | None, day: str | None, today: date | None) -> Item:
-    """The board item for one line of the composed state.
-
-    `kind` comes from the facts behind the line (`parents_board.fact_kind`); the
-    line's words are read only when the state carries no kind for it.
+    A homework line is its checkbox, its bold subject and its text; another line
+    is its box, its bold label and its text. Yellow is the line's urgency window
+    on `today`.
     """
-    guessed = kind is None
-    kind = kind or text_kind(text)
-    clean = _clean(text)
-    urgent = False
-    # A deadline is about time; a change only when it moves a time (not a room or a lesson).
-    if kind in {"deadline", "time_change"} and day and today:
-        urgent = 0 <= (date.fromisoformat(day) - today).days <= URGENT_DAYS
-    if kind == "homework":
-        return Item(kind, homework_runs(clean), box=True, guessed=guessed)
-    if kind in EVENT_KINDS:
-        if kind == "event" and guessed:
-            kind = event_kind(clean)
-        return Item(kind, [(_capital(clean), False)], chip=CHIPS[kind], guessed=guessed)
-    if kind == "more":
-        return Item(kind, [(clean.replace("i skolebriefen", "mere"), False)])
-    if kind in KIND_LABELS and not guessed:
-        # The kind decides the label; the words are only the content.
-        rest = _SAID_BY_LABEL[kind].sub("", clean).strip()
-        if kind in {"bring", "optional"}:
-            take = _TAKE_ALONG.match(rest)
-            rest = take["what"] if take else rest
-        label = KIND_LABELS[kind]
-        return Item(kind, [(label, True), (" " + rest, False)] if rest else [(label, True)], urgent=urgent)
-    for pattern, label in _LABELS:
-        match = pattern.match(clean)
-        if match:
-            rest = clean[match.end():]
-            return Item(kind, [(label, True), (" " + rest, False)] if rest else [(label, True)],
-                        urgent=urgent)
-    if kind == "substitute":
-        clean = board.short_substitute(clean)
-    return Item(kind, [(_capital(clean), False)], urgent=urgent, guessed=guessed)
+    runs: list[tuple[str, bool]] = []
+    for word in (entry["label"], entry["subject"]):
+        if word:
+            runs.append(((" " if runs else "") + word, True))
+    text = entry["text"]
+    runs.append(((" " + text) if runs else _capital(text), False))
+    return Item(entry["kind"], runs, chip=entry["chip"], box=entry["box"], urgent=urgent_on(entry, today))
 
 
 def _day_label(iso: str) -> str:
@@ -246,18 +176,8 @@ def plan_headline(data: dict[str, Any], name: str, iso: str | None) -> str:
     return ""
 
 
-def _plan(data: dict[str, Any], child: dict[str, Any], hero_date: str | None) -> str:
-    """The weekly plan's headline for the day; else the hero heading if it says more than the lines."""
-    headline = plan_headline(data, child["name"], hero_date)
-    if headline:
-        return headline
-    heading = board.display_heading(child)
-    words = {word.casefold() for word in re.findall(r"[\wæøå]+", heading, re.IGNORECASE)}
-    return "" if not heading or words <= _GENERIC_HEADING else heading
-
-
 def _words(text: str) -> set[str]:
-    return {word.casefold() for word in re.findall(r"[\wæøå]{3,}", text, re.IGNORECASE)}
+    return {word.casefold() for word in re.findall(r"\w{3,}", text)}
 
 
 def plan_item(headline: str, items: list[Item]) -> Item | None:
@@ -302,14 +222,18 @@ def _unread(data: dict[str, Any], live_messages) -> str:
 
 
 def _status(data: dict[str, Any]) -> str:
+    """'ÆLDRE DATA · Mangler: vejret · 2 punkter at tjekke · Opdateret 08/11 19.30'."""
     prefix = "ÆLDRE DATA · " if board.is_stale(data) else ""
-    if board.review_label(data):
-        prefix += board.review_label(data) + " · "
-    fresh = data.get("freshness")
-    if not fresh:
-        return prefix + data["updated_label"]
-    value = board.timestamp(fresh["source_updated_at"]).astimezone(board.ZONE)
+    for part in (health.line(data.get("health")), board.review_label(data)):
+        if part:
+            prefix += part + " · "
+    value = board.timestamp(data["freshness"]["source_updated_at"]).astimezone(board.ZONE)
     return prefix + f"Opdateret {value:%d/%m %H.%M}"
+
+
+def _status_bold(data: dict[str, Any]) -> bool:
+    """Old data or a missing part is said in bold, so it is noticed."""
+    return board.is_stale(data) or bool(health.missing(data.get("health")))
 
 
 def _weather(data: dict[str, Any], hero_date: str | None) -> tuple[str, str, str] | None:
@@ -325,29 +249,25 @@ def _weather(data: dict[str, Any], hero_date: str | None) -> tuple[str, str, str
     return item["icon"], board.temperature_range(item), advice
 
 
-def _rain(data: dict[str, Any], iso: str, items: list[Item]) -> bool:
-    """Rain under the date on a trip or event day, unless its list already says rain gear."""
+def _rain(data: dict[str, Any], iso: str, entries: list[dict[str, Any]]) -> bool:
+    """Rain under the date on a trip or event day, unless its things to bring are rain gear."""
     weather = board.day_weather(data).get(iso)
-    if not weather or not any(item.chip for item in items):
+    if not weather or not any(entry["chip"] for entry in entries):
         return False
     if weather["rain_mm"] < 1 and weather["icon"] not in {"rain", "storm"}:
         return False
-    return not any("regn" in text.casefold() for item in items for text, _ in item.runs)
+    return not any(entry["rain_gear"] for entry in entries)
 
 
-def routine(item: Item) -> bool:
-    """A weekly routine (morning singing) needs no mention; a cancellation still shows."""
-    if item.kind == "routine":
-        return True
-    text = "".join(text for text, _ in item.runs).strip()
-    return item.guessed and bool(ROUTINES.match(text)) and "aflyst" not in text.casefold()
+def _shown(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The lines the board draws: a weekly routine (morning singing) is left out."""
+    return [entry for entry in entries if not entry["hidden"]]
 
 
 def _order(items: list[Item]) -> list[Item]:
     """The plan line, homework, events, time-urgent lines, then the rest, keeping their order."""
     rank = {"plan": -1, "homework": 0, "trip": 1, "party": 1, "meeting": 1, "event": 1}
-    return sorted((item for item in items if not routine(item)),
-                  key=lambda item: rank.get(item.kind, 3 if not item.urgent else 2))
+    return sorted(items, key=lambda item: rank.get(item.kind, 3 if not item.urgent else 2))
 
 
 def _weekend_rows(data, names, kids, shared_days, later, window, today) -> None:
@@ -363,45 +283,34 @@ def _weekend_rows(data, names, kids, shared_days, later, window, today) -> None:
     if not today or not window:
         return
     from skoleklar.dashboard_timing import dashboard_focus
-    from skoleklar.dashboard_validation import _display_date
 
     composed = board.timestamp(data["freshness"]["composed_at"]).astimezone(board.ZONE)
     weekend_cover = dashboard_focus(composed).mode == "weekend"
     first = date.fromisoformat(window[0]) - timedelta(days=1)
     rows = []
-    for row in board.weekend_rows(data):
-        day = _display_date(row["day"], today)
-        if day is None or day < today or (day < first and not weekend_cover):
+    for row in data.get("weekend", []):
+        day = date.fromisoformat(row["date"])
+        if day < today or (day < first and not weekend_cover):
             continue
         # Today's activity is over by the afternoon.
         if day == today and composed.hour >= 15:
             continue
-        who, text = board.weekend_row_parts(row, names)
-        who = who.rstrip(":").strip() or "Begge"
-        rows.append((day.isoformat(), who if who in names else "Begge", text, row.get("kinds")))
+        entries = _shown(row["lines"])
+        if entries:
+            rows.append((day.isoformat(), row["who"], entries))
     if not rows:
         return
-    overflow = data.get("weekend_overflow", 0)
-    if overflow:
-        iso, who, text, kinds = rows[-1]
-        rows[-1] = (iso, who, f"{text} (+{overflow} mere)", kinds)
     last_window = window[-1]
     later_dates = {iso for entries in later.values() for iso, _ in entries}
-    weekend_dates = {iso for iso, _, _, _ in rows}
+    weekend_dates = {iso for iso, _, _ in rows}
     for kid in kids:
         kid.days = [day for day in kid.days if day[0] not in weekend_dates or day[0] > last_window]
     shared_days[:] = [day for day in shared_days if day[0] not in weekend_dates or day[0] > last_window]
-    for iso, who, text, kinds in rows:
-        parts = [part.strip() for part in text.split(";") if part.strip()]
-        if kinds and len(kinds) == len(parts):
-            # Each part's kind, as code wrote it from the facts: the activity, then what to bring.
-            items = [make_item(part, kind, iso, today) for part, kind in zip(parts, kinds)]
-        else:
-            # An old state without kinds: the row's words, as before.
-            items = [make_item(text, None, iso, today)]
-            if not items[0].chip and items[0].kind == "info":
-                kind = text_kind("Besked: " + text)
-                items = [Item(kind, [(_capital(_clean(text)), False)], chip=CHIPS.get(kind, ""), guessed=True)]
+    overflow = data.get("weekend_overflow", 0)
+    for index, (iso, who, entries) in enumerate(rows):
+        items = [make_item(entry, today) for entry in entries]
+        if overflow and index == len(rows) - 1:
+            items[-1].runs = [*items[-1].runs, (f" (+{overflow} mere)", False)]
         if iso > last_window:
             if iso not in later_dates:
                 later.setdefault(who, []).append((iso, items[0]))
@@ -409,7 +318,7 @@ def _weekend_rows(data, names, kids, shared_days, later, window, today) -> None:
         target = shared_days if who == "Begge" else next(kid.days for kid in kids if kid.name == who)
         entry = next((day for day in target if day[0] == iso), None)
         if entry is None:
-            target.append((iso, items, False))
+            target.append((iso, items, _rain(data, iso, entries)))
         else:
             entry[1].extend(items)
     for kid in kids:
@@ -422,55 +331,52 @@ def _weekend_rows(data, names, kids, shared_days, later, window, today) -> None:
 def build_model(data: dict[str, Any], live_messages=None) -> Model:
     hero = data["hero"]
     names = [child["name"] for child in hero["children"]]
-    hero_date = board.focus_date(data)
-    composed = data.get("freshness", {}).get("composed_at")
-    today = board.timestamp(composed).astimezone(board.ZONE).date() if composed else None
+    hero_date = hero["date"]
+    composed = data["freshness"]["composed_at"]
+    today = board.timestamp(composed).astimezone(board.ZONE).date()
     weekdays = {day["date"]: day for day in data.get("weekdays", [])}
     ahead = {row["date"]: row for row in data.get("ahead", [])}
-    window = [day.isoformat() for day in lookahead_span(date.fromisoformat(hero_date))] if hero_date else []
+    window = [day.isoformat() for day in lookahead_span(date.fromisoformat(hero_date))]
     kids = []
     for index, child in enumerate(hero["children"]):
-        kinds = child.get("kinds") or [None] * len(child["lines"])
-        left = _order([make_item(text, kind, hero_date, today) for text, kind in zip(child["lines"], kinds)])
-        kid = Kid(child["name"], _plan(data, child, hero_date), left, _message(data, child["name"], live_messages))
+        left = _order([make_item(entry, today) for entry in _shown(child["lines"])])
+        kid = Kid(child["name"], plan_headline(data, child["name"], hero_date), left,
+                  _message(data, child["name"], live_messages))
         for iso in window:
-            items = []
+            entries = []
             if iso in weekdays:
-                source = weekdays[iso]["children"][index]
-                source_kinds = source.get("kinds") or [None] * len(source["lines"])
-                items = [make_item(text, kind, iso, today) for text, kind in zip(source["lines"], source_kinds)]
+                entries = _shown(weekdays[iso]["children"][index]["lines"])
             elif iso in ahead:
-                source = ahead[iso]["children"][index]
-                items = [make_item(text, kind, iso, today) for text, kind in zip(source["lines"], source["kinds"])]
-            items = [item for item in _order(items) if item.kind != "more" or len(items) > 1]
+                entries = _shown(ahead[iso]["children"][index]["lines"])
+            items = [item for item in _order([make_item(entry, today) for entry in entries])
+                     if item.kind != "more" or len(entries) > 1]
             plan = plan_item(plan_headline(data, child["name"], iso), items)
             if plan is not None:
                 items.insert(0, plan)
             if items:
-                kid.days.append((iso, items, _rain(data, iso, items)))
+                kid.days.append((iso, items, _rain(data, iso, entries)))
         kids.append(kid)
     shared_days = []
     for iso in window:
-        items = []
-        if iso in weekdays and weekdays[iso].get("shared"):
-            items = [make_item(weekdays[iso]["shared"], weekdays[iso].get("shared_kind"), iso, today)]
+        entries = []
+        if iso in weekdays:
+            entries = _shown(weekdays[iso]["shared"])
         elif iso in ahead:
-            items = [make_item(entry["text"], entry["kind"], iso, today) for entry in ahead[iso]["shared"]]
-        items = _order(items)
+            entries = _shown(ahead[iso]["shared"])
+        items = _order([make_item(entry, today) for entry in entries])
         if items:
-            shared_days.append((iso, items, _rain(data, iso, items)))
+            shared_days.append((iso, items, _rain(data, iso, entries)))
     later = {name: [] for name in [*names, "Begge"]}
     for entry in data.get("later_events", []):
-        item = make_item(entry["text"], entry["kind"], entry["date"], today)
-        if not routine(item):
-            later.setdefault(entry["who"], []).append((entry["date"], item))
+        if not entry["line"]["hidden"]:
+            later.setdefault(entry["who"], []).append((entry["date"], make_item(entry["line"], today)))
     _weekend_rows(data, names, kids, shared_days, later, window, today)
     for kid in kids:
         kid.later = later.get(kid.name, [])
     battery = data.get("device", {}).get("battery_percent")
-    return Model(board.weekend_day_title({"date": hero_date}) if hero_date else hero["day"],
-                 _weather(data, hero_date), _status(data), board.is_stale(data), battery, kids,
-                 shared_days, later["Begge"], 0, _unread(data, live_messages))
+    return Model(board.weekend_day_title({"date": hero_date}), _weather(data, hero_date), _status(data),
+                 _status_bold(data), battery, kids, shared_days, later["Begge"], 0,
+                 _unread(data, live_messages))
 
 
 # --- Layout ----------------------------------------------------------------------------
@@ -871,8 +777,7 @@ def draw_status(draw, data: dict[str, Any], *, bottom: bool = False) -> None:
     The parents' board has it in the top right. The weekend and the children's day
     view keep their top right for headings and put it in the bottom right instead.
     """
-    stale = board.is_stale(data)
-    style = "status_b" if stale else "status"
+    style = "status_b" if _status_bold(data) else "status"
     y = HEIGHT - 20 if bottom else 14
     x = RIGHT_END
     battery = data.get("device", {}).get("battery_percent")
@@ -897,7 +802,7 @@ def status_html(data: dict[str, Any]) -> str:
                  '<rect x="1" y="1" width="18" height="9" fill="none" stroke="currentColor" stroke-width="2"/>'
                  '<rect x="20" y="3" width="3" height="5" fill="currentColor"/>'
                  f'<rect x="3" y="3" width="{level}" height="5" fill="currentColor"/></svg>{_esc(battery)} %</span>')
-    return f'<div class="pb-status{" stale" if board.is_stale(data) else ""}">{html}</div>'
+    return f'<div class="pb-status{" stale" if _status_bold(data) else ""}">{html}</div>'
 
 
 def weekend_activities(data: dict[str, Any]) -> list[tuple[str, str, list[Item]]]:
@@ -907,26 +812,12 @@ def weekend_activities(data: dict[str, Any]) -> list[tuple[str, str, list[Item]]
     `Medbring udetøj`. An activity the two rows had no room for is counted on the
     last one, `(+1 mere)`.
     """
-    from skoleklar.dashboard_validation import _display_date
-
-    names = [child["name"] for child in data["hero"]["children"]]
-    composed = data.get("freshness", {}).get("composed_at")
-    today = board.timestamp(composed).astimezone(board.ZONE).date() if composed else date.today()
+    today = board.timestamp(data["freshness"]["composed_at"]).astimezone(board.ZONE).date()
     result = []
-    for row in board.weekend_rows(data):
-        who, text = board.weekend_row_parts(row, names)
-        day = _display_date(row["day"], today)
-        label = _day_label(day.isoformat()) if day else row["day"].split()[0]
-        items = []
-        parts = [part.strip() for part in text.split(";") if part.strip()]
-        kinds = row.get("kinds") if len(row.get("kinds") or []) == len(parts) else [None] * len(parts)
-        for index, (part, kind) in enumerate(zip(parts, kinds)):
-            item = make_item(part, kind, None, None)
-            if index == 0 and item.kind == "info" and item.guessed:
-                kind = text_kind("Besked: " + part)
-                item = Item(kind, [(_capital(_clean(part)), False)], chip=CHIPS.get(kind, ""))
-            items.append(item)
-        result.append((label, who.rstrip(":").strip(), items))
+    for row in data.get("weekend", []):
+        items = [make_item(entry, today) for entry in _shown(row["lines"])]
+        if items:
+            result.append((_day_label(row["date"]), row["who"], items))
     overflow = data.get("weekend_overflow", 0)
     if overflow and result and result[-1][2]:
         last = result[-1][2][-1]

@@ -420,8 +420,6 @@ def school_day_weather(state: dict[str, Any], now: datetime, *, config: WeatherC
 def attach_weather(state: dict[str, Any], now: datetime, *, force: bool = False,
                    **options: Any) -> dict[str, Any]:
     """Add `weather` while the weekend panel applies, otherwise `day_weather` for school days."""
-    if state.get("schema_version") != 2:
-        return state
     weather = weekend_weather(now, force=force, **options)
     if weather is not None:
         return {**state, "weather": weather}

@@ -14,7 +14,7 @@ import os
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -130,6 +130,11 @@ class DeriveRequest:
     model: str = DEFAULT_MODEL
     backfill_since: str | None = None
     message_mode: str | None = None
+    # Also re-derive the sources whose facts on the board were made under an older
+    # contract (skoleklar.fact), from `as_of` (default today) through the board's window.
+    migrate: bool = False
+    as_of: str | None = None
+    migrate_limit: int = 40
 
 
 @dataclass(frozen=True)
@@ -505,6 +510,14 @@ def derive(request: DeriveRequest) -> StageResult:
             )
             return StageResult(2)
     purpose = "validation" if backfill_since is not None else "live"
+    if request.migrate and backfill_since is not None:
+        print("--migrate re-derives live facts; it does not combine with a backfill.", file=sys.stderr)
+        return StageResult(2)
+    try:
+        as_of = date.fromisoformat(request.as_of) if request.as_of else date.today()
+    except ValueError:
+        print("--as-of must be an ISO date such as 2026-11-17.", file=sys.stderr)
+        return StageResult(2)
     with SnapshotStore(
         database
     ) as store:
@@ -518,6 +531,23 @@ def derive(request: DeriveRequest) -> StageResult:
             candidates = store.derivation_candidates(
                 request.run_id, source_types=request.source, limit=request.limit
             )
+        migrated = 0
+        before: dict[str, dict[str, Any]] = {}
+        if request.migrate:
+            # Facts the board reads must carry the current contract: re-derive the
+            # rest in its window, the nearest first (docs/processing.md).
+            known = {tuple(sorted(source["version_id"] for source in candidate["sources"]))
+                     for candidate in candidates}
+            stale = [candidate for candidate in store.contract_candidates(
+                current_versions={PROMPT_VERSION, ROUTINE_CALENDAR_FILTER_VERSION},
+                start=as_of, end=as_of + timedelta(days=MIGRATION_DAYS),
+                weekly_plan_keys=_plan_keys(as_of), limit=request.migrate_limit)
+                if tuple(sorted(source["version_id"] for source in candidate["sources"])) not in known]
+            if request.source:
+                stale = [candidate for candidate in stale if candidate["source_type"] in request.source]
+            candidates = [*candidates, *stale]
+            migrated = len(stale)
+            before = _workflow_keys(store, as_of)
         if request.dry_run:
             deterministic_count = sum(
                 deterministic_calendar_items(candidate) is not None
@@ -535,6 +565,7 @@ def derive(request: DeriveRequest) -> StageResult:
                 "taxonomy_version": TAXONOMY_VERSION,
                 "prompt_manifest_hash": derivation_manifest().content_hash,
                 "candidate_count": len(candidates),
+                "contract_candidate_count": migrated,
                 "llm_candidate_count": len(candidates) - deterministic_count,
                 "deterministic_candidate_count": deterministic_count,
                 "candidates": [
@@ -714,11 +745,53 @@ def derive(request: DeriveRequest) -> StageResult:
             "llm_candidate_count": len(candidates) - deterministic_count,
             "deterministic_candidate_count": deterministic_count,
             "processed_count": len(results),
+            "contract_candidate_count": migrated,
             "failures": failures,
             "aborted": aborted,
             "results": results,
         }
+        if request.migrate:
+            summary["continuity"] = _continuity(before, _workflow_keys(store, as_of))
     return StageResult(2 if failures else 0, summary)
+
+
+# The board's window for facts the migration re-derives: its context's reach.
+MIGRATION_DAYS = 18
+
+
+def _plan_keys(as_of: date) -> set[str]:
+    """This week's and next week's weekly-plan source keys, in either week spelling."""
+    keys = set()
+    for day in (as_of, as_of + timedelta(days=7)):
+        year, week, _ = day.isocalendar()
+        keys |= {f"class:{week}-{year}", f"class:{week:02d}-{year}"}
+    return keys
+
+
+def _workflow_keys(store: Any, as_of: date) -> dict[str, dict[str, Any]]:
+    """The current facts from `as_of` on that the family has already seen or ticked off."""
+    end = (as_of + timedelta(days=MIGRATION_DAYS)).isoformat()
+    result = {}
+    for item in store.current_derived_items():
+        seen = {"delivered": bool(item.get("first_delivered_at")),
+                "acknowledged": bool(item.get("acknowledged_at")),
+                "completed": bool(item.get("completed_at") or item.get("dismissed_at"))}
+        day = item.get("effective_date") or ""
+        if any(seen.values()) and as_of.isoformat() <= day <= end:
+            result[item["stable_key"]] = {"child": item["child"], "type": item["item_type"],
+                                          "effective_date": day, "title": item["title"], **seen}
+    return result
+
+
+def _continuity(before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Which seen or ticked-off facts kept their stable key through a re-derivation.
+
+    A re-derivation that rewords a fact's dedupe hint gives it a new key, and the
+    phone's acknowledgement stays with the old one. Run `derive --migrate` on a
+    copy first and read `lost` before the live scan does it.
+    """
+    lost = [{"stable_key": key, **value} for key, value in before.items() if key not in after]
+    return {"kept_count": len(before) - len(lost), "lost_count": len(lost), "lost": lost}
 
 
 def archive(request: ArchiveRequest) -> StageResult:

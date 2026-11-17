@@ -19,16 +19,13 @@ SOFT_HYPHEN = "­"
 CHANGES = (None, "vikar", "aflyst")
 LABELS = ("I dag", "I morgen")
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
-# What a remember line says without its board marker, in a child's words.
-_MARKERS = (("Medbring:", "{}"), ("Besked:", "{}"), ("Lektie:", "Lektie: {}"),
-            ("Valgfrit:", "{} (hvis du vil)"), ("Afklar:", "{}"))
 
 
 def validate_day_view(data: dict[str, Any]) -> None:
     """Allowlist the `day_view` field; called by the board's own `validate`."""
     view = data["day_view"]
-    if data["schema_version"] != 2 or "weather" in data:
-        raise ValueError("day view requires schema version 2 and no weekend weather")
+    if "weather" in data:
+        raise ValueError("day view requires no weekend weather")
     if not isinstance(view, dict) or set(view) != {"date", "label", "slots", "children"}:
         raise ValueError("unknown or missing day view fields")
     try:
@@ -115,29 +112,21 @@ def day_summary(data: dict[str, Any], name: str) -> tuple[str, str] | None:
     return None
 
 
-# Code's own markers, trimmed from a line whose kind already says what it is.
-_CODE_MARKERS = re.compile(r"^(?:(?:besked|medbring|valgfrit|lektie|frist)\s*:\s*)+", re.IGNORECASE)
-# How a kind reads in the remember list; None leaves the line out.
-_REMEMBER = {"optional": "{} (hvis du vil)", "homework": "Lektie: {}", "substitute": None, "routine": None}
+# How a line's kind reads in the remember list, in a child's words; None leaves it out.
+_REMEMBER = {"optional": "{} (hvis du vil)", "homework": "Lektie: {}", "substitute": None, "routine": None,
+             "more": None}
 
 
-def remember_text(line: str, kind: str | None = None) -> str:
-    """One line of the remember list, read from its kind; from its markers only without one."""
-    text = " ".join(str(line).split())
-    if kind is not None:
-        form = _REMEMBER.get(kind, "{}")
-        rest = _CODE_MARKERS.sub("", text).strip()
-        if form is None or not rest:
-            return ""  # A substitute is on the lesson tile; a routine needs no reminder.
-        text = form.format(rest)
-        return text[:1].upper() + text[1:]
-    if not text or text.casefold().startswith("vikar"):
-        return ""  # A substitute is on the lesson tile.
-    for marker, form in _MARKERS:
-        if text.casefold().startswith(marker.casefold()):
-            rest = text[len(marker):].strip()
-            text = form.format(rest) if rest else ""
-            break
+def remember_text(entry: dict[str, Any]) -> str:
+    """One line of the remember list, from its kind (`skoleklar.present`) and its text."""
+    form = _REMEMBER.get(entry["kind"], "{}")
+    if form is None or entry["hidden"]:
+        return ""  # A substitute is on the lesson tile; a routine needs no reminder.
+    if entry["kind"] == "homework" and entry["subject"]:
+        form = form.replace("{}", entry["subject"] + " {}")
+    text = form.format(" ".join(entry["text"].split()))
+    if entry["cancelled"]:
+        text += " er aflyst"
     return text[:1].upper() + text[1:]
 
 
@@ -147,24 +136,24 @@ def remember_items(data: dict[str, Any]) -> list[tuple[str, str]]:
     The same thing for both children is one `Begge` item.
     """
     items: list[list[str]] = []
+
+    def add(who: str, text: str) -> None:
+        same = next((item for item in items if item[1].casefold() == text.casefold()), None)
+        if same is None:
+            items.append([who, text])
+        elif same[0] != who:
+            same[0] = "Begge"
+
     for child in data["hero"]["children"]:
-        for line, kind in board.display_entries(child):
-            text = remember_text(line, kind)
-            if not text:
-                continue
-            same = next((item for item in items
-                         if item[1].casefold() == text.casefold() and item[0] != child["name"]), None)
-            if same:
-                same[0] = "Begge"
-            elif not any(item[1].casefold() == text.casefold() for item in items):
-                items.append([child["name"], text])
+        for entry in child["lines"]:
+            text = remember_text(entry)
+            if text:
+                add(child["name"], text)
     card = next((day for day in data.get("weekdays", []) if day["date"] == data["day_view"]["date"]), None)
-    if card and card.get("shared"):
-        text = re.sub(r"^\s*Begge:\s*", "", card["shared"])
-        if card.get("shared_kind"):
-            text = remember_text(text, card["shared_kind"])
-        if text and not any(item[1].casefold() == text.casefold() for item in items):
-            items.append(["Begge", text[:1].upper() + text[1:]])
+    for entry in card["shared"] if card else []:
+        text = remember_text(entry)
+        if text:
+            add("Begge", text)
     wear = clothing(view_weather(data))
     return ([("Tøj", wear)] if wear else []) + [(who, what) for who, what in items]
 

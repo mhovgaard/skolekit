@@ -306,7 +306,7 @@ def summary_dates(state: dict[str, Any]) -> list[str]:
 
 def attach_day_summaries(state: dict[str, Any], lookup) -> dict[str, Any]:
     """A copy of `state` with one summary per shown school day and child, in hero order."""
-    if state.get("schema_version") != 2 or not state.get("weekdays"):
+    if not state.get("weekdays"):
         return state
     names = [child["name"] for child in state["hero"]["children"]]
     days = [{"date": value, "children": [{"name": name, **lookup(name, value)} for name in names]}

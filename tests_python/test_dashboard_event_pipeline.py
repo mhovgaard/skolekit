@@ -53,10 +53,21 @@ def export(tmp_path, threads):
 
 
 def compose(context, rows, placements, *, overflow=0):
-    """A controlled composition: `rows` of (date, text); `placements` maps each fact ref to a location."""
+    """A controlled composition: `rows` of (date, who, [(text, refs)]), each line drawn from its facts
+    (a ref ending in '!' is shown as cancelled); `placements` maps each fact ref to a location."""
+    from skoleklar.present import line
     _, template, _ = weekend_fixture()
     state = restamp(template, context)
-    state["weekend"] = [{"day": LABEL[day], "text": text} for day, text in rows]
+    facts = {item["ref"]: item for item in context["items"]}
+
+    def board_line(day, text, names):
+        shown = [{**facts[name.rstrip("!")], "cancelled": True} if name.endswith("!") else facts[name]
+                 for name in names]
+        return line(text, [name.rstrip("!") for name in names], shown, day=date.fromisoformat(day))
+
+    state["weekend"] = [{"date": day, "day": LABEL[day], "who": who,
+                         "lines": [board_line(day, text, names) for text, names in lines]}
+                        for day, who, lines in rows]
     state["weekend_overflow"] = overflow
     audit = {"source_updated_at": context["freshness"]["source_updated_at"], "facts": []}
     for item in context["items"]:
@@ -64,6 +75,11 @@ def compose(context, rows, placements, *, overflow=0):
         audit["facts"].append({"ref": item["ref"], "decision": "displayed" if location else "omitted",
                                "location": location or "", "reason": "Test placement"})
     return state, audit
+
+
+def texts(rows):
+    return [(row["who"], [(entry["text"], entry["kind"], entry["label"]) for entry in row["lines"]])
+            for row in rows]
 
 
 def refs(context, **match):
@@ -75,8 +91,8 @@ def test_one_active_party_appears_on_its_date_in_both_renderers(tmp_path):
     _, context = export(tmp_path, {"a": [fact(1)]})
     [party] = context["items"]
     assert party["title"] == "Fødselsdagsfest" and party["message_thread"] == 1 and "cancelled" not in party
-    state, audit = compose(context, [(SUNDAY, "ChildA: Fødselsdagsfest")],
-                           {party["ref"]: "weekend[0].text"})
+    state, audit = compose(context, [(SUNDAY, "ChildA", [("Fødselsdagsfest", [party["ref"]])])],
+                           {party["ref"]: "weekend[0]"})
     validate_composition(context, state, audit)
     assert "Fødselsdagsfest" in render_html(state)
     render_png(state)
@@ -96,38 +112,30 @@ def test_a_named_birthday_reads_as_whose_party_it_is_everywhere(tmp_path):
     brief = build_brief_range(items, start_date=date(2026, 10, 24), end_date=date(2026, 11, 2), compact=True)
     assert brief["items"][0]["title"] == "Claras fødselsdag" and brief["items"][0]["celebrant"] == "Clara"
     [party] = context["items"]
-    # The context carries the name in the title only: no new field reaches the model or MCP.
-    assert party["title"] == "Claras fødselsdag" and "celebrant" not in party
+    # The name is in the title and, as the fact model has it, in `celebrant`.
+    assert party["title"] == "Claras fødselsdag" and party["celebrant"] == "Clara"
     rows, overflow, _ = weekend_selection(context)
-    assert [row["text"] for row in rows] == ["ChildA: Claras fødselsdag"] and overflow == 0
-    state, audit = compose(context, [(SUNDAY, "ChildA: Claras fødselsdag")], {party["ref"]: "weekend[0].text"})
+    assert texts(rows) == [("ChildA", [("Claras fødselsdag", "party", "")])] and overflow == 0
+    state, audit = compose(context, [(SUNDAY, "ChildA", [("Claras fødselsdag", [party["ref"]])])],
+                           {party["ref"]: "weekend[0]"})
     validate_composition(context, state, audit)
     assert "Claras fødselsdag" in render_html(state)
     render_png(state)
 
 
 def test_a_named_birthday_that_is_cancelled_still_says_so(tmp_path):
+    from skoleklar.dashboard_rules import weekend_selection
+
     _, context = export(tmp_path, {"a": [fact(1, celebrant="Mads", cancelled=True)]})
     [party] = context["items"]
-    assert party["title"] == "Mads' fødselsdag aflyst"
-    state, audit = compose(context, [(SUNDAY, "ChildA: Mads' fødselsdag aflyst")],
-                           {party["ref"]: "weekend[0].text"})
+    # The title is the party's; `cancelled` says it is off, and the board labels it.
+    assert party["title"] == "Mads' fødselsdag" and party["cancelled"] is True
+    rows, _, _ = weekend_selection(context)
+    assert texts(rows) == [("ChildA", [("Mads' fødselsdag", "party", "Aflyst")])]
+    state, audit = compose(context, [(SUNDAY, "ChildA", [("Mads' fødselsdag", [party["ref"]])])],
+                           {party["ref"]: "weekend[0]"})
     validate_composition(context, state, audit)
-
-
-@pytest.mark.parametrize("celebrant, cancelled", [("Aaaaaaaaaaaaaaaaaaaaaaaa", False),
-                                                   ("Ella-Rose", True)])
-def test_a_long_name_gives_way_before_the_activity_or_its_cancellation(celebrant, cancelled):
-    from skoleklar.dashboard_events import activity_title
-    from skoleklar.dashboard_rules import WEEKEND_TEXT_LIMIT, _activity_text
-
-    child = "Bbbbbbbbbbbbbbbbbbbbbbbb"
-    group = {"child": child, "kind": "birthday_party", "label": activity_title("birthday_party", celebrant),
-             "cancelled": cancelled, "bring": []}
-    text = _activity_text(group, [child])
-    assert len(text) <= WEEKEND_TEXT_LIMIT and "…" not in text
-    assert "fødselsdag" in text.casefold() and ("aflyst" in text) == cancelled
-    assert text == f"{child}: Fødselsdagsfest" + (" aflyst" if cancelled else "")
+    assert "<b>Aflyst</b> Mads&#x27; fødselsdag" in render_html(state)
 
 
 def test_cancellation_survives_the_brief_and_context_and_is_never_a_plan(tmp_path):
@@ -136,26 +144,28 @@ def test_cancellation_survives_the_brief_and_context_and_is_never_a_plan(tmp_pat
     brief = build_brief_range(items, start_date=date(2026, 10, 24), end_date=date(2026, 11, 2), compact=True)
     assert brief["items"][0]["state"] == "cancelled"
     [party] = context["items"]
-    assert party["cancelled"] is True and party["title"] == "Fødselsdagsfest aflyst"
-
-    as_plan = compose(context, [(SUNDAY, "ChildA: Fødselsdagsfest")], {party["ref"]: "weekend[0].text"})
-    with pytest.raises(ValueError, match="cancelled activity must not appear as a plan"):
-        validate_composition(context, *as_plan)
+    assert party["cancelled"] is True and party["title"] == "Fødselsdagsfest"
     validate_composition(context, *compose(context, [], {}))
-    state, audit = compose(context, [(SUNDAY, "ChildA: Fødselsdagsfest aflyst")],
-                           {party["ref"]: "weekend[0].text"})
+    state, audit = compose(context, [(SUNDAY, "ChildA", [("Fødselsdagsfest", [party["ref"]])])],
+                           {party["ref"]: "weekend[0]"})
     validate_composition(context, state, audit)
-    assert "Fødselsdagsfest aflyst" in render_html(state)
+    assert "<b>Aflyst</b> Fødselsdagsfest" in render_html(state)
     render_png(state)
 
 
 def test_a_later_cancellation_in_the_same_thread_cancels_the_party(tmp_path):
+    from skoleklar.dashboard_rules import weekend_selection
+
     _, context = export(tmp_path, {"a": [fact(1), fact(2, event_kind="cancellation")]})
     party = refs(context, activity_kind="birthday_party")[0]
     with pytest.raises(ValueError, match="cancelled activity must not appear as a plan"):
-        validate_composition(context, *compose(context, [(SUNDAY, "ChildA: Fødselsdagsfest")],
-                                               {party: "weekend[0].text"}))
+        validate_composition(context, *compose(context, [(SUNDAY, "ChildA", [("Fødselsdagsfest", [party])])],
+                                               {party: "weekend[0]"}))
+    validate_composition(context, *compose(context, [(SUNDAY, "ChildA", [("Fødselsdagsfest", [party + "!"])])],
+                                           {party: "weekend[0]"}))
     validate_composition(context, *compose(context, [], {}))
+    rows, _, _ = weekend_selection(context)
+    assert texts(rows)[0] == ("ChildA", [("Fødselsdagsfest", "party", "Aflyst")])
 
 
 def test_three_facts_for_one_trip_make_one_row_and_three_cannot_switch_validation_off(tmp_path):
@@ -163,8 +173,8 @@ def test_three_facts_for_one_trip_make_one_row_and_three_cannot_switch_validatio
                                    for number, letter in enumerate("abc", 1)})
     trips = refs(context, activity_kind="class_trip")
     assert len(trips) == 3
-    validate_composition(context, *compose(context, [(SUNDAY, "ChildA: Klassetur")],
-                                           {ref: "weekend[0].text" for ref in trips}))
+    validate_composition(context, *compose(context, [(SUNDAY, "ChildA", [("Klassetur", trips)])],
+                                           {ref: "weekend[0]" for ref in trips}))
     with pytest.raises(ValueError, match="confirmed weekend activity must be displayed"):
         validate_composition(context, *compose(context, [], {}))
 
@@ -174,8 +184,8 @@ def test_three_distinct_activities_fill_both_rows_and_count_the_rest(tmp_path):
                                    "c": [fact(3, child="ChildB", kind="social_activity")]})
     first, second = refs(context, activity_kind="birthday_party")
     third = refs(context, activity_kind="social_activity")[0]
-    rows = [(SATURDAY, "ChildA: Fødselsdagsfest"), (SUNDAY, "ChildA: Fødselsdagsfest")]
-    placements = {first: "weekend[0].text", second: "weekend[1].text", third: "weekend_overflow"}
+    rows = [(SATURDAY, "ChildA", [("Fødselsdagsfest", [first])]), (SUNDAY, "ChildA", [("Fødselsdagsfest", [second])])]
+    placements = {first: "weekend[0]", second: "weekend[1]", third: "weekend_overflow"}
     state, audit = compose(context, rows, placements, overflow=1)
     validate_composition(context, state, audit)
     # Without the weekend forecast the parents' board counts the third on the last row.
@@ -188,10 +198,10 @@ def test_three_distinct_activities_fill_both_rows_and_count_the_rest(tmp_path):
     with pytest.raises(ValueError, match="weekend overflow must count"):
         validate_composition(context, *compose(context, rows, placements))
     with pytest.raises(ValueError, match="confirmed weekend activity must be displayed"):
-        validate_composition(context, *compose(context, rows, {first: "weekend[0].text",
-                                                               second: "weekend[1].text"}, overflow=1))
+        validate_composition(context, *compose(context, rows, {first: "weekend[0]", second: "weekend[1]"},
+                                               overflow=1))
     with pytest.raises(ValueError, match="both rows"):
-        validate_composition(context, *compose(context, rows[:1], {first: "weekend[0].text",
+        validate_composition(context, *compose(context, rows[:1], {first: "weekend[0]",
                                                                    second: "weekend_overflow",
                                                                    third: "weekend_overflow"}, overflow=2))
 
@@ -200,18 +210,21 @@ def test_two_parties_on_one_day_stay_distinct(tmp_path):
     _, context = export(tmp_path, {"a": [fact(1)], "b": [fact(2)]})
     first, second = refs(context, activity_kind="birthday_party")
     assert {item["message_thread"] for item in context["items"]} == {1, 2}
-    merged = compose(context, [(SUNDAY, "ChildA: Fødselsdagsfest")],
-                     {first: "weekend[0].text", second: "weekend[0].text"})
+    merged = compose(context, [(SUNDAY, "ChildA", [("Fødselsdagsfest", [first, second])])],
+                     {first: "weekend[0]", second: "weekend[0]"})
     with pytest.raises(ValueError, match="distinct weekend activities must not share a row"):
         validate_composition(context, *merged)
     validate_composition(context, *compose(
-        context, [(SUNDAY, "ChildA: Fødselsdagsfest"), (SUNDAY, "ChildA: Fødselsdagsfest")],
-        {first: "weekend[0].text", second: "weekend[1].text"}))
+        context, [(SUNDAY, "ChildA", [("Fødselsdagsfest", [first])]),
+                  (SUNDAY, "ChildA", [("Fødselsdagsfest", [second])])],
+        {first: "weekend[0]", second: "weekend[1]"}))
 
 
-def test_a_party_and_its_bring_item_share_one_row_without_besked(tmp_path):
+def test_a_party_and_its_bring_item_share_one_row(tmp_path):
     """The weekend of 4 November 2026: one party on Saturday, two on Sunday from two
     threads, and a required bring-item in the same message as one Sunday party."""
+    from skoleklar.dashboard_rules import weekend_selection
+
     bring = {**fact(4, event_kind="bring"), "bring_items": ["udetøj"], "requirement": "required"}
     _, context = export(tmp_path, {"a": [fact(1, child="ChildB", day=SATURDAY)],
                                    "b": [fact(2), bring], "c": [fact(3)]})
@@ -219,62 +232,51 @@ def test_a_party_and_its_bring_item_share_one_row_without_besked(tmp_path):
     with_item, other = (refs(context, activity_kind="birthday_party", child="ChildA", message_thread=n)[0]
                         for n in (2, 3))
     [item] = refs(context, type="bring")
-    rows = [(SATURDAY, "ChildB: Fødselsdagsfest"), (SUNDAY, "ChildA: Fødselsdagsfest; Medbring: udetøj")]
-    placements = {saturday: "weekend[0].text", with_item: "weekend[1].text", item: "weekend[1].text",
-                  other: "weekend_overflow"}
-    # The row the prompt asks for: the event, with its bring-item and no `Besked:`.
+    # The message's bring-item carries its things, so the board needs no words to find them.
+    assert next(fact for fact in context["items"] if fact["ref"] == item)["bring_items"] == ["udetøj"]
+    rows, overflow, _ = weekend_selection(context)
+    assert texts(rows) == [("ChildB", [("Fødselsdagsfest", "party", "")]),
+                           ("ChildA", [("Fødselsdagsfest", "party", ""), ("udetøj", "bring", "Medbring")])]
+    assert overflow == 1
+    rows = [(SATURDAY, "ChildB", [("Fødselsdagsfest", [saturday])]),
+            (SUNDAY, "ChildA", [("Fødselsdagsfest", [with_item]), ("udetøj", [item])])]
+    placements = {saturday: "weekend[0]", with_item: "weekend[1]", item: "weekend[1]", other: "weekend_overflow"}
     validate_composition(context, *compose(context, rows, placements, overflow=1))
     # The bring-item may not be dropped while its party is shown.
+    without = [rows[0], (SUNDAY, "ChildA", [("Fødselsdagsfest", [with_item])])]
     with pytest.raises(ValueError, match="private event row must include its retained bring-item"):
-        validate_composition(context, *compose(context, rows, {**placements, item: None}, overflow=1))
-    # A party row still reads as an event.
-    besked = [rows[0], (SUNDAY, "ChildA: Besked: Fødselsdagsfest; udetøj")]
-    with pytest.raises(ValueError, match="weekend activity must read as an event"):
-        validate_composition(context, *compose(context, besked, placements, overflow=1))
-
-
-def test_a_message_bring_item_on_a_row_without_an_activity_still_says_besked():
-    context, state, audit = weekend_fixture()
-    context["items"].append({"ref": "bring", "type": "bring", "child": "ChildA", "effective_date": SUNDAY,
-                             "title": "Bring udetøj", "private_message_fact": True,
-                             "actionability": "required"})
-    state["weekend"] = [{"day": "Søn. 25. okt.", "text": "ChildA: Klassetur"},
-                        {"day": "Søn. 25. okt.", "text": "ChildA: Medbring: udetøj"}]
-    audit["facts"] = [{"ref": "birthday", "decision": "omitted", "location": "", "reason": "Birth date only"},
-                      {"ref": "trip", "decision": "displayed", "location": "weekend[0].text", "reason": "Trip"},
-                      {"ref": "bring", "decision": "displayed", "location": "weekend[1].text", "reason": "Item"}]
-    with pytest.raises(ValueError, match="private message fact must show message provenance"):
-        validate_composition(context, state, audit)
-    state["weekend"][1]["text"] = "ChildA: Besked: Medbring: udetøj"
-    validate_composition(context, state, audit)
+        validate_composition(context, *compose(context, without, {**placements, item: None}, overflow=1))
 
 
 def test_birthday_notice_never_takes_a_row_and_an_invitation_gets_it():
+    from tests_python.test_dashboard_events import activity_row
+
     context, state, audit = weekend_fixture()
     notice, trip = context["items"]
-    parties = [{"ref": f"party{n}", "type": "event", "child": "ChildA", "effective_date": SUNDAY,
+    parties = [{"ref": f"fact-{n + 2}", "type": "event", "child": "ChildA", "effective_date": SUNDAY,
                 "title": "Fødselsdagsfest", "private_message_fact": True, "activity_kind": "birthday_party",
                 "message_thread": n} for n in (1, 2)]
     context["items"] = [notice, trip, *parties]
-    state["weekend"] = [{"day": "Søn. 25. okt.", "text": "ChildA: Klassetur"},
-                        {"day": "Søn. 25. okt.", "text": "ChildA · Alex fødselsdag"}]
+    state["weekend"] = [activity_row(context, ["fact-2"]), activity_row(context, ["fact-1"])]
     state["weekend_overflow"] = 2
     audit["facts"] = [
-        {"ref": "birthday", "decision": "displayed", "location": "weekend[1].text", "reason": "Reminder"},
-        {"ref": "trip", "decision": "displayed", "location": "weekend[0].text", "reason": "Trip"},
+        {"ref": "fact-1", "decision": "displayed", "location": "weekend[1]", "reason": "Reminder"},
+        {"ref": "fact-2", "decision": "displayed", "location": "weekend[0]", "reason": "Trip"},
         *({"ref": p["ref"], "decision": "merged", "location": "weekend_overflow", "reason": "No room"}
           for p in parties)]
     with pytest.raises(ValueError, match="birthday notice is not a family activity"):
         validate_composition(context, state, audit)
-    state["weekend"][1]["text"] = "ChildA: Fødselsdagsfest"
+    state["weekend"][1] = activity_row(context, ["fact-3"])
     state["weekend_overflow"] = 1
     audit["facts"][0].update(decision="omitted", location="")
-    audit["facts"][2].update(decision="displayed", location="weekend[1].text")
+    audit["facts"][2].update(decision="displayed", location="weekend[1]")
     validate_composition(context, state, audit)
 
 
 def test_what_a_derived_fact_is_reaches_the_board_context(tmp_path):
-    """derive-v10's fields travel from the store to the context, only when they are set."""
+    """The fact model's fields travel from the store to the context; a fact made under an
+    older contract is counted, so the board can say so and the scan re-derives it."""
+    from skoleklar import fact as fact_model
     from skolekit.records import SourceRecord
     from skoleklar.dashboard_context import collapse_duplicates
 
@@ -294,37 +296,25 @@ def test_what_a_derived_fact_is_reaches_the_board_context(tmp_path):
                 "urgency": "routine", "urgency_reason": "", "confidence": 0.9, "needs_review": False,
                 "review_reason": "", "evidence": [{"quote": "Skovtur", "source_day": None, "subject": None}]}
         derivation = store.begin_derivation(harvest_run_id=run, cache_key="c", provider="test", model="m",
-                                            prompt_version="derive-v10", taxonomy_version="t")
+                                            prompt_version="derive-v11", taxonomy_version="t")
         store.complete_derivation(derivation, items=[
-            base | {"stable_key": "trip", "dedupe_hint": "trip", "title": "Skovtur", "category": "trip",
-                    "moves_time": None, "recurring": False},
+            fact_model.normalize(base | {"stable_key": "trip", "dedupe_hint": "trip", "title": "Skovtur",
+                                         "category": "trip"}),
             base | {"stable_key": "older", "dedupe_hint": "older", "title": "Skovdag"},
         ], sources=candidate["sources"], response_id="r", usage={})
     with SnapshotStore(path, read_only=True) as store:
         context = export_context(store, now=datetime.fromisoformat("2026-10-26T19:30:00+01:00"))
     facts = {fact["title"]: fact for fact in context["items"]}
-    assert (facts["Skovtur"]["category"], facts["Skovtur"]["recurring"]) == ("trip", False)
-    assert "moves_time" not in facts["Skovtur"]
-    assert not {"category", "moves_time", "recurring"} & set(facts["Skovdag"])
+    # What is empty for a fact is left out of the model's context.
+    assert facts["Skovtur"]["category"] == "trip"
+    assert not {"moves_time", "recurring", "bring_items", "school_subject"} & set(facts["Skovtur"])
+    assert not set(fact_model.MEANING_NAMES) & set(facts["Skovdag"])
+    assert context["contract"] == {"current": fact_model.CONTRACT, "stale": 1}
 
-    # The same fact derived before and after v10 is still one fact, and says what it is.
-    older = {"ref": "fact-1", "type": "event", "child": "ChildA", "title": "Skovtur", "effective_date": "2026-10-27"}
-    newer = {**older, "ref": "fact-2", "category": "trip", "recurring": False}
-    [kept] = collapse_duplicates([dict(older), newer])
-    assert kept["repeats"] == 2 and kept["category"] == "trip" and kept["recurring"] is False
-
-
-def test_a_weekend_rows_kind_not_its_words_shows_the_activity(tmp_path):
-    _, context = export(tmp_path, {"a": [fact(1, celebrant="Clara")]})
-    [party] = context["items"]
-    # The row's kind is the party, so its words need not say 'fødselsdag'.
-    state, audit = compose(context, [(SUNDAY, "ChildA: Claras fest")], {party["ref"]: "weekend[0].text"})
-    state["weekend"][0]["kinds"] = ["party"]
-    validate_composition(context, state, audit)
-    state["weekend"][0]["kinds"] = ["event"]
-    with pytest.raises(ValueError, match="weekend activity must keep its kind"):
-        validate_composition(context, state, audit)
-    # A row without kinds is held to its words, as before.
-    state["weekend"][0].pop("kinds")
-    with pytest.raises(ValueError, match="birthday party must retain its activity kind"):
-        validate_composition(context, state, audit)
+    # The same fact twice is one fact; what it is joins as consolidation joins it.
+    first = {"ref": "fact-1", "type": "event", "child": "ChildA", "title": "Skovtur",
+             "effective_date": "2026-10-27", "category": "trip"}
+    [kept] = collapse_duplicates([dict(first), {**first, "ref": "fact-2"}])
+    assert kept["repeats"] == 2 and kept["category"] == "trip"
+    [kept] = collapse_duplicates([dict(first), {**first, "ref": "fact-2", "category": "party"}])
+    assert "category" not in kept

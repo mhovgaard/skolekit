@@ -28,13 +28,11 @@ def activity_title(kind, celebrant=None):
 
 
 def birthday_notice(item):
-    """A calendar birth date establishes no invitation or family attendance."""
+    """A calendar notice of a classmate's birthday, which establishes no invitation or
+    family attendance: its extractor says so (`category` `birthday`)."""
     return (item.get("type", item.get("item_type")) == "event"
             and not item.get("private_message_fact")
-            and item.get("actionability") == "informational"
-            and bool(re.search(r"\bhar fødselsdag\b", str(item.get("title", "")), re.I))
-            and not re.search(r"\b(invitation|inviter|fest|fødselsdagsfest|fejring)\b",
-                              str(item.get("title", "")) + " " + str(item.get("summary", "")), re.I))
+            and item.get("category") == "birthday")
 
 
 def event_confirmations(document):

@@ -1,0 +1,231 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dedupe_hint": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "stream": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "actions",
+              "calendar",
+              "context",
+              "watch"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "bring",
+              "event",
+              "schedule_change",
+              "substitute",
+              "parent_action",
+              "reminder",
+              "context",
+              "routine",
+              "lesson_preview"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "trip",
+              "party",
+              "meeting",
+              "birthday",
+              "other",
+              null
+            ]
+          },
+          "moves_time": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "recurring": {
+            "type": "boolean"
+          },
+          "school_subject": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40
+          },
+          "teacher": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60
+          },
+          "bring_items": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          "rain_gear": {
+            "type": "boolean"
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "child",
+              "parent",
+              "family"
+            ]
+          },
+          "child": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "effective_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "end_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "all_day": {
+            "type": "boolean"
+          },
+          "timing_rule": {
+            "type": "string",
+            "enum": [
+              "explicit",
+              "complete_before_source_day",
+              "needed_on_source_day",
+              "occurs_on_source_day",
+              "no_derived_date",
+              "ambiguous"
+            ]
+          },
+          "actionability": {
+            "type": "string",
+            "enum": [
+              "required",
+              "recommended",
+              "informational"
+            ]
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "routine",
+              "attention",
+              "urgent",
+              "critical"
+            ]
+          },
+          "urgency_reason": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "needs_review": {
+            "type": "boolean"
+          },
+          "review_reason": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "quote": {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                "source_day": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "subject": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "quote",
+                "source_day",
+                "subject"
+              ]
+            }
+          }
+        },
+        "required": [
+          "dedupe_hint",
+          "stream",
+          "type",
+          "category",
+          "moves_time",
+          "recurring",
+          "school_subject",
+          "teacher",
+          "bring_items",
+          "rain_gear",
+          "audience",
+          "child",
+          "title",
+          "summary",
+          "effective_date",
+          "end_date",
+          "all_day",
+          "timing_rule",
+          "actionability",
+          "urgency",
+          "urgency_reason",
+          "confidence",
+          "needs_review",
+          "review_reason",
+          "evidence"
+        ]
+      }
+    }
+  },
+  "required": [
+    "items"
+  ]
+}

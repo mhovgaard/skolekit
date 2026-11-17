@@ -19,7 +19,6 @@ from skoleklar.dashboard_timing import (
     dashboard_focus,
     dashboard_weekend_dates,
 )
-from skoleklar.dashboard_validation import _display_date
 from skoleklar.day_view import change_times as day_view_change_times
 from skoleklar.weather import SATURDAY_UNTIL_HOUR
 
@@ -76,7 +75,7 @@ def slice_state(state: dict, context: dict) -> dict:
     result = restamp(state, context)
     result.pop("weather", None)
     result.pop("day_weather", None)
-    if _display_date(result["hero"]["day"], focus) != focus:
+    if result["hero"]["date"] != focus.isoformat():
         card = next((day for day in result.get("weekdays", [])
                      if day["date"] == focus.isoformat()), None)
         if card is None:
@@ -86,6 +85,7 @@ def slice_state(state: dict, context: dict) -> dict:
         result["hero"] = {
             "state": "I dag" if focus == at.date() else "Næste skoledag",
             "day": weekend_day_title({"date": focus.isoformat()}),
+            "date": focus.isoformat(),
             "children": [dict(child, lines=list(child["lines"])) for child in card["children"]],
         }
     if context.get("items") is not None:
@@ -93,7 +93,6 @@ def slice_state(state: dict, context: dict) -> dict:
         # so an activity counted as overflow moves into a row that has come free.
         result["weekend"], result["weekend_overflow"], _ = weekend_selection(context)
     elif "weekend" in result:
-        allowed = set(dashboard_weekend_dates(at))
-        result["weekend"] = [row for row in result["weekend"]
-                             if _display_date(row["day"], at.date()) in allowed]
+        allowed = {day.isoformat() for day in dashboard_weekend_dates(at)}
+        result["weekend"] = [row for row in result["weekend"] if row["date"] in allowed]
     return result

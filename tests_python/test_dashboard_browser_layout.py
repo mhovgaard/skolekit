@@ -11,6 +11,7 @@ import shutil
 
 import pytest
 
+from tests_python.board_lines import line
 from tests_python.test_dashboard_rendering import dashboard, weekday_grid_state
 
 CHROME = next(
@@ -77,15 +78,15 @@ def shown_texts(value, live_messages=None):
 
 def busy_state():
     value = weekday_grid_state()
-    long_lines = [
-        "Hvis ugens kammerat: Medbring bamse",
-        "Valgfrit: turtaske og drikkedunk",
-        "Vikar: Alexander W.-U. · KULTUR 00",
-    ]
     for day in value["weekdays"][:3]:
-        day["children"][1]["lines"] = list(long_lines)
-        day["children"][0]["lines"] = ["Læs side 4"]
-    value["hero"]["children"][0]["lines"] = ["Elisabeth har fødselsdag", "Tur til søen i kulturfag"]
+        iso = day["date"]
+        day["children"][1]["lines"] = [line("bamse, hvis du er ugens kammerat", "bring", day=iso),
+                                       line("turtaske og drikkedunk", "optional", day=iso),
+                                       line("Alexander W.-U. · KULTUR 00", "substitute", day=iso)]
+        day["children"][0]["lines"] = [line("Læs side 4", "homework", day=iso)]
+    hero = value["hero"]["date"]
+    value["hero"]["children"][0]["lines"] = [line("Elisabeth fejrer sin fødselsdag", day=hero),
+                                             line("Tur til søen i kulturfag", "trip", day=hero)]
     return value
 
 
@@ -109,8 +110,10 @@ def test_weekend_artwork_loads_and_leaves_activities_and_inbox_visible(tmp_path,
 
     state = weather_state("Museum")
     state["weekend"] = [
-        {"day": "Lør. 3. okt.", "text": "Begge: Tur i skoven kl. 11"},
-        {"day": "Søn. 4. okt.", "text": "ChildA: Besøg hos familien kl. 14"},
+        {"date": "2026-10-03", "day": "Lør. 3. okt.", "who": "Begge",
+         "lines": [line("Tur i skoven kl. 11", "trip", day="2026-10-03")]},
+        {"date": "2026-10-04", "day": "Søn. 4. okt.", "who": "ChildA",
+         "lines": [line("Besøg hos familien kl. 14", "event", day="2026-10-04")]},
     ]
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(executable_path=CHROME, headless=True)

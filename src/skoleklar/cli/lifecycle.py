@@ -92,7 +92,8 @@ async def command_sync(args: argparse.Namespace) -> int:
 
     stages = [
         ("derive", lambda: derive(DeriveRequest(
-            db=database, model=args.model, message_mode=message_mode))),
+            db=database, model=args.model, message_mode=message_mode, migrate=True,
+            as_of=args.date))),
         ("archive", lambda: archive(ArchiveRequest(
             as_of=args.date, db=database, model=args.model, message_mode=message_mode))),
         ("consolidate", lambda: consolidate(ConsolidateRequest(

@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
+from skoleklar import fact as fact_model
 from skoleklar.delivery_manifest import delivery_items_from_snapshot
 from skoleklar.triage.review_checks import apply_verdicts
 
@@ -30,7 +31,9 @@ FACT_FIELDS = ("stable_key", "child", "item_type", "title", "summary", "effectiv
 
 
 def _fact(item: dict[str, Any]) -> dict[str, Any]:
-    fact = {field: item.get(field) for field in FACT_FIELDS}
+    # What the fact is (skoleklar.fact), as its extractor said it.
+    fact = {field: item.get(field) for field in FACT_FIELDS} | {
+        key: value for key, value in fact_model.public(item).items() if key != "type"}
     fact["needs_review"] = bool(fact["needs_review"])
     fact["all_day"] = bool(fact["all_day"])
     fact["from"] = "messages" if "messages" in (item.get("source_types") or []) else "school"

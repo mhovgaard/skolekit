@@ -13,6 +13,7 @@ from collections import Counter
 from datetime import date
 from typing import Any
 
+from skoleklar import fact as fact_model
 from skoleklar.migrations import SchemaError, current_version
 from skoleklar.store.capture import utc_now
 
@@ -67,10 +68,6 @@ def _parse_source_date(value: str) -> date | None:
         return date(int(danish_match.group(3)), month, int(danish_match.group(1)))
     except ValueError:
         return None
-
-
-# What a derived item is (derive-v10): read from its payload, carried by consolidation.
-ITEM_SHAPE = ("category", "moves_time", "recurring")
 
 
 class FactRepository:
@@ -203,6 +200,74 @@ class FactRepository:
                 grouped[group_key] = candidate
                 candidates.append(candidate)
             candidate["sources"].append(source)
+        return candidates[:limit]
+
+    def contract_candidates(
+        self,
+        *,
+        current_versions: set[str],
+        start: date,
+        end: date,
+        weekly_plan_keys: set[str],
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """Current sources whose live facts were made under an older contract.
+
+        A source qualifies when the newest live derivation of its current version
+        used a prompt or filter outside `current_versions`, and it bears on the
+        board: one of its facts falls between `start` and `end`, or it is a weekly
+        plan in `weekly_plan_keys`. Sources are grouped as `backfill_candidates`
+        groups them, and the nearest come first.
+        """
+        if limit < 1:
+            return []
+        placeholders = ",".join("?" for _ in current_versions)
+        plan_placeholders = ",".join("?" for _ in weekly_plan_keys) or "NULL"
+        rows = self.connection.execute(
+            f"""
+            SELECT r.id AS record_id, r.child, r.source_type, r.source_key, r.source_url,
+                   v.id AS version_id, v.content_hash, v.payload_json,
+                   MIN(COALESCE(i.effective_date, '9999-12-31')) AS first_date
+            FROM derivations d
+            JOIN derivation_sources s ON s.derivation_id = d.id
+            JOIN records r ON r.id = s.record_id AND r.current_version_id = s.version_id
+            JOIN record_versions v ON v.id = s.version_id
+            LEFT JOIN derived_items i ON i.derivation_id = d.id
+            WHERE d.status = 'complete' AND d.purpose = 'live' AND r.status = 'active'
+              AND d.prompt_version NOT IN ({placeholders})
+              AND NOT EXISTS (
+                  SELECT 1 FROM derivation_sources newer_source
+                  JOIN derivations newer ON newer.id = newer_source.derivation_id
+                  WHERE newer_source.record_id = s.record_id
+                    AND newer_source.version_id = s.version_id
+                    AND newer.status = 'complete' AND newer.purpose = 'live'
+                    AND newer.id > d.id)
+              AND ((r.source_type = 'weekly_plan' AND r.source_key IN ({plan_placeholders}))
+                   OR (i.effective_date <= ? AND COALESCE(i.end_date, i.effective_date) >= ?))
+            GROUP BY r.id, v.id
+            ORDER BY first_date, r.child, r.source_type, r.source_key
+            """,
+            [*sorted(current_versions), *sorted(weekly_plan_keys), end.isoformat(),
+             start.isoformat()],
+        ).fetchall()
+        run_id = self.latest_completed_run_id()
+        grouped: dict[tuple[Any, ...], dict[str, Any]] = {}
+        candidates: list[dict[str, Any]] = []
+        for row in rows:
+            group_key = ((row["source_type"], row["source_key"], row["content_hash"])
+                         if row["source_type"] == "frontpage"
+                         else ("record", row["record_id"], row["version_id"]))
+            candidate = grouped.get(group_key)
+            if candidate is None:
+                candidate = {"harvest_run_id": run_id, "change": "contract",
+                             "source_type": row["source_type"], "source_key": row["source_key"],
+                             "content_hash": row["content_hash"], "sources": []}
+                grouped[group_key] = candidate
+                candidates.append(candidate)
+            candidate["sources"].append({
+                "record_id": int(row["record_id"]), "version_id": int(row["version_id"]),
+                "child": row["child"], "source_url": row["source_url"],
+                "payload_json": row["payload_json"]})
         return candidates[:limit]
 
     def cached_derivation(self, cache_key: str) -> dict[str, Any] | None:
@@ -409,9 +474,10 @@ class FactRepository:
             item["all_day"] = bool(item["all_day"])
             item["needs_review"] = bool(item["needs_review"])
             item["evidence"] = json.loads(item.pop("evidence_json"))
-            # derive-v10 says what an item is; facts derived before keep no such keys.
+            # What the item is (skoleklar.fact), as its derivation said it; a fact
+            # derived under an older contract has no `contract` and is re-derived.
             payload = json.loads(item.pop("payload_json") or "{}")
-            item.update({key: payload[key] for key in ITEM_SHAPE if key in payload})
+            item.update(fact_model.meaning(payload))
             item["source_urls"] = source_urls.get(int(item["id"]), [])
             item["source_types"] = source_types.get(int(item["id"]), [])
             result.append(item)

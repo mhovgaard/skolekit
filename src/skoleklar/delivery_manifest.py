@@ -5,6 +5,7 @@ import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+from skoleklar import health as stage_health
 from skoleklar.brief import build_brief, render_brief_text
 from skoleklar.contracts import validate_contract
 from skoleklar.delivery_store import DeliveryObjectExistsError
@@ -22,7 +23,9 @@ def build_delivery_manifest(
     generated_at: datetime | None = None,
     expires_after: timedelta = timedelta(hours=36),
     coverage: dict[str, Any] | None = None,
+    health: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """The phone's manifest; `health` (skoleklar.health) names in the brief what the scan missed."""
     generated = _as_utc(generated_at or datetime.now(UTC))
     latest_run_id = max(
         (int(item.get("harvest_run_id", 0)) for item in items),
@@ -111,6 +114,9 @@ def build_delivery_manifest(
                 f"{int(coverage.get('unread_count', 0))} unread · "
                 f"{int(coverage.get('new_count', 0))} new · bodies not retained."
             )
+    missing = stage_health.line(health)
+    if missing:
+        brief_body += f"\n\n⚠️ {missing}"
     manifest = {
         "schema_version": 1,
         "manifest_id": f"{generated.strftime('%Y%m%dT%H%M%SZ')}-{suffix}",

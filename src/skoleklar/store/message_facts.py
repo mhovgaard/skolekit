@@ -14,6 +14,7 @@ import sqlite3
 from datetime import date
 from typing import Any, Iterable
 
+from skoleklar import fact as fact_model
 from skoleklar.dashboard_events import CELEBRANT, activity_title
 from skoleklar.store.capture import utc_now
 
@@ -31,6 +32,11 @@ MESSAGE_EVENT_TITLES = {
     "schedule_change": "Skemaændring",
     "cancellation": "Arrangement aflyst",
 }
+
+
+# A message event's category as the fact model names it (skoleklar.fact).
+_ACTIVITY_CATEGORY = {"birthday_party": "party", "class_trip": "trip",
+                      "class_event": "other", "social_activity": "other"}
 
 
 _SHORT_DAYS = ("man.", "tir.", "ons.", "tor.", "fre.", "lør.", "søn.")
@@ -369,7 +375,7 @@ class MessageFactRepository:
                     if row["necessary_location"]
                     else "Se beskeden i SkoleIntra for detaljer."
                 )
-            result.append(
+            result.append(fact_model.normalize(
                 {
                     "id": -int(row["id"]),
                     "stable_key": row["stable_key"],
@@ -421,10 +427,12 @@ class MessageFactRepository:
                     "dismissed_at": row["dismissed_at"],
                     "activity_kind": activity_kind,
                     "celebrant": celebrant,
+                    "category": _ACTIVITY_CATEGORY.get(activity_kind or ""),
+                    "bring_items": bring_items,
                     "message_thread_ref": row["thread_ref"],
                     "privacy_policy_version": row["policy_version"],
                 }
-            )
+            ))
         return result
 
     def message_processing_receipt(
