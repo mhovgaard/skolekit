@@ -13,6 +13,8 @@ import os
 import re
 from datetime import UTC, datetime, timedelta
 
+from skoleklar import processing_cost
+
 STATUS_PREFIX = "device-status"
 MAX_ROWS = 150
 MAX_FIELDS = 220
@@ -260,24 +262,28 @@ def _page(body):
     return ("<!doctype html><html lang=en><head><meta charset=utf-8>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
             "<meta http-equiv=refresh content=60><title>Board status</title>"
-            f"<style>{BOARD_CSS}</style></head><body>"
+            f"<style>{BOARD_CSS}{processing_cost.CSS}</style></head><body>"
             "<nav aria-label='Visning'><a href='/'>← Skoleoverblik</a></nav>"
             "<p class=intro>AG board · FireBeetle</p>" + body + "</body></html>")
 
 
-def render_page(record, now=None):
-    """The cloud copy of the board's status page, with what it is doing now."""
+def render_page(record, now=None, processing=None):
+    """The cloud copy of the board's status page, with what it is doing now.
+
+    `processing` is the scan's cost history (skoleklar.processing_cost), drawn at the top.
+    """
     now = now or datetime.now(UTC)
     escape = html.escape
+    cost = processing_cost.render_section(processing or [], now, _zone())
     if record is None:
-        return _page("<h1>Board status</h1><div class=empty><p><strong>No report from the board yet.</strong></p>"
+        return _page("<h1>Board status</h1>" + cost + "<div class=empty><p><strong>No report from the board yet.</strong></p>"
                      "<p>From firmware ag-cloud-0.7.0 the board sends its status here after every sync. "
                      "Press its button to wake it; a report follows within a minute.</p></div>")
     report = record["report"]
     received = _parse(record.get("received_at")) or now
     state, title, detail = board_now(report, received, now)
     battery_state, voltage, level, spark = _battery(report, now)
-    body = ["<h1>Board status</h1>",
+    body = ["<h1>Board status</h1>", cost,
             f"<p><small>Reported {escape(_when(received, now))} · {escape(_ago(received, now))} · "
             f"{escape(str(report.get('firmware', '')))}. This page reloads every minute.</small></p>",
             "<div class=cards>",
