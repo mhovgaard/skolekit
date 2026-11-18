@@ -1,9 +1,16 @@
-# Build the board: parts and steps
+# Build your own e-ink board
 
 This guide goes from a bag of parts to the six-colour e-ink board on the
 kitchen counter: wired, flashed, linked to the household's cloud, and asleep
 between changes. No soldering is needed for the header-equipped parts listed here.
 This is a builder guide; validate your own power, networking and device behavior.
+
+![Editorial parts overview: the e-paper panel, FireBeetle controller, LiPo battery, display HAT and ribbon, and wooden picture frame](../imgs/build/01-parts-overview.png)
+
+*The author's build, cleaned up and annotated with the built-in image generation
+tool. The four images identify parts and assembly details; use the written
+pin table for wiring. The rear layout is a dry-fit example, not a finished
+enclosure design.*
 
 The board shows what the cloud has drawn; it never reaches the school itself.
 Each scan draws every frame for the next 36 hours. The board wakes, downloads
@@ -14,18 +21,51 @@ sleep. The [dashboard timeline](dashboard-timeline.md) has the whole cycle.
 
 | Part | Supported choice | Qty | Notes |
 | --- | --- | :---: | --- |
-| E-paper display | Waveshare 7.3-inch e-Paper HAT (E), Spectra 6 | 1 | 800×480, six colours. The driver HAT comes with it. |
+| E-paper display kit | Waveshare 7.3-inch e-Paper HAT (E), Spectra 6 | 1 | 800×480, six colours. Buy the kit with its matching driver HAT, panel adapter and ribbon; the bare panel alone is not the complete build. |
 | Controller | DFRobot FireBeetle 2 ESP32-E **with headers** ([DFR0654-F](https://wiki.dfrobot.com/dfr0654-f/)) | 1 | ESP32-WROOM-32E, 4 MB flash. Not the ESP32-C6 FireBeetle, whose pins and buttons differ. |
 | Battery | 3.7 V protected LiPo with a PH2.0 plug; 3300 mAh is a reference capacity | 1 | Check the polarity before plugging it in: red on `+`. |
-| Wires | Jumper wires | 8 | Nine if your HAT has a `PWR` pin. |
+| Wires | Jumper wires compatible with the HAT harness and fitted FireBeetle headers | 8 | Nine if your HAT has a `PWR` pin. Choose mating ends for your actual kit; the photos show joined jumper leads. |
 | Cable | USB-C, data-capable | 1 | For flashing, provisioning and charging. |
-| Enclosure | Choose for your mounting and battery | – | No enclosure design is supplied. |
+| Frame or enclosure | Picture frame with space behind the panel, or a purpose-built enclosure | 1 | Check panel size, ribbon exit and depth with the boards, plugs and battery in place. The wooden frame is an example, not a specified part. |
+| Mount and backing | Mount board and a rigid backing sized for the chosen frame | As needed | Support the display without squeezing the glass or trapping its flex cable. |
+| Board mounting and insulation | Nonconductive supports, suitable fixings and insulating barriers | As needed | Keep circuit boards fixed and exposed contacts away from the battery. These are part of your enclosure design. |
+
+The **display HAT** is the larger blue driver board. The **panel adapter** is
+the small blue board next to the display's orange flex tail. The broad white
+**ribbon cable** joins those two boards; the coloured **jumper harness** joins
+the HAT to the FireBeetle. These are separate connections, not interchangeable
+cables. Check your kit's contents before ordering duplicates.
+
+The photos do not establish the battery's capacity, protection circuit or plug
+polarity. Select those from the battery specification and verify the plug on
+your own parts. DFRobot documents the controller's
+[PH2.0 battery port and board pin labels](https://wiki.dfrobot.com/dfr0654-f/).
 
 **Tools:**
 
 - a Mac, because the helper scripts use the macOS serial driver, the Keychain
   and the clipboard;
 - a multimeter, to calibrate the battery reading.
+
+For the frame, have a ruler and the tools required by your chosen backing and
+fixings. A soldering iron is not needed for the header-equipped electrical build.
+
+## Assembly at a glance
+
+| Stage | What to do | Ready to continue when… |
+| --- | --- | --- |
+| Lay out the parts | Identify the panel, its adapter, ribbon, HAT, controller and battery. | The complete display chain is present. |
+| Plan the frame | Dry-fit everything with USB and battery disconnected. Allow room for plugs and a loose ribbon bend. | The back can fit without pressing on the panel, battery or cables. |
+| Test the controller | Follow [steps 1–2](#1-prepare-the-mac) with the FireBeetle alone on USB. | The smoke test answers `info`. |
+| Connect and test the display | Follow [step 3](#3-wire-the-panel), then run the six-colour bands test. | All six bands draw on the loose, supported panel. |
+| Link the cloud | Follow [steps 4–7](#4-register-the-board-with-the-cloud). | An authenticated sync draws a dashboard and the device page works. |
+| Add battery power and mount | Follow [step 8](#8-battery-and-sleep), then [fit the tested build](#fit-the-tested-build-into-its-frame). | Timer wakes work on the cell and everything is fixed without pressure or exposed-contact shorts. |
+
+Check the actual display outline and cable exit against the frame before
+cutting a mount. Keep the panel supported while working. Its glass and flex
+tail are fragile: avoid pressure, twists and sharp folds, as described in the
+[Waveshare handling guidance](https://docs.waveshare.net/7.3inch_e-Paper_HAT_E/).
+Leave the battery unplugged through the bare-board and panel tests.
 
 ## Before you start: the cloud side
 
@@ -93,7 +133,25 @@ Only one program can hold the port, so close the monitor before every upload.
 
 ## 3. Wire the panel
 
-Unplug the USB cable. Connect the HAT to the FireBeetle:
+![Controller connections with labels for the FireBeetle, PH2.0 battery connector, jumper-wire harness and Waveshare display HAT](../imgs/build/02-controller-connections.png)
+
+*Identify the controller and its connectors. The battery is shown to explain
+the layout; leave it disconnected until step 8. Wire colours are incidental.*
+
+Unplug USB and leave the battery disconnected before changing any connection.
+If the display kit is not already connected, identify the chain first:
+
+**Panel flex → small panel adapter → white ribbon → display HAT → jumper
+harness → FireBeetle.**
+
+Use the matching adapter and ribbon supplied with the kit. Follow its connector
+instructions: release a latch before inserting a cable, check which side the
+contacts face, insert squarely, then close the latch. Do not pull on the
+panel's bonded orange tail. Leave connected factory cables in place when
+possible. The FireBeetle's own display connector is not used in this build.
+
+Connect the HAT to the FireBeetle by the printed signal names, one lead at a
+time. Do not copy wire colours or count sockets from a generated photograph:
 
 | HAT wire | FireBeetle pin | GPIO |
 | --- | --- | ---: |
@@ -107,6 +165,11 @@ Unplug the USB cable. Connect the HAT to the FireBeetle:
 | BUSY | D2 | 25 |
 | PWR (newer HATs only) | 3V3 | – |
 
+Here `VCC` is the **HAT's** supply input. Connect it to the FireBeetle's `3V3`,
+not its separate `VCC` pin. Both sketches use the GPIO mapping above; the
+[production driver](../firmware/firebeetle-cloud/panel.cpp) declares the same
+pins as the standalone test.
+
 Set the HAT's interface switch to `0`, which is 4-line SPI. The map keeps clear
 of the pins that would get in the way:
 
@@ -114,6 +177,10 @@ of the pins that would get in the way:
 - the strapping pins (IO0, IO2, IO12, IO15);
 - the RGB LED (IO5);
 - the button (IO27).
+
+Before reconnecting USB, trace every lead from the HAT label to the FireBeetle
+label, check the plugs are seated and place the loose boards on a nonconductive
+surface. Keep the display supported and visible for the test.
 
 **Test the panel** with the stand-alone driver sketch, which needs no Wi-Fi.
 Build and upload it as in step 2, with `firebeetle-epd-test` in place of
@@ -214,7 +281,8 @@ security add-trusted-cert -r trustAsRoot -p ssl -s firebeetle-ag.local \
 
 ## 8. Battery and sleep
 
-Connect the battery, with red on `+`. **Run the board on the cell.** USB-only timer wakes can brown out; validate timer wakes with your actual cell
+With USB unplugged, verify the battery connector polarity against the board's
+`+` marking, then connect the battery with red on `+`. **Run the board on the cell.** USB-only timer wakes can brown out; validate timer wakes with your actual cell
 and supply connected.
 
 **Calibrate the battery reading** against a multimeter:
@@ -253,6 +321,41 @@ Press the button marked 27 to keep it awake for ten minutes with its page up.
 Below 3.45 V a wake skips Wi-Fi and the refresh and sleeps 12 hours, so the
 last board stays on the panel. To charge, plug in USB-C; the red LED is on
 while the battery charges. `power manual` turns the automatic syncs off again.
+
+## Fit the tested build into its frame
+
+![Rear dry-fit of the wooden frame, with labels for the LiPo battery, FireBeetle controller, display HAT and ribbon cable](../imgs/build/03-frame-dry-fit.png)
+
+*Plan the space behind the frame. The loose electronics and packing foam show
+a dry fit; add suitable mounting and insulation before closing the back.*
+
+After the electrical tests and short battery wake cycles pass:
+
+1. Disconnect USB and the battery. Lay the frame face down on a clean, soft
+   surface and fit the mount and supported panel without pressure on the glass.
+2. Arrange the battery, FireBeetle and HAT behind the panel. Keep the USB-C
+   port and the user button accessible, and allow the ribbon to curve loosely.
+   Check the back's clearance before choosing the final fixing positions.
+3. Fix the circuit boards to nonconductive supports, using their mounting holes
+   where practical. Keep their undersides and exposed contacts separated from
+   the panel back, the battery pouch and metal frame fittings. Packing foam in
+   the photo does not establish a suitable permanent support.
+4. Retain the battery using a method suitable for that cell, with room around
+   the pouch. Keep screw tips and sharp edges clear; do not clamp, puncture or
+   compress it. Route wires so pulling on a lead cannot tug the panel flex.
+5. Recheck the pin table and battery polarity, reconnect power, and repeat a
+   sync and a short sleep/wake cycle with the parts in their mounted positions.
+   Fit the back only once it closes without pushing on a part or trapping a cable.
+
+![Close-up identifying seated jumper connectors, exposed contacts and the display ribbon](../imgs/build/04-connection-details.png)
+
+*Seat each jumper fully, keep exposed contacts clear of the battery and loose
+metal, and check that the ribbon has no pinched or sharply folded section.
+Disconnect USB and battery before adjusting the wiring.*
+
+This example supplies an assembly approach, not frame dimensions, a cut file
+or a validated enclosure. Choose the mounting details for your actual frame
+and battery. Battery endurance still needs measurement on the completed build.
 
 ## 9. Watch it from anywhere
 

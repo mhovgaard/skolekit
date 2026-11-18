@@ -12,7 +12,7 @@ uppercase identifiers such as `PROJECT_ID` and `NAME` are placeholders.
 | [Local setup](getting-started.md) | Install, configure a school and household, sign in, scan and use MCP |
 | [Google Cloud setup](../infra/gcp/README.md) | Move the single writer into a dedicated project |
 | [GCP agent runbook](../infra/gcp/SKILL.md) and [target state](../infra/gcp/target-state.md) | Provision or maintain cloud resources with explicit checks |
-| [Build the board](board-build-guide.md) | Parts, wiring, firmware, device registration, power and acceptance |
+| [Build the board](board-build-guide.md) | Illustrated parts and assembly overview, wiring, firmware, frame fitting, power and acceptance |
 | [iPhone setup](iphone-refresh-school.md) | Generate and validate the Calendar/Reminders Shortcut |
 | [Device status](firebeetle-device-status.md) | Interpret status reports and troubleshoot a sleeping board |
 

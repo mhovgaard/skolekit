@@ -152,9 +152,22 @@ See the [iPhone guide](docs/iphone-refresh-school.md) for setup and device check
 
 ## Build your own
 
-Start with [local setup](docs/getting-started.md). It covers installation,
+The optional wall board brings together a **Waveshare 7.3-inch Spectra 6
+display**, a **FireBeetle 2 ESP32-E with headers**, a **3.7 V LiPo battery** and
+a frame of your choice. The display kit's HAT and ribbon connect the panel to
+the controller; jumper leads complete the electrical build without soldering.
+
+![Annotated assembly overview showing the e-paper panel, FireBeetle controller, LiPo battery, driver HAT, ribbon and wooden frame](imgs/build/01-parts-overview.png)
+
+*Your own dashboard, inside a frame. A cleaned, AI-assisted illustration of the
+author's parts; the [illustrated build guide](docs/board-build-guide.md) covers
+the shopping list, assembly overview, wiring, tests and fitting the frame.*
+
+Start with [local setup](docs/getting-started.md) for the application. It covers installation,
 private configuration, login, model credentials and the first checked scan.
-No school or household is bundled with the code.
+No school or household is bundled with the code. For the physical board, use
+the [assembly overview](docs/board-build-guide.md#assembly-at-a-glance) and the
+detailed device steps once the cloud service is ready.
 
 ```sh
 uv sync --extra browser --extra board --extra server
