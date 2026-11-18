@@ -105,9 +105,14 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
     ),
     "device_battery_unavailable": (("error_type",), frozenset()),
     "dashboard_failed": (("failure_stage", "error_type", "failure_code"), frozenset({"attempts"})),
-    "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset({"health"})),
+    "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset({"health", "processing"})),
+    "processing_cost_not_recorded": (("error_type",), frozenset()),
     "sync_failed": (("error_type",), frozenset()),
 }
+# The fake services call no model, so a run spends nothing (skoleklar.processing_cost).
+NO_PROCESSING = {"calls": 0, "calls_without_cost": 0, "cost_usd": 0.0, "prompt_tokens": 0,
+                 "completion_tokens": 0, "total_tokens": 0, "cached_tokens": 0, "reasoning_tokens": 0,
+                 "stages": {}}
 
 
 # Fakes
@@ -503,6 +508,7 @@ def complete_run_events(check_count: int) -> list[tuple[str, dict]]:
                 "iphone": {"status": "published", "artifact_id": MANIFEST_ID},
                 "dashboard": {"status": "published", "artifact_id": REFRESH_ID},
             },
+            "processing": NO_PROCESSING,
         }),
     ]
 
@@ -557,9 +563,14 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
             "iphone": {"status": "published", "artifact_id": MANIFEST_ID},
             "dashboard": {"status": "published", "artifact_id": REFRESH_ID},
         },
+        "processing": NO_PROCESSING,
     }
     assert scan.result == summary
     assert {key: value for key, value in scan.events[-1].items() if key != "event"} == summary
+    # Tavlestatus draws the run's cost from the history beside the summary.
+    assert scan.gcs.json("control", "processing-cost.json") == {"runs": [{
+        "finished_at": "2026-11-12T06:00:00+00:00", "status": "complete", "refresh_id": REFRESH_ID,
+        **NO_PROCESSING}]}
     pointer = scan.gcs.json("delivery", "current.json")
     assert pointer == {
         "schema_version": 1,

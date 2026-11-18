@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from skoleklar import fact as fact_model
+from skoleklar import processing_cost
 from skoleklar.triage.prompt_manifest import DEFAULT_SLOTS, PromptManifest, load_prompt_manifest
 from skolekit.records import canonical_hash
 from skolekit.items import read_lesson
@@ -394,6 +395,8 @@ class OpenRouterClient:
             )
         response_id = str(payload.get("id") or "")
         usage = payload.get("usage") or {}
+        # Billed whether or not the output turns out usable (skoleklar.processing_cost).
+        processing_cost.record(usage)
         choices = payload.get("choices") or []
         finish_reason = (
             str(choices[0].get("finish_reason") or "")

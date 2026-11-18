@@ -29,6 +29,15 @@ that report with battery readings, planned wake and overdue/asleep state. It
 is a report from a past instant, not a live connection while the board sleeps.
 Use local HTTPS or USB for device controls.
 
+The top of Tavlestatus shows what the last scan spent on the model: US dollars
+as OpenRouter reports them, tokens in, out and cached, model calls and the
+split by stage. Below it, a timeline draws cost and tokens per run for the last
+30 days (hover a bar for that run). Every model call goes through
+`OpenRouterClient.generate`, which adds its usage to the run's meter
+(`skoleklar.processing_cost`); each scan, failed ones included, appends its
+totals to `processing-cost.json` in the control store (newest 120 runs) and to
+`latest-run.json` as `processing`. Only counts and money are stored.
+
 ## Measurements
 
 Last-sync status includes bytes received, application read chunks, speed,

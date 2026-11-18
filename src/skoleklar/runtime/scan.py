@@ -52,7 +52,7 @@ from skoleklar.pipeline import (
     StageResult,
 )
 from skoleklar.runtime.config import load_runtime_config, require_writer
-from skoleklar import health
+from skoleklar import health, processing_cost
 from skoleklar.storage import SnapshotStore
 from skoleklar.triage.prompt_manifest import household_slots
 from skoleklar.triage.review_checks import apply_verdicts
@@ -215,7 +215,8 @@ def _run_quietly(stage: str, callback: Callable[[], StageResult]) -> dict[str, A
     """
     started = time.monotonic()
     _event("stage_started", stage=stage)
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+    with (contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()),
+          processing_cost.stage(stage)):
         result = callback()
     duration_seconds = round(time.monotonic() - started, 3)
     summary = _stage_summary(stage, result.output)
@@ -547,6 +548,7 @@ def _fallback_week(context, week, error):
 def run_scan(runtime: Runtime) -> dict[str, Any]:
     """One scan with every stage, on `runtime`; returns the run summary."""
     settings = runtime.start()
+    processing_cost.reset()
     model, message_mode = settings.model, settings.message_mode
     message_processor, timezone, refresh_id = settings.message_processor, settings.timezone, settings.refresh_id
     target_date = datetime.now(timezone).date()
@@ -602,11 +604,13 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
             # A source the migration could not re-derive keeps its older facts.
             **({"facts": health.degraded("rederive_failed")}
                if derived.get("contract_failure_count") or derived.get("contract_backoff_count") else {}),
-            "day_summaries": _generate_day_summaries(database, model=model, message_mode=message_mode,
-                                                     today=target_date),
-            "review_checks": _check_reviews(database, model=model, message_mode=message_mode,
-                                            today=target_date),
         }
+        with processing_cost.stage("day_summaries"):
+            scan_health["day_summaries"] = _generate_day_summaries(database, model=model,
+                                                                   message_mode=message_mode, today=target_date)
+        with processing_cost.stage("review_checks"):
+            scan_health["review_checks"] = _check_reviews(database, model=model, message_mode=message_mode,
+                                                          today=target_date)
 
         _check_invariants(database)
         _prepare_sqlite(database)
@@ -631,6 +635,8 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
             displays = runtime.display_store()
             if displays is not None:
                 stage = {"name": "context"}
+                # The composition and the live topics: what the rest of the scan spends.
+                processing_cost.set_stage("dashboard")
                 try:
                     from skoleklar.dashboard_composition import compose
                     from skoleklar.dashboard_context import export_context
@@ -705,6 +711,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
     degraded = {stage: entry for stage, entry in scan_health.items() if entry["status"] == "degraded"}
     if degraded:
         summary["health"] = degraded
+    summary["processing"] = processing_cost.snapshot()
     runtime.write_control("latest-run.json", summary)
     _event("sync_completed", **summary)
     return summary
@@ -714,12 +721,26 @@ def run(runtime: Runtime) -> dict[str, Any]:
     """One scan under the runtime's lock; a failure still leaves a run summary."""
     with runtime.lock():
         try:
-            return run_scan(runtime)
+            summary = run_scan(runtime)
         except Exception as error:
-            runtime.write_control("latest-run.json", {
-                "status": "failed", "error_type": type(error).__name__,
-                "finished_at": datetime.now(UTC).isoformat(), "outputs": {}})
+            summary = {"status": "failed", "error_type": type(error).__name__,
+                       "finished_at": datetime.now(UTC).isoformat(), "outputs": {},
+                       "processing": processing_cost.snapshot()}
+            runtime.write_control("latest-run.json", summary)
+            _record_processing_cost(runtime, summary)
             raise
+        _record_processing_cost(runtime, summary)
+        return summary
+
+
+def _record_processing_cost(runtime: Runtime, summary: dict[str, Any]) -> None:
+    """Add the run to the cost history Tavlestatus draws; a failure here never fails the scan."""
+    try:
+        processing_cost.append_run(runtime.status_store(), finished_at=summary["finished_at"],
+                                   status=summary["status"], refresh_id=summary.get("refresh_id"),
+                                   totals=summary.get("processing") or processing_cost.snapshot())
+    except Exception as error:
+        _event("processing_cost_not_recorded", error_type=type(error).__name__)
 
 
 def _load_event_confirmations(runtime: Runtime):
