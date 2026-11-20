@@ -62,7 +62,7 @@ allow the scan to finish with a health notice. [Processing](processing.md) and
 | --- | --- |
 | `school.toml` | `skolekit`: HTTPS host, portal, locale, timezone, classes and school-wording overrides over `locales/da.toml` |
 | `profile.toml` | `skolekit`: children, student IDs, URL names, class levels/codes and departments |
-| `skoleklar.toml` | Product: `[meaning]` booking rules, `[runtime]` writer/model/scan times, optional `[weather]` and `[gcp]` |
+| `skoleklar.toml` | Product: `[meaning]` booking rules, `[runtime]` writer/model/scan times, optional `[weather]`, `[countdown]` and `[gcp]` |
 | `triage.toml` | Product: optional `[slots]` used by prompt examples |
 
 School and profile files are required. State directories and secret names are

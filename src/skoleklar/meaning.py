@@ -49,8 +49,9 @@ def _defaults() -> dict[str, Any]:
 
 
 def _merge(base: dict[str, Any], document: dict[str, Any]) -> dict[str, Any]:
-    # [runtime], [weather] and [gcp] say where and how the household runs (skoleklar.runtime.config).
-    unknown = set(document) - {"meaning", "runtime", "weather", "gcp"}
+    # [runtime], [weather] and [gcp] say where and how the household runs (skoleklar.runtime.config);
+    # [countdown] is the parents' board's dates (skoleklar.countdown).
+    unknown = set(document) - {"meaning", "runtime", "weather", "gcp", "countdown"}
     if unknown:
         raise ProfileError(f"{MEANING_FILE}: unknown table [{sorted(unknown)[0]}]")
     given = document.get("meaning", {})

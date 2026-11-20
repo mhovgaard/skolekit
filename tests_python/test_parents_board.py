@@ -427,3 +427,108 @@ def test_the_renderer_holds_no_danish_word_lists():
     for word in ("medbring", "valgfrit", "frist", "matematik", "morgensang", "besked:", "lektie", "husk",
                  "samtale", "fødselsdag", "kulturdag", "udflugt"):
         assert word not in strings, word
+
+
+# --- A Friday before the next week's plan is out ------------------------------------------
+
+class _FridayMorning(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return datetime.fromisoformat("2026-11-20T08:30:00+01:00").astimezone(tz)
+
+
+def friday_state(later=True):
+    """Friday 20 November 2026, 08.30: this week's plans are out, next week's are not."""
+    fri, composed = "2026-11-20", "2026-11-20T08:30:00+01:00"
+    alfa = [hw("læs 15 min", "Dansk", fri), line("idrætstøj", "bring", day=fri)]
+    beta = [hw("s. 48–49", "Matematik", fri)]
+    week = [f"2026-11-{value}" for value in (16, 17, 18, 19)]
+    summaries = [{"date": iso, "children": [
+        {"name": name, "status": "ok", "headline": f"{name} plan {iso[-2:]}", "text": "Kort."} for name in NAMES]}
+        for iso in week]
+    summaries.append({"date": fri, "children": [
+        {"name": name, "status": "ok", "headline": f"{name} fredag", "text": f"{name} læser og synger i salen."}
+        for name in NAMES]})
+    summaries += [{"date": f"2026-11-{value}", "children": [
+        {"name": name, "status": "not_published", "headline": None, "text": None} for name in NAMES]}
+        for value in (23, 24, 25, 26)]
+    return {
+        "schema_version": 3, "week_label": "UGE 47", "updated_label": "DATA FRE 20. NOV. · 08.30",
+        "freshness": {"source_updated_at": composed, "composed_at": composed,
+                      "expires_at": "2026-11-21T20:30:00+01:00", "status": "fresh"},
+        "hero": {"state": "I dag", "day": "Fredag 20. nov.", "date": fri,
+                 "children": [child("Alfa", alfa), child("Beta", beta)]},
+        "weekdays": [day(iso, "Dag", [], []) for iso in week] + [day(fri, "Fre. 20. nov.", alfa, beta)],
+        "ahead": [{"date": "2026-11-24", "children": [
+            child("Alfa", [line("betal 20 kr", "deadline", day="2026-11-24")]), child("Beta", [])], "shared": []}],
+        "weekend": [], "weekend_overflow": 0,
+        "messages": {"checked": True, "bodies_retained": 0, "unread_count": 0, "items": []},
+        "day_summaries": summaries,
+        "later_events": [
+            {"date": "2026-12-01", "who": "Beta", "line": line("Forældremøde 19.00", "meeting", day="2026-12-01")},
+            {"date": "2026-12-03", "who": "Begge", "line": line("Juleklip 17.00", "party", day="2026-12-03")},
+        ] if later else [],
+    }
+
+
+def right_texts(rows):
+    return [(row.label, "".join(text for item in row.items for text, _ in item.runs)) for row in rows]
+
+
+def test_a_week_without_a_plan_says_so_once_and_fills_with_the_week_that_went(monkeypatch):
+    monkeypatch.setattr(dashboard, "datetime", _FridayMorning)
+    state = friday_state()
+    dashboard.validate(state)
+    model, heights = render.layout(state)
+    alfa = render.kid_rows(model.kids[0], model.tight)
+    texts = right_texts(alfa)
+    # This week first, oldest to newest, then one dotted rule and what is ahead.
+    assert texts[0] == ("", "Ugen der gik")
+    assert [label for label, _ in texts[1:5]] == ["Man 16.", "Tir 17.", "Ons 18.", "Tor 19."]
+    assert texts[5] == ("Man 23.", "ingen ugeplan endnu") and alfa[5].items[0].chip == "UGE 48"
+    assert alfa[5].items[0].outline and not alfa[5].items[0].box
+    assert [row.rule for row in alfa] == [False] * 5 + [True] + [False] * (len(alfa) - 6)
+    # The recap only fills room: it never folds a later event into '+N senere'.
+    assert all(kid.later_folded == 0 and kid.dropped_right == 0 for kid in model.kids)
+    assert ("Tir 1.", "Forældremøde 19.00") in right_texts(render.kid_rows(model.kids[1], model.tight))
+    for kid, height in zip(model.kids, heights):
+        rows = render.kid_rows(kid, model.tight)
+        assert render.right_height(rows, model.tight) <= height - render.DIVIDER - sum(render.RIGHT_PAD)
+    image, texts = drawn_texts(monkeypatch, state)
+    assert "UGE 48" in texts and "Ugen der gik" in texts
+    html = dashboard.render_html(state)
+    assert 'class="chip open">UGE 48<' in html and "Ugen der gik" in html
+
+
+def test_the_recap_gives_way_oldest_first():
+    model = render.build_model(friday_state())
+    kid = model.kids[0]
+    full = render.right_height(render.kid_rows(kid, False), False)
+    render.fill_recap(model, [full + render.DIVIDER + sum(render.RIGHT_PAD) - 22, 10_000])
+    assert [iso for iso, _ in kid.recap] == ["2026-11-17", "2026-11-18", "2026-11-19"]
+
+
+def test_a_week_with_its_plan_out_has_no_tag_and_no_recap(monkeypatch):
+    monkeypatch.setattr(dashboard, "datetime", _FridayMorning)
+    state = friday_state()
+    for entry in state["day_summaries"][-4:]:
+        entry["children"] = [{"name": name, "status": "ok", "headline": "Næste uge", "text": "Tekst."}
+                             for name in NAMES]
+    model, _ = render.layout(state)
+    assert all(not kid.recap for kid in model.kids)
+    assert all(item.kind != "missing" for kid in model.kids for _, items, _ in kid.days for item in items)
+
+
+def test_the_next_school_days_plan_paragraph_shows_while_the_board_has_room(monkeypatch):
+    monkeypatch.setattr(dashboard, "datetime", _FridayMorning)
+    model, _ = render.layout(friday_state())
+    width = render.LEFT_END - render.LEFT_X
+    assert render.plan_lines(model.kids[0], width) == ["Alfa læser og synger i salen."]
+    # A paragraph longer than five lines falls back to the headline; so does a busy board.
+    model.kids[0].plan_text = "ord " * 200
+    assert render.plan_lines(model.kids[0], width) == ["Alfa fredag"]
+    busy = render.build_model(friday_state())
+    busy.kids[0].plan_text = "Et langt afsnit om dagen. " * 6
+    busy.kids[0].left = busy.kids[0].left * 6
+    render.fit_board(busy)
+    assert busy.kids[0].plan_text == ""

@@ -106,8 +106,9 @@ where = "local"
 scans = ["mon-fri 05:45", "12:30", "19:30"]
 ```
 
-Optional tables configure `[weather]`, `[meaning]` and `[gcp]`. No weather
-location is assumed. `school.toml` configures school wording and timezone;
+Optional tables configure `[weather]`, `[meaning]`, `[countdown]` and `[gcp]`.
+No weather location is assumed. `[countdown]` adds the family's birthdays and
+ferier to the parents' board's countdown ([the countdown](parents-board.md#countdown)). `school.toml` configures school wording and timezone;
 `profile.toml` supplies children and classes. Optional `triage.toml` fills
 invented prompt-example slots; it is not needed to store message text.
 See [configuration ownership](architecture.md#configuration).

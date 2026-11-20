@@ -37,6 +37,7 @@ from typing import Any, Callable, Protocol
 from zoneinfo import ZoneInfo
 
 from skoleklar import pipeline
+from skoleklar.countdown import load_countdown
 from skoleklar.delivery_manifest import (
     build_delivery_manifest,
     delivery_items_from_snapshot,
@@ -439,6 +440,21 @@ def _with_battery(frames, now, store=None):
     return [(at, {**state, "device": device}) for at, state in frames]
 
 
+def _with_countdown(frames, config):
+    """Each frame with the parents' board's countdown for the day it starts on.
+
+    Weekday frames start at midnight, so the line is right in the morning too.
+    Only the one line reaches the state, never the household's dates.
+    """
+    from skoleklar.countdown import line
+    from skoleklar.dashboard_renderer import ZONE
+    result = []
+    for at, state in frames:
+        countdown = line(config, at.astimezone(ZONE).date(), ZONE)
+        result.append((at, {**state, "countdown": countdown} if countdown else state))
+    return result
+
+
 def _with_lookahead(frame, lookahead, at):
     """The parents' board's days ahead and later events; the board never depends on them."""
     from skoleklar.parents_board import attach_lookahead
@@ -563,6 +579,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
         # file stops the scan before any work; they are never written back.
         load_site_profile(state_dir)
         load_meaning(state_dir)
+        countdown = load_countdown(state_dir)
         household_slots(state_dir)
         # One writer: a scan stops here if the household's config names the other place.
         require_writer(load_runtime_config(state_dir), runtime.name)
@@ -682,6 +699,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
                         live = load_live_messages(context["children"], topics=topics)
                     stage["name"] = "device"
                     frames = _with_battery(frames, now, runtime.status_store())
+                    frames = _with_countdown(frames, countdown)
                     stage["name"] = "make_bundle"
                     bundle = make_timeline(frames, refresh_id, live_messages=live)
                     stage["name"] = "publish_bundle"

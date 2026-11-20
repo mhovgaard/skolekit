@@ -179,7 +179,7 @@ def attach_lookahead(state: dict, context: dict) -> dict:
 
 
 def validate_parents_board(data: dict, names: list[str]) -> None:
-    """Allowlist `ahead`, `later_events` and `device`; called by the board's own `validate`."""
+    """Allowlist `ahead`, `later_events`, `countdown` and `device`; called by the board's own `validate`."""
     ahead = data.get("ahead", [])
     if not isinstance(ahead, list) or len(ahead) > AHEAD_ROWS:
         raise ValueError(f"at most {AHEAD_ROWS} look-ahead rows")
@@ -211,6 +211,13 @@ def validate_parents_board(data: dict, names: list[str]) -> None:
         validate_line(entry["line"], limit=LATER_TEXT_LIMIT)
         if entry["who"] not in [*names, "Begge"] or entry["line"]["kind"] not in LATER_KINDS:
             raise ValueError("a later event belongs to a child or both and is an event or a deadline")
+    if "countdown" in data:
+        countdown = data["countdown"]
+        if (not isinstance(countdown, dict) or set(countdown) != {"lead", "text", "flag"}
+                or not all(isinstance(countdown[key], str) and 1 <= len(countdown[key]) <= 40
+                           for key in ("lead", "text"))
+                or type(countdown["flag"]) is not bool):
+            raise ValueError("countdown carries a lead, a text and whether it is a birthday")
     if "device" in data:
         device = data["device"]
         if (not isinstance(device, dict) or set(device) != {"battery_percent"}
