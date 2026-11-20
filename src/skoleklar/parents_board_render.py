@@ -965,17 +965,56 @@ def shown_countdown(data: dict[str, Any]) -> dict[str, Any] | None:
     return countdown
 
 
+def countdown_lines(countdown: dict[str, Any], first_room: float) -> list[tuple[bool, str, str]]:
+    """(flag, bold lead, text) per line: one line when it fits `first_room`, else two.
+
+    The first line keeps the words that fit and the second takes the rest; when not
+    even the first word fits, the whole line moves down.
+    """
+    flag, lead, words = countdown["flag"], countdown["lead"], []
+    for word in countdown["text"].split():
+        # 'Kr. himmelfart' and '2. pinsedag' stay together.
+        if words and words[-1].endswith(".") and len(words[-1]) <= 3:
+            words[-1] += " " + word
+        else:
+            words.append(word)
+    if countdown_width(lead, " ".join(words), flag) <= first_room:
+        return [(flag, lead, " ".join(words))]
+    if countdown_width(lead, "", flag) > first_room:
+        return [(False, "", ""), (flag, lead, " ".join(words))]
+    count = 0
+    while count < len(words) and countdown_width(lead, " ".join(words[:count + 1]), flag) <= first_room:
+        count += 1
+    return [(flag, lead, " ".join(words[:count])), (False, "", " ".join(words[count:]))]
+
+
+def draw_countdown_right(draw, countdown: dict[str, Any], *, right: float, y: int, first_room: float) -> None:
+    """The countdown right-aligned at `right`, on two lines when the first has too little room."""
+    for flag, lead, text in countdown_lines(countdown, first_room):
+        gap = 4 if lead and text else 0
+        x = right - ((FLAG_WIDTH if flag else 0) + (text_width(lead, "r_b") if lead else 0) + gap
+                     + (text_width(text, "r_plan") if text else 0))
+        if flag:
+            _flag(draw, x, y)
+            x += FLAG_WIDTH
+        if lead:
+            x = _text(draw, x, y, lead, "r_b", board.BLACK)
+        if text:
+            _text(draw, x + gap, y, text, "r_plan", board.BLACK)
+        y += 19
+
+
 def draw_countdown(draw, data: dict[str, Any]) -> None:
-    """The countdown at the left of the header."""
+    """The countdown at the left of the header, in the room the status leaves."""
     countdown = shown_countdown(data)
     if not countdown:
         return
-    x = RIGHT_X
+    x, y = RIGHT_X, 12
     if countdown["flag"]:
-        _flag(draw, x, 12)
+        _flag(draw, x, y)
         x += FLAG_WIDTH
-    x = _text(draw, x, 12, countdown["lead"], "r_b", board.BLACK)
-    _text(draw, x + 4, 12, countdown["text"], "r_plan", board.BLACK)
+    x = _text(draw, x, y, countdown["lead"], "r_b", board.BLACK)
+    _text(draw, x + 4, y, countdown["text"], "r_plan", board.BLACK)
 
 
 _FLAG_SVG = ('<svg class="pb-flag" viewBox="0 0 16 17" aria-hidden="true"><path d="M1 0v17" stroke="currentColor" '
@@ -983,8 +1022,9 @@ _FLAG_SVG = ('<svg class="pb-flag" viewBox="0 0 16 17" aria-hidden="true"><path 
              '<path d="M6 0h2v11H6zM1 4h15v2H1z" fill="currentColor"/></svg>')
 
 
-def countdown_html(data: dict[str, Any]) -> str:
-    countdown = shown_countdown(data)
+def countdown_html(data: dict[str, Any], *, fitted: bool = True) -> str:
+    """The countdown as HTML: beside the status (`fitted`), or wherever it always has room."""
+    countdown = shown_countdown(data) if fitted else data.get("countdown")
     if not countdown:
         return ""
     flag = _FLAG_SVG if countdown["flag"] else ""
@@ -1105,6 +1145,9 @@ def draw_parents_board(draw, data: dict[str, Any], live_messages=None) -> None:
 SHARED_CSS = """
 .pb-status{display:flex;justify-content:flex-end;align-items:center;gap:14u;font-size:14u;color:@INK@}
 .pb-status.stale{font-weight:700}
+.pb-count{margin-right:auto;display:flex;align-items:center;gap:4u;font:400 16u/1.2 var(--serif);white-space:nowrap}
+.pb-count b{font:700 15u/1.2 var(--sans)}
+.pb-flag{width:16u;height:17u;flex:none}
 .pb-battery{display:flex;align-items:center;gap:6u}
 .pb-env{width:16u;height:12u;flex:none}
 .pb-battery .pb-env{width:23u;height:11u}
@@ -1126,9 +1169,6 @@ PARENTS_CSS = """
 .parents .pb-wx{display:flex;align-items:center;gap:4u;font:700 15u/1 var(--sans);white-space:nowrap;flex:none}
 .parents .pb-wx .wx-icon{width:21u;height:21u}
 .parents .pb-head-r{display:flex;justify-content:flex-end;align-items:center;gap:16u;padding:4u 10u 5u 14u}
-.parents .pb-count{margin-right:auto;display:flex;align-items:center;gap:4u;font:400 16u/1.2 var(--serif);white-space:nowrap}
-.parents .pb-count b{font:700 15u/1.2 var(--sans)}
-.parents .pb-flag{width:16u;height:17u;flex:none}
 .parents .pb-left{border-top:2u solid @PAGE@;padding:7u 14u 9u 10u;display:flex;flex-direction:column;gap:4u}
 .parents .pb-right{border-top:2u solid @INK@;padding:8u 10u 9u 14u}
 .parents .pb-name{font:700 23u/25u var(--serif);margin:0}

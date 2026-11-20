@@ -189,6 +189,9 @@ date: `45 dage til juleaften`, `I morgen: mortensaften`, `Fri i morgen: Kr. himm
 `Solhverv: lyset vender`, and for a birthday a small Dannebrog in ink with
 `30 dage til Alfa`, `I morgen: Alfa` or `Tillykke, Alfa!`. The number or the lead
 is bold, the rest in the serif.
+The weekend cover shows the same line in its top right, beside `WEEKENDVEJR · …`,
+so the children see it all weekend. When the heading leaves too little room it
+takes two right-aligned lines (`26 dage til` / `Mormor og Morfar`).
 
 | Date | Shows from |
 |---|---|

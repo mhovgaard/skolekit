@@ -120,3 +120,25 @@ def test_the_board_draws_the_line_and_the_status_wins_when_both_do_not_fit(monke
 def test_the_state_carries_only_the_line(countdown):
     with pytest.raises(ValueError, match="countdown"):
         dashboard.validate({**friday_state(), "countdown": countdown})
+
+
+def test_the_weekend_cover_shows_the_line_in_its_top_right(monkeypatch):
+    """The children see the countdown all weekend, beside the weather's heading."""
+    from tests_python.test_weather import weather_state
+    state = {**weather_state(), "countdown": {"lead": "Tillykke,", "text": "Alfa!", "flag": True}}
+    dashboard.validate(state)
+    _, texts = drawn_texts(monkeypatch, state)
+    assert "Tillykke," in texts and "Alfa!" in texts
+    html = dashboard.render_html(state)
+    assert '</div><span class="pb-count"><svg class="pb-flag"' in html.split('class="wx-head"', 1)[1]
+
+
+def test_a_crowded_weekend_heading_puts_the_line_on_two_right_aligned_lines():
+    from skoleklar.parents_board_render import countdown_lines
+    line = {"lead": "26", "text": "dage til Mormor og Morfar", "flag": True}
+    assert countdown_lines(line, 400) == [(True, "26", "dage til Mormor og Morfar")]
+    assert countdown_lines(line, 100) == [(True, "26", "dage til"), (False, "", "Mormor og Morfar")]
+    # 'Kr. himmelfart' is never split, and a lead with no room moves down whole.
+    assert countdown_lines({"lead": "Fri i morgen:", "text": "Kr. himmelfart", "flag": False}, 120) == [
+        (False, "Fri i morgen:", ""), (False, "", "Kr. himmelfart")]
+    assert countdown_lines(line, 10) == [(False, "", ""), (True, "26", "dage til Mormor og Morfar")]
