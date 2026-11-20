@@ -102,6 +102,27 @@ uv run skoleklar derive --db COPY.db --backfill-since YYYY-MM-DD --source weekly
 uv run skoleklar derivation-report --db COPY.db --source weekly_plan --since YYYY-MM-DD
 ```
 
+### Eval capture
+
+With `SKOLEKLAR_EVAL_CAPTURE=1` in the scan's environment, every model call is
+kept as an eval case (`skoleklar.eval_capture`): the operation's manifest ID and
+hash, the scan stage, the model, the exact input document, the output or the
+error, the usage and the time it took. Each distinct rendered system prompt is
+kept once per run. The run's last line says what the code made of the outputs:
+the derive counts, the facts that reached the phone (with review state and
+consolidated members), each board week's composition (reused, fallback, audit)
+and the run summary.
+
+A run is one JSON Lines file in the private state, `dashboard/evals/DATE/RUN_ID.jsonl`
+(the cloud's private bucket; `~/.config/skoleklar/dashboard/evals/` locally). A
+lifecycle rule on the private bucket deletes these files after 30 days. They hold
+school text and the household's names, like the database. Message operations
+(`message-events-*`, `message-topic-*`) are never kept, since they read message
+bodies, which are not retained. Capture never changes or fails a scan.
+
+Replaying the cases against cheaper models or smaller prompts is the next step;
+the files hold everything a replay needs, including the prompt as it was sent.
+
 ## Archival and consolidation
 
 Archival is audited workflow state, not source deletion. Expired time-bound

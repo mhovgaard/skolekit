@@ -145,7 +145,10 @@ class LocalRuntime:
     def _private(self, name: str) -> Path:
         folder = self.home / "dashboard"
         folder.mkdir(mode=0o700, exist_ok=True)
-        return folder / name
+        path = folder / name
+        # A nested name, such as an eval capture's evals/DATE/RUN.jsonl, gets its folders.
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        return path
 
     def read_private(self, name: str) -> bytes | None:
         path = self._private(name)

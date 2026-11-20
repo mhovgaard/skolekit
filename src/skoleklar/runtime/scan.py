@@ -53,7 +53,7 @@ from skoleklar.pipeline import (
     StageResult,
 )
 from skoleklar.runtime.config import parse_runtime, require_writer
-from skoleklar import health, processing_cost
+from skoleklar import eval_capture, health, processing_cost
 from skoleklar.storage import SnapshotStore
 from skoleklar.triage.prompt_manifest import household_slots
 from skoleklar.triage.review_checks import apply_verdicts
@@ -565,6 +565,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
     """One scan with every stage, on `runtime`; returns the run summary."""
     settings = runtime.start()
     processing_cost.reset()
+    eval_capture.start(settings.refresh_id, model=settings.model, at=datetime.now(UTC))
     model, message_mode = settings.model, settings.message_mode
     message_processor, timezone, refresh_id = settings.message_processor, settings.timezone, settings.refresh_id
     target_date = datetime.now(timezone).date()
@@ -610,6 +611,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
         derive = DeriveRequest(db=str(database), model=model, message_mode=message_mode,
                                migrate=True, as_of=target_date.isoformat())
         derived = _run_quietly("derive", lambda: pipeline.derive(derive)) or {}
+        eval_capture.note("derive", _counts(derived))
         archive_plan = ArchiveRequest(as_of=target_date.isoformat(), db=str(database), model=model,
                                       dry_run=True, message_mode=message_mode)
         _run_quietly("archive_plan", lambda: pipeline.archive(archive_plan))
@@ -643,6 +645,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
                 # for the board: a fact the board shows becomes an entry or reminder.
                 items = apply_verdicts(snapshot, delivery_items_from_snapshot(
                     snapshot, message_mode=message_mode))
+                eval_capture.note("delivered", [_delivered(item) for item in items])
                 coverage = snapshot.message_coverage(mode=message_mode, processor=message_processor)
                 manifest = build_delivery_manifest(items, target_date=target_date, coverage=coverage,
                                                    health=scan_health)
@@ -679,6 +682,9 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
                                                             message_mode=message_mode,
                                                             confirmations=confirmations))
                     fallback_weeks = sum(week["fallback"] for week in weeks.values())
+                    eval_capture.note("board_weeks", [
+                        {"week": week.isoformat(), "reused": entry["reused"], "fallback": entry["fallback"],
+                         "audit": entry["audit"]} for week, entry in weeks.items()])
                     _event("dashboard_timeline", frame_count=len(frames), week_count=len(weeks),
                            reused_week_count=sum(week["reused"] for week in weeks.values()),
                            fallback_week_count=fallback_weeks)
@@ -732,6 +738,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
     if degraded:
         summary["health"] = degraded
     summary["processing"] = processing_cost.snapshot()
+    eval_capture.note("summary", summary)
     runtime.write_control("latest-run.json", summary)
     _event("sync_completed", **summary)
     return summary
@@ -748,9 +755,42 @@ def run(runtime: Runtime) -> dict[str, Any]:
                        "processing": processing_cost.snapshot()}
             runtime.write_control("latest-run.json", summary)
             _record_processing_cost(runtime, summary)
+            eval_capture.note("summary", summary)
+            _write_eval_capture(runtime)
             raise
         _record_processing_cost(runtime, summary)
+        _write_eval_capture(runtime)
         return summary
+
+
+def _write_eval_capture(runtime: Runtime) -> None:
+    """Keep the run's model calls as eval cases (skoleklar.eval_capture); never fails the scan."""
+    try:
+        name, text = eval_capture.object_name(), eval_capture.dump()
+        if name and text:
+            runtime.write_private(name, text)
+            _event("eval_capture_written", call_count=text.count('"kind":"call"'))
+    except Exception as error:
+        _event("eval_capture_not_written", error_type=type(error).__name__)
+    finally:
+        eval_capture.finish()
+
+
+def _counts(result: Any) -> dict[str, Any]:
+    """A stage result's counts and statuses, for the eval outcome."""
+    if not isinstance(result, dict):
+        return {}
+    return {key: value for key, value in result.items()
+            if isinstance(value, int | float | str | bool) or value is None}
+
+
+# What reached the phone and the board, per fact: how an eval scores a model's output.
+_DELIVERED_FIELDS = ("stable_key", "item_type", "child", "title", "effective_date", "end_date", "state",
+                     "needs_review", "review_reason", "confidence", "source_fact_keys", "member_item_ids")
+
+
+def _delivered(item: dict[str, Any]) -> dict[str, Any]:
+    return {field: item[field] for field in _DELIVERED_FIELDS if field in item}
 
 
 def _record_processing_cost(runtime: Runtime, summary: dict[str, Any]) -> None:
