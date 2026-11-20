@@ -44,6 +44,7 @@ return {
   bottom:Math.round(Math.max(...all('.dashboard *').map(e=>r(e).bottom))-top),
   fontLoaded:document.fonts.check('700 12px "Newsreader Embedded"'),
   boldDates:all('.pb-msg.unread time').map(e=>getComputedStyle(e).fontWeight),
+  statusHeight:r(document.querySelector('.pb-head-r .pb-status')).height,
 };
 }"""
 
@@ -163,6 +164,18 @@ def test_default_font_fits_the_800_by_480_panel():
     result = measure(dashboard.render_html(weekday_grid_state()))
     assert result["panel"] == [800, 480]
     assert result["bottom"] <= 480
+
+
+def test_countdown_leaves_room_for_the_update_stamp_on_a_narrow_screen(monkeypatch):
+    from tests_python.test_parents_board import _FridayMorning, friday_state
+
+    monkeypatch.setattr(dashboard, "datetime", _FridayMorning)
+    value = {**friday_state(), "device": {"battery_percent": 100},
+             "countdown": {"lead": "I dag:", "text": "Mormor og Morfar", "flag": False}}
+    result = measure(dashboard.render_html(value), width=320)
+    assert "Mormor og Morfar" in result["text"]
+    assert "Opdateret 20/11 08.30" in result["text"]
+    assert result["statusHeight"] <= 36
 
 
 def test_child_rows_line_up_across_the_split():

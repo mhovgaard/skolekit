@@ -1147,7 +1147,10 @@ PARENTS_CSS = """
 .parents .pb-begge-name{font:700 19u/22u var(--serif)}
 .parents .pb-unread{display:flex;align-items:center;gap:7u;font-weight:700}
 .parents .pb-begge-r{border-top:2u solid @INK@;padding:6u 10u 8u 14u}
-@container (max-width:680px){.dashboard.parents{grid-template-columns:1fr}}
+@container (max-width:680px){
+ .dashboard.parents{grid-template-columns:1fr}
+ .parents .pb-head-r{flex-wrap:wrap;row-gap:4u}
+}
 """
 
 _ENVELOPE = ('<svg class="pb-env" viewBox="0 0 16 12" aria-hidden="true">{}</svg>')
