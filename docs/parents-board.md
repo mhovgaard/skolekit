@@ -13,9 +13,9 @@ Each child has a row across the panel, and the dividers line up on both halves.
 | Part | Shows |
 |---|---|
 | Top left (dark) | The next school day's date and a weather heads-up: `1–5° Vintertøj`, `9–14° Regntøj` |
-| Top right | `Opdateret 08/11 19.30` and the board's battery, with `ÆLDRE DATA`, `Mangler: …` and `N punkter at tjekke` when they apply |
-| Child row, left | The weekly plan's headline for the day, homework with a checkbox, what to bring, the time-urgent line, the latest message |
-| Child row, right | The four school days after the next school day as dated rows, each led by the weekly plan's headline for that day, then events up to two weeks out below a dotted rule |
+| Top right | The [countdown](#countdown) (`34 dage til juleaften`) on the left; `Opdateret 08/11 19.30` and the board's battery on the right, with `ÆLDRE DATA`, `Mangler: …` and `N punkter at tjekke` when they apply |
+| Child row, left | The weekly plan's paragraph for the day (its headline when the board is full), homework with a checkbox, what to bring, the time-urgent line, the latest message |
+| Child row, right | The four school days after the next school day as dated rows, each led by the weekly plan's headline for that day, then events up to two weeks out below a dotted rule; [`Ugen der gik`](#before-the-next-weeks-plan-is-out) above them when the coming week has no plan yet |
 | `Begge` row | The unread total (`4 ulæste i alt`) on the left; what concerns both children on the right |
 
 `parents_board_render.py` draws it on the panel and writes the same layout as
@@ -47,6 +47,11 @@ with a named teacher use the stored teacher, subject and timetable class when
 present, for example `Vikar Alex W. · MAT 02`. [Board generation](board-generation.md#context-slots-and-state)
 describes when the builder writes a line itself.
 
+- **The next school day's plan** on the left is the day summary's whole paragraph
+  (`Du læser videre i bogen om Rasmus Klump …`) while it takes at most five lines,
+  else its headline. The paragraph is the first thing to give way when the board
+  is full ([when a week does not fit](#when-a-week-does-not-fit)); it costs no model
+  call, as the summary already holds it.
 - **The day's plan line** on the right is the weekly plan's
   [day summary](processing.md#day-summaries) headline (`Trekanter og bogstavet T`,
   `Bogstavhistorie med Emma: F og H`) in the serif, before the day's other lines,
@@ -98,11 +103,31 @@ the weekend's activities day rows before the look-ahead. An activity the weekend
 rows had no room for is counted on the last one, `Fødselsdagsfest (+1 mere)`,
 never as a line of its own; two activities both show when they fit.
 
+## Before the next week's plan is out
+
+Teachers often publish the next week's plan at the weekend or on Monday morning,
+so Friday's days ahead (Monday to Thursday) are mostly empty. When at least three
+of a child's four days ahead have no published plan (day summary `not_published`),
+the board says so once and uses the room for the week that went:
+
+- the first such day carries an outlined `UGE 48` tag and `ingen ugeplan endnu`.
+  The outline in ink is a state of the data: neither a category (blue) nor time
+  urgency (yellow). Anything already known for the coming days shows below it as
+  usual;
+- above the days ahead, `Ugen der gik` lists this week's plan headlines before the
+  next school day, oldest first, then one dotted rule. The recap never takes part
+  in fitting: it fills only the room left after the board fits, and its oldest days
+  go first when there is too little. It never pushes out a line.
+
+Both go away as soon as the week's plan is out. Everything comes from the day
+summaries the board already carries; there is no extra model call.
+
 ## When a week does not fit
 
 Nothing is cut mid-line. Whole items give way in this order, and only on the side
 that makes a row tall; the row then says `+N punkter mere · +N senere`:
 
+0. The next school day's plan paragraph becomes its headline.
 1. Substitutes and plain information on the days ahead, then on the next school day.
 2. Things to bring on days without an event; tomorrow's list stays on the left.
 3. Later events without a deadline.
@@ -152,6 +177,61 @@ without it, or when the topic is hidden, the line has sender and date only.
   `WEEKENDVEJR`, `I MORGEN`, `HUSK`, `TUR` in the sun's arc, `+2 mere`) are ink.
 - **Edges:** the frame's white mat is the margin: 10 px at the outer edges, 14 px
   at the split.
+
+## Countdown
+
+The top right of the header holds one line counting down to the nearest family
+date: `45 dage til juleaften`, `I morgen: mortensaften`, `Fri i morgen: Kr. himmelfart`,
+`Solhverv: lyset vender`, and for a birthday a small Dannebrog in ink with
+`30 dage til Alfa`, `I morgen: Alfa` or `Tillykke, Alfa!`. The number or the lead
+is bold, the rest in the serif.
+
+| Date | Shows from |
+|---|---|
+| Fastelavn (Easter − 49), påske | 14 days ahead |
+| Kr. himmelfart (Easter + 39), 2. pinsedag (Easter + 50), said as days off | 7 |
+| Sankthans (23/6), halloween (31/10) | 14 |
+| Mortensaften (10/11) | 7 |
+| Juleaften | 45 |
+| Nytårsaften | 6 |
+| Solhverv and jævndøgn, the Danish date of the moment | on the day only |
+| The household's birthdays | 30, or the entry's `window` |
+| The household's dates (ferier, one-offs) | 14, or the entry's `window` |
+
+Of the dates whose window is open, the nearest wins; on the same day a birthday
+comes before a household date, and that before a built-in one. A solstice shows
+on its day only, so it does not interrupt the count to juleaften or sankthans.
+Easter and the solstices are calculated (`skoleklar/countdown.py`); school
+holidays are not built in, as they differ by kommune.
+
+The household adds its own in `skoleklar.toml`:
+
+```toml
+[countdown]
+builtin = true             # optional; false leaves only the household's dates
+
+[[countdown.birthdays]]
+name = "Alfa"              # as the board says it
+date = "03-14"             # month-day: the board never needs a year or an age
+
+[[countdown.birthdays]]
+name = "Mor"
+date = "06-21"
+window = 14                # optional, 0–60 days
+
+[[countdown.dates]]
+name = "juleferie"
+date = "2026-12-19"        # with a year: that year only; "12-19" is every year
+window = 21
+```
+
+The scan reads the table before any work, and a bad entry stops it with the
+entry's name: an unknown key, a date that is not one, or a name the header cannot
+show in every wording it may get (about eleven letters: `Christoffer` fits,
+`Mormor og Morfar` does not). Only the one line for each frame's day reaches the
+board state (`countdown`); the dates stay in the private file. Weekday frames
+start at midnight, so `I dag` is right in the morning. The status wins the header:
+when it is long (`ÆLDRE DATA · Mangler: …`), the countdown is left out.
 
 ## Battery
 

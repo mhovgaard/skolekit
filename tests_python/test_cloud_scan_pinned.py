@@ -609,6 +609,8 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
         "day_view": {"date": "2026-11-12", "children": [
             {"lessons": ["Dansk", "Matematik", "Musik"]}, {"lessons": ["Engelsk", "Idræt"]}]},
         "ahead_days": 18, "device": {"battery_percent": 82},
+        # The built-in dates with no skoleklar.toml: mortensaften is over (skoleklar.countdown).
+        "countdown": {"lead": "42", "text": "dage til juleaften", "flag": False},
         # The earlier stages' health reaches every frame (skoleklar.health).
         "health": {"composition": {"status": "ok"}, "day_summaries": {"status": "ok"},
                    "review_checks": {"status": "ok"}, "facts": {"status": "ok"}},
@@ -619,7 +621,7 @@ def test_complete_scan_writes_this_run_summary_and_board(scan, caplog) -> None:
     cache = scan.gcs.json("private", "dashboard/composition-cache.json")
     assert sorted(cache["weeks"]) == ["key-2026-11-09", "key-2026-11-16"]
     assert scan.gcs.json("private", "dashboard/current-state.json") == {
-        key: value for key, value in first.items() if key != "device"
+        key: value for key, value in first.items() if key not in {"device", "countdown"}
     }
     assert json.loads(scan.gcs.objects[("display", "current.json")][0]) == {
         "schema_version": 1, "version": REFRESH_ID, "frame_count": 3

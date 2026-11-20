@@ -16,14 +16,14 @@ fixed order (`DROP_STEPS`) and the row says how many. See docs/parents-board.md.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from functools import lru_cache
 from typing import Any
 
 from skoleklar import dashboard_renderer as board
 from skoleklar import health
-from skoleklar.parents_board import lookahead_span
+from skoleklar.parents_board import lookahead_dates, lookahead_span
 from skoleklar.present import urgent_on
 
 WIDTH, HEIGHT = board.WIDTH, board.HEIGHT
@@ -63,6 +63,8 @@ class Item:
     urgent: bool = False
     # The day's plan headline retells one of its facts.
     retold: bool = False
+    # An outlined tag in ink instead of a blue box: a state of the data, not a category.
+    outline: bool = False
 
 
 @dataclass
@@ -96,6 +98,11 @@ class Kid:
     dropped_left: int = 0
     dropped_right: int = 0
     later_folded: int = 0
+    # The next school day's whole plan paragraph, shown instead of `plan` while it fits.
+    plan_text: str = ""
+    # This week's plan headlines before the next school day, (iso date, headline), when
+    # the coming week has no plan yet. They fill only room left after fitting.
+    recap: list[tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -169,14 +176,41 @@ def _day_label(iso: str) -> str:
     return f"{SHORT_DAYS[value.weekday()]} {value.day}."
 
 
-def plan_headline(data: dict[str, Any], name: str, iso: str | None) -> str:
-    """The weekly plan's headline for a child's day, or '' when none is written."""
-    for entry in data.get("day_summaries", []):
-        if entry["date"] == iso:
-            for summary in entry["children"]:
-                if summary["name"] == name and summary["status"] == "ok":
-                    return summary["headline"]
-    return ""
+Summaries = dict[tuple[str, str], dict[str, Any]]
+NO_SUMMARY = {"status": "", "headline": None, "text": None}
+
+
+def index_summaries(data: dict[str, Any]) -> Summaries:
+    """The board's day summaries by (iso date, child), read once per board."""
+    return {(entry["date"], summary["name"]): summary
+            for entry in data.get("day_summaries", []) for summary in entry["children"]}
+
+
+def plan_headline(summary: dict[str, Any]) -> str:
+    """A day summary's headline, or '' when none is written."""
+    return summary["headline"] if summary["status"] == "ok" else ""
+
+
+# Most of the days ahead without a published plan: the board says so once, with
+# an outlined week tag, and fills the room with the week that went.
+MISSING_PLAN_DAYS = 3
+
+
+def missing_plan(summaries: Summaries, name: str, hero_date: str) -> tuple[str, Item] | None:
+    """(first day without a plan, `UGE 48 ingen ugeplan endnu`) when most days ahead have none."""
+    days = [value.isoformat() for value in lookahead_dates(date.fromisoformat(hero_date))]
+    missing = [iso for iso in days if summaries.get((iso, name), NO_SUMMARY)["status"] == "not_published"]
+    if len(missing) < MISSING_PLAN_DAYS:
+        return None
+    week = date.fromisoformat(missing[0]).isocalendar().week
+    return missing[0], Item("missing", [("ingen ugeplan endnu", False)], chip=f"UGE {week}", outline=True)
+
+
+def week_recap(summaries: Summaries, name: str, hero_date: str) -> list[tuple[str, str]]:
+    """This week's headlines before the next school day, oldest first."""
+    hero = date.fromisoformat(hero_date)
+    days = [(hero - timedelta(days=offset)).isoformat() for offset in range(hero.weekday(), 0, -1)]
+    return [(iso, headline) for iso in days if (headline := plan_headline(summaries.get((iso, name), NO_SUMMARY)))]
 
 
 def plan_item(headline: str, items: list[Item]) -> Item | None:
@@ -341,11 +375,17 @@ def build_model(data: dict[str, Any], live_messages=None) -> Model:
     weekdays = {day["date"]: day for day in data.get("weekdays", [])}
     ahead = {row["date"]: row for row in data.get("ahead", [])}
     window = [day.isoformat() for day in lookahead_span(date.fromisoformat(hero_date))]
+    summaries = index_summaries(data)
     kids = []
     for index, child in enumerate(hero["children"]):
         left = _order([make_item(entry, today) for entry in _shown(child["lines"])])
-        kid = Kid(child["name"], plan_headline(data, child["name"], hero_date), left,
-                  _message(data, child["name"], live_messages))
+        own = summaries.get((hero_date, child["name"]), NO_SUMMARY)
+        kid = Kid(child["name"], plan_headline(own), left, _message(data, child["name"], live_messages))
+        if kid.plan:
+            kid.plan_text = own["text"] or ""
+        missing = missing_plan(summaries, child["name"], hero_date)
+        if missing:
+            kid.recap = week_recap(summaries, child["name"], hero_date)
         for iso in window:
             entries = []
             if iso in weekdays:
@@ -354,9 +394,11 @@ def build_model(data: dict[str, Any], live_messages=None) -> Model:
                 entries = _shown(ahead[iso]["children"][index]["lines"])
             items = [item for item in _order([make_item(entry, today) for entry in entries])
                      if item.kind != "more" or len(entries) > 1]
-            plan = plan_item(plan_headline(data, child["name"], iso), items)
+            plan = plan_item(plan_headline(summaries.get((iso, child["name"]), NO_SUMMARY)), items)
             if plan is not None:
                 items.insert(0, plan)
+            if missing and iso == missing[0]:
+                items.insert(0, missing[1])
             if items:
                 kid.days.append((iso, items, _rain(data, iso, entries)))
         kids.append(kid)
@@ -419,7 +461,7 @@ def wrap_item(item: Item, family: str, width: float) -> list[Item]:
         used += extra
     if current:
         lines.append(current)
-    result = [Item(item.kind, lines[0], item.chip, item.box, item.urgent)]
+    result = [Item(item.kind, lines[0], item.chip, item.box, item.urgent, outline=item.outline)]
     result += [Item(item.kind, runs, urgent=item.urgent) for runs in lines[1:]]
     return result
 
@@ -463,6 +505,53 @@ def right_rows(days, later, folded: int, dropped: int, tight: bool) -> list[Row]
     return rows
 
 
+RECAP_HEAD = Row([Item("info", [("Ugen der gik", True)])])
+
+
+def _recap_day(iso: str, headline: str) -> list[Row]:
+    """One recap day: its headline in the serif, wrapped like any line of the column."""
+    parts = wrap_item(Item("plan", [(headline, False)]), "r", RIGHT_END - TEXT_X)
+    return [Row([parts[0]], label=_day_label(iso))] + [Row([part], indent=14) for part in parts[1:]]
+
+
+def _below_recap(rows: list[Row]) -> list[Row]:
+    """The days ahead under the recap: one dotted rule above them, none further down."""
+    below = [replace(row, rule=False) for row in rows]
+    if below:
+        below[0].rule, below[0].gap = True, False
+    return below
+
+
+def recap_rows(recap: list[tuple[str, str]], rows: list[Row]) -> list[Row]:
+    """`Ugen der gik` and this week's headlines above `rows`, with one dotted rule between."""
+    if not recap:
+        return rows
+    return [RECAP_HEAD] + [row for iso, headline in recap for row in _recap_day(iso, headline)] + _below_recap(rows)
+
+
+def kid_rows(kid: Kid, tight: bool) -> list[Row]:
+    """A child's right side as drawn: the recap that fitted, then the days and later events."""
+    return recap_rows(kid.recap, right_rows(kid.days, kid.later, kid.later_folded, kid.dropped_right, tight))
+
+
+def fill_recap(model: Model, heights: list[int]) -> None:
+    """Keep the newest recap days that fit each child's row; the oldest go first.
+
+    The recap never takes part in fitting: it only uses room the board left over.
+    The rows are built and wrapped once; only which recap days to keep is tried.
+    """
+    for kid, height in zip(model.kids, heights):
+        if not kid.recap:
+            continue
+        room = height - DIVIDER - sum(RIGHT_PAD)
+        below = _below_recap(right_rows(kid.days, kid.later, kid.later_folded, kid.dropped_right, model.tight))
+        days = [_recap_day(iso, headline) for iso, headline in kid.recap]
+        start = next((start for start in range(len(days))
+                      if right_height([RECAP_HEAD] + [row for day in days[start:] for row in day] + below,
+                                      model.tight) <= room), len(days))
+        kid.recap = kid.recap[start:]
+
+
 def _pitch(tight: bool) -> int:
     """Rows on the right are 20 px lines with 2 px between them; none when tightened."""
     return LINE_HEIGHT["r"] + (0 if tight else 2)
@@ -481,13 +570,25 @@ def right_height(rows: list[Row], tight: bool) -> int:
     return height - (_pitch(tight) - LINE_HEIGHT["r"])
 
 
+# The whole plan paragraph shows only while it takes at most this many lines.
+PLAN_TEXT_LINES = 5
+
+
+def plan_lines(kid: Kid, width: int) -> list[str]:
+    """The plan paragraph when it fits in whole lines, else the headline (up to 3 lines)."""
+    if kid.plan_text:
+        lines = board.wrapped_lines(_ruler(), kid.plan_text, width, "body", limit=PLAN_TEXT_LINES + 1)
+        if len(lines) <= PLAN_TEXT_LINES:
+            return lines
+    return board.wrapped_lines(_ruler(), kid.plan, width, "body", limit=3) if kid.plan else []
+
+
 def left_blocks(kid: Kid, tight: bool) -> list[tuple[str, Any]]:
     """(kind, content) blocks of a child's left band, top to bottom."""
     blocks: list[tuple[str, Any, int]] = [("name", kid.name, 0)]
     width = LEFT_END - LEFT_X
-    if kid.plan:
-        for line in board.wrapped_lines(_ruler(), kid.plan, width, "body", limit=3):
-            blocks.append(("plan", line, 0))
+    for line in plan_lines(kid, width):
+        blocks.append(("plan", line, 0))
     for item in kid.left:
         family = "hw" if item.kind == "homework" else "item"
         for index, part in enumerate(wrap_item(item, family, width)):
@@ -538,7 +639,8 @@ def _drop_right(model: Model, kinds: set[str], *, unless_event_day=False) -> Non
             continue
         days = []
         for iso, items, rain in kid.days:
-            event_day = unless_event_day and any(item.chip for item in items)
+            # The outlined `UGE 48` tag is a state of the data, not an event.
+            event_day = unless_event_day and any(item.chip and not item.outline for item in items)
             kept, count = _drop(items, set() if event_day else kinds, lambda item: item.urgent)
             kid.dropped_right += count
             if kept:
@@ -610,7 +712,14 @@ def _drop_plan(model: Model) -> None:
     """The plan line goes only where the left side is what makes the row tall."""
     for kid in model.kids:
         if not _right_binds(kid, model.tight):
-            kid.plan = ""
+            kid.plan = kid.plan_text = ""
+
+
+def _shorten_plan(model: Model) -> None:
+    """The whole plan paragraph becomes its headline where the left side makes the row tall."""
+    for kid in model.kids:
+        if not _right_binds(kid, model.tight):
+            kid.plan_text = ""
 
 
 def _tighten(model: Model) -> None:
@@ -618,6 +727,8 @@ def _tighten(model: Model) -> None:
 
 
 DROP_STEPS = (
+    # Before anything gives way: the next school day's plan paragraph becomes its headline.
+    _shorten_plan,
     # Nothing to do: substitutes and plain information on the coming days, then tomorrow.
     lambda model: _drop_right(model, {"substitute", "info"}),
     lambda model: _drop_left(model, {"substitute", "info"}),
@@ -650,12 +761,13 @@ def fit_board(model: Model) -> tuple[Model, list[int]]:
         # Last resort: the farthest day of the fullest column gives way, homework too.
         kid = max((kid for kid in model.kids if kid.days), key=lambda kid: len(kid.days))
         iso, items, rain = kid.days.pop()
-        kid.dropped_right += sum(1 for item in items if item.kind != "plan")
+        kid.dropped_right += sum(1 for item in items if item.kind not in {"plan", "missing"})
         heights = row_heights(model)
     spare = max(0, available - sum(heights))
     kids = len(model.kids)
     for index in range(kids):
         heights[index] += spare // kids + (1 if index < spare % kids else 0)
+    fill_recap(model, heights)
     return model, heights
 
 
@@ -711,8 +823,12 @@ def draw_item(draw, x: float, y: float, item: Item, family: str, colour: str, gr
         x += _prefix_width(item, family)
     elif item.chip:
         chip_width = text_width(item.chip, "chip") + 8
-        draw.rectangle((round(x), round(y + 1), round(x + chip_width), round(y + size + 3)), fill=board.BLUE)
-        _text(draw, x + 4, y + 2 + (size - 14) / 2, item.chip, "chip", board.WHITE)
+        box = (round(x), round(y + 1), round(x + chip_width), round(y + size + 3))
+        if item.outline:
+            draw.rectangle(box, outline=ink, width=1)
+        else:
+            draw.rectangle(box, fill=board.BLUE)
+        _text(draw, x + 4, y + 2 + (size - 14) / 2, item.chip, "chip", ink if item.outline else board.WHITE)
         x += chip_width + 6
     for text, strong in item.runs:
         x = _text(draw, x, y, text, bold if strong else regular, ink)
@@ -775,26 +891,100 @@ def header_parts(model: Model) -> tuple[str, str]:
     return "date", ""
 
 
-def draw_status(draw, data: dict[str, Any], *, bottom: bool = False) -> None:
+def draw_status(draw, data: dict[str, Any], *, bottom: bool = False) -> float:
     """The update stamp and the board's battery, right-aligned; the same on every view.
 
     The parents' board has it in the top right. The weekend and the children's day
     view keep their top right for headings and put it in the bottom right instead.
     """
-    style = "status_b" if _status_bold(data) else "status"
+    style, status, left = status_layout(data)
     y = HEIGHT - 20 if bottom else 14
-    x = RIGHT_END
     battery = data.get("device", {}).get("battery_percent")
     if battery is not None:
         label = f"{battery} %"
-        x -= text_width(label, style)
-        _text(draw, x, y, label, style, board.BLACK)
-        x -= 29
-        _battery(draw, round(x), y + 3, battery)
-        x -= 14
+        _text(draw, RIGHT_END - text_width(label, style), y, label, style, board.BLACK)
+        _battery(draw, round(RIGHT_END - text_width(label, style) - 29), y + 3, battery)
+    _text(draw, left, y, status, style, board.BLACK)
+    return left
+
+
+def status_layout(data: dict[str, Any]) -> tuple[str, str, float]:
+    """(style, status as it fits, its left edge) of the update stamp beside the battery."""
+    style = "status_b" if _status_bold(data) else "status"
+    x = RIGHT_END
+    battery = data.get("device", {}).get("battery_percent")
+    if battery is not None:
+        x -= text_width(f"{battery} %", style) + 29 + 14
     # The status fits the right half; a longer one is shortened, never run into the left.
-    status = board.fit(draw, _status(data), int(x - RIGHT_X), face(style)[0])
-    _text(draw, x - text_width(status, style), y, status, style, board.BLACK)
+    status = board.fit(_ruler(), _status(data), int(x - RIGHT_X), face(style)[0])
+    return style, status, x - text_width(status, style)
+
+
+# --- Countdown (skoleklar.countdown) ---------------------------------------------------
+
+FLAG_WIDTH = 20
+COUNTDOWN_GAP = 16
+
+
+def countdown_width(lead: str, text: str, flag: bool) -> float:
+    return (FLAG_WIDTH if flag else 0) + text_width(lead, "r_b") + 4 + text_width(text, "r_plan")
+
+
+def _status_left(status: str, style: str) -> float:
+    return RIGHT_END - text_width("100 %", style) - 29 - 14 - text_width(status, style)
+
+
+@lru_cache(maxsize=1)
+def countdown_room() -> float:
+    """The header's room left of a normal status line; a name must fit it in every wording."""
+    return _status_left("Opdateret 00/00 00.00", "status") - RIGHT_X - COUNTDOWN_GAP
+
+
+def _flag(draw, x: int, y: int) -> None:
+    """Dannebrog in ink, the Danish birthday sign: the board has no red."""
+    draw.line((x, y, x, y + 16), fill=board.BLACK, width=2)
+    draw.rectangle((x + 1, y, x + 15, y + 10), outline=board.BLACK, width=1)
+    draw.rectangle((x + 6, y, x + 7, y + 10), fill=board.BLACK)
+    draw.rectangle((x + 1, y + 4, x + 15, y + 5), fill=board.BLACK)
+
+
+def shown_countdown(data: dict[str, Any]) -> dict[str, Any] | None:
+    """The countdown when it fits beside the status on the panel; the status wins otherwise.
+
+    The panel and the browser board ask the same question, so both leave it out together.
+    """
+    countdown = data.get("countdown")
+    if not countdown or countdown_width(countdown["lead"], countdown["text"], countdown["flag"]) \
+            > status_layout(data)[2] - RIGHT_X - COUNTDOWN_GAP:
+        return None
+    return countdown
+
+
+def draw_countdown(draw, data: dict[str, Any]) -> None:
+    """The countdown at the left of the header."""
+    countdown = shown_countdown(data)
+    if not countdown:
+        return
+    x = RIGHT_X
+    if countdown["flag"]:
+        _flag(draw, x, 12)
+        x += FLAG_WIDTH
+    x = _text(draw, x, 12, countdown["lead"], "r_b", board.BLACK)
+    _text(draw, x + 4, 12, countdown["text"], "r_plan", board.BLACK)
+
+
+_FLAG_SVG = ('<svg class="pb-flag" viewBox="0 0 16 17" aria-hidden="true"><path d="M1 0v17" stroke="currentColor" '
+             'stroke-width="2"/><path d="M1.5 .5h14v10h-14z" fill="none" stroke="currentColor"/>'
+             '<path d="M6 0h2v11H6zM1 4h15v2H1z" fill="currentColor"/></svg>')
+
+
+def countdown_html(data: dict[str, Any]) -> str:
+    countdown = shown_countdown(data)
+    if not countdown:
+        return ""
+    flag = _FLAG_SVG if countdown["flag"] else ""
+    return (f'<span class="pb-count">{flag}<b>{_esc(countdown["lead"])}</b> '
+            f'{_esc(countdown["text"])}</span>')
 
 
 def status_html(data: dict[str, Any]) -> str:
@@ -882,14 +1072,14 @@ def draw_parents_board(draw, data: dict[str, Any], live_messages=None) -> None:
         from skoleklar.weather_icons import draw_icon
         draw_icon(draw, model.weather[0], round(right - 25), 9, 21, board.HERO_ICON_COLOURS)
     draw_status(draw, data)
+    draw_countdown(draw, data)
 
     top = HEADER_HEIGHT
     for kid, height in zip(model.kids, heights):
         draw.rectangle((0, top, SPLIT - 1, top + DIVIDER - 1), fill=board.WHITE)
         draw.rectangle((SPLIT, top, WIDTH - 1, top + DIVIDER - 1), fill=board.BLACK)
         draw_left(draw, kid, top + DIVIDER, top + height, model.tight)
-        rows = right_rows(kid.days, kid.later, kid.later_folded, kid.dropped_right, model.tight)
-        draw_right_rows(draw, rows, top + DIVIDER + RIGHT_PAD[0], model.tight)
+        draw_right_rows(draw, kid_rows(kid, model.tight), top + DIVIDER + RIGHT_PAD[0], model.tight)
         top += height
     draw.rectangle((0, top, SPLIT - 1, top + DIVIDER - 1), fill=board.WHITE)
     draw.rectangle((SPLIT, top, WIDTH - 1, top + DIVIDER - 1), fill=board.BLACK)
@@ -914,6 +1104,7 @@ SHARED_CSS = """
 .pb-env{width:16u;height:12u;flex:none}
 .pb-battery .pb-env{width:23u;height:11u}
 .chip{background:@INDIGO@;color:#fff;font:700 14u/1.2 var(--sans);padding:0 4u;margin-right:6u}
+.chip.open{background:none;color:inherit;box-shadow:inset 0 0 0 1u currentColor}
 .pb-msg{display:flex;align-items:center;gap:7u;font-size:15u;line-height:20u}
 .pb-msg time{margin-left:auto}
 .pb-msg.unread time{font-weight:700}
@@ -929,7 +1120,10 @@ PARENTS_CSS = """
 .parents .pb-date.small{font-size:23u}
 .parents .pb-wx{display:flex;align-items:center;gap:4u;font:700 15u/1 var(--sans);white-space:nowrap;flex:none}
 .parents .pb-wx .wx-icon{width:21u;height:21u}
-.parents .pb-head-r{display:flex;justify-content:flex-end;align-items:center;padding:4u 10u 5u 14u}
+.parents .pb-head-r{display:flex;justify-content:flex-end;align-items:center;gap:16u;padding:4u 10u 5u 14u}
+.parents .pb-count{margin-right:auto;display:flex;align-items:center;gap:4u;font:400 16u/1.2 var(--serif);white-space:nowrap}
+.parents .pb-count b{font:700 15u/1.2 var(--sans)}
+.parents .pb-flag{width:16u;height:17u;flex:none}
 .parents .pb-left{border-top:2u solid @PAGE@;padding:7u 14u 9u 10u;display:flex;flex-direction:column;gap:4u}
 .parents .pb-right{border-top:2u solid @INK@;padding:8u 10u 9u 14u}
 .parents .pb-name{font:700 23u/25u var(--serif);margin:0}
@@ -953,7 +1147,10 @@ PARENTS_CSS = """
 .parents .pb-begge-name{font:700 19u/22u var(--serif)}
 .parents .pb-unread{display:flex;align-items:center;gap:7u;font-weight:700}
 .parents .pb-begge-r{border-top:2u solid @INK@;padding:6u 10u 8u 14u}
-@container (max-width:680px){.dashboard.parents{grid-template-columns:1fr}}
+@container (max-width:680px){
+ .dashboard.parents{grid-template-columns:1fr}
+ .parents .pb-head-r{flex-wrap:wrap;row-gap:4u}
+}
 """
 
 _ENVELOPE = ('<svg class="pb-env" viewBox="0 0 16 12" aria-hidden="true">{}</svg>')
@@ -974,7 +1171,7 @@ def item_html(item: Item) -> str:
     if item.box:
         parts.append('<span class="box"></span>')
     if item.chip:
-        parts.append(f'<span class="chip">{_esc(item.chip)}</span>')
+        parts.append(f'<span class="chip{" open" if item.outline else ""}">{_esc(item.chip)}</span>')
     for text, strong in item.runs:
         parts.append(f"<b>{_esc(text)}</b>" if strong else _esc(text))
     inner = "".join(parts)
@@ -1027,10 +1224,10 @@ def body_html(data: dict[str, Any], live_messages=None) -> str:
     parts = [
         f'<div class="pb-cell pb-dark pb-head-l"><h1 class="pb-date{" small" if date_style == "date_s" else ""}">'
         f'{_esc(model.day_title)}</h1>{weather}</div>',
-        f'<div class="pb-cell pb-head-r">{status_html(data)}</div>',
+        f'<div class="pb-cell pb-head-r">{countdown_html(data)}{status_html(data)}</div>',
     ]
     for kid in model.kids:
-        rows = right_rows(kid.days, kid.later, kid.later_folded, kid.dropped_right, model.tight)
+        rows = kid_rows(kid, model.tight)
         parts.append(f'<section class="pb-cell pb-dark pb-left">{left_html(kid, model.tight)}</section>')
         parts.append(f'<section class="pb-cell pb-right">{rows_html(rows, model.tight)}</section>')
     shared = right_rows(model.shared_days, model.shared_later, model.shared_folded, 0, model.tight)

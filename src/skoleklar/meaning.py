@@ -49,8 +49,9 @@ def _defaults() -> dict[str, Any]:
 
 
 def _merge(base: dict[str, Any], document: dict[str, Any]) -> dict[str, Any]:
-    # [runtime], [weather] and [gcp] say where and how the household runs (skoleklar.runtime.config).
-    unknown = set(document) - {"meaning", "runtime", "weather", "gcp"}
+    # [runtime], [weather] and [gcp] say where and how the household runs (skoleklar.runtime.config);
+    # [countdown] is the parents' board's dates (skoleklar.countdown).
+    unknown = set(document) - {"meaning", "runtime", "weather", "gcp", "countdown"}
     if unknown:
         raise ProfileError(f"{MEANING_FILE}: unknown table [{sorted(unknown)[0]}]")
     given = document.get("meaning", {})
@@ -108,13 +109,22 @@ def parse_meaning(document: dict[str, Any] | None = None) -> Meaning:
 DEFAULT_MEANING = parse_meaning()
 
 
-def load_meaning(home: Path) -> Meaning:
-    """The household's meaning from `home`/skoleklar.toml, or today's rules without it."""
+def read_household(home: Path) -> dict[str, Any] | None:
+    """`home`/skoleklar.toml as a document, or None without the file.
+
+    A scan reads it once and hands the same document to each table's parser
+    (`parse_meaning`, `parse_runtime`, `parse_countdown`).
+    """
     path = home / MEANING_FILE
     if not path.exists():
-        return DEFAULT_MEANING
+        return None
     try:
-        document = tomllib.loads(path.read_text(encoding="utf-8"))
+        return tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as error:
         raise ProfileError(f"{MEANING_FILE}: {error}") from None
-    return parse_meaning(document)
+
+
+def load_meaning(home: Path) -> Meaning:
+    """The household's meaning from `home`/skoleklar.toml, or today's rules without it."""
+    document = read_household(home)
+    return DEFAULT_MEANING if document is None else parse_meaning(document)

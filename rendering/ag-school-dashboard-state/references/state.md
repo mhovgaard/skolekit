@@ -126,6 +126,10 @@ All optional and written by code, never by the model:
   name or `Begge` and the line's `kind` is `trip`, `party`, `meeting`, `event` or
   `deadline` and its text at most 60 characters.
 - `device`: `{"battery_percent": 0–100}` from the board's own status report.
+- `countdown`: `{"lead", "text", "flag"}`, the one countdown line for the frame's
+  day (`"45"` `"dage til juleaften"`, `"Tillykke,"` `"Alfa!"`), each 1–40
+  characters, `flag` true for a birthday. Never the household's dates
+  ([the countdown](../../../docs/parents-board.md#countdown)).
 
 ## Review count
 

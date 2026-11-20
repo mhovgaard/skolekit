@@ -281,10 +281,10 @@ def test_lookup_reports_each_status_and_the_state_carries_one_entry_per_day(tmp_
     assert [day["date"] for day in state["day_summaries"]] == [day["date"] for day in state["weekdays"]]
     assert [child["name"] for child in state["day_summaries"][0]["children"]] == ["ChildA", "ChildB"]
     assert state["day_summaries"][0]["children"][0]["text"] == "Du skal lære noget nyt og lege med klassen."
-    # The parents' board shows the next school day's headline as its plan line.
-    headline = state["day_summaries"][0]["children"][0]["headline"]
+    # The parents' board shows the next school day's whole plan paragraph while it fits.
+    text = state["day_summaries"][0]["children"][0]["text"]
     without = weekday_grid_state()
-    assert headline in render_html(state) and headline not in render_html(without)
+    assert text in render_html(state) and text not in render_html(without)
     assert render_png(state).tobytes() != render_png(without).tobytes()
 
 
