@@ -13,7 +13,7 @@ Each child has a row across the panel, and the dividers line up on both halves.
 | Part | Shows |
 |---|---|
 | Top left (dark) | The next school day's date and a weather heads-up: `1–5° Vintertøj`, `9–14° Regntøj` |
-| Top right | The [countdown](#countdown) (`34 dage til juleaften`) on the left; `Opdateret 08/11 19.30` and the board's battery on the right, with `ÆLDRE DATA`, `Mangler: …` and `N punkter at tjekke` when they apply |
+| Top right | The [countdown](#countdown) (`34 dage til juleaften`) on the left; `Opdateret 08/11 19.30` and the board's battery on the right, with `ÆLDRE DATA` and `Mangler: …` when they apply |
 | Child row, left | The weekly plan's paragraph for the day (its headline when the board is full), homework with a checkbox, what to bring, the time-urgent line, the latest message |
 | Child row, right | The four school days after the next school day as dated rows, each led by the weekly plan's headline for that day, then events up to two weeks out below a dotted rule; [`Ugen der gik`](#before-the-next-weeks-plan-is-out) above them when the coming week has no plan yet |
 | `Begge` row | The unread total (`4 ulæste i alt`) on the left; what concerns both children on the right |
@@ -70,6 +70,10 @@ describes when the builder writes a line itself.
   substitutes are never yellow, even when the line names a time.
 - **Rain on an event day** shows as `☂ regn` under its date, unless the day's
   things to bring are rain gear (`rain_gear`).
+- **A fact the scan is unsure of** ends in a quiet `(?)` (`Dansk for hold 2 (?)`,
+  `unsure`): the parents see it where they can check it, instead of a count in the
+  header. The [review checks](processing.md#review-checks) settle what they can
+  first; the children's view leaves unsure lines out.
 - **Weekly routines** (kind `routine`: a `recurring` event, such as morning
   singing) are never shown and never take one of a day's lines (`hidden`); a
   cancellation is (`Morgensang aflyst`).

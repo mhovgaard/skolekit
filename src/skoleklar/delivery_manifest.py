@@ -196,6 +196,8 @@ def delivery_items_from_snapshot(
         item = dict(consolidated)
         # The derived facts it stands for, by stable key: what a day summary may retell.
         item["source_fact_keys"] = [member["stable_key"] for member in members]
+        # Its members' quotes from the published pages: what the review check reads.
+        item["evidence"] = [entry for member in members for entry in member.get("evidence") or []]
         for field in (
             "first_delivered_at",
             "last_delivered_at",

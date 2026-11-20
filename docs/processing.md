@@ -168,14 +168,17 @@ school days ahead, which may reach into the next week.
 After summaries, the scan revisits flagged facts from today through its review
 window. Rules can reject another class's fact, by the `class_levels` the extractor
 gave it (never by class numbers in its words), or a vague conference window
-covered by an explicit child's appointment. Class context comes from stored
+covered by an explicit child's appointment. A fact unsure only of which hold the
+child is on (`hold 2`, `Hold B`) is shown: one named hold is taken as the child's,
+and with both named each fact is shown. Class context comes from stored
 profile/typed data, not a name hardcoded in the prompt.
 
 For remaining eligible facts with stored published-page evidence, the
 `review-check-v1` model returns `show`, `drop` or `unclear`. Verdicts are keyed
 by stable fact key and fingerprint; changed facts are checked again.
 `show` clears the flag with a note, `drop` removes the fact from projections,
-and `unclear` preserves uncertainty. Board and phone apply the same verdicts.
+and `unclear` preserves uncertainty: the board shows the fact with `(?)`. A
+consolidated fact carries its members' quotes for this check. Board and phone apply the same verdicts.
 Message facts carry no stored evidence quotes and need a new message or
 appropriate explicit confirmation rather than invented proof.
 

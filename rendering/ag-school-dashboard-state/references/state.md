@@ -48,7 +48,7 @@ Each entry in `lines` or `shared` has wording, fact references, and presentation
 ```json
 {"text": "s. 52–53; lav s. 26", "refs": ["fact-4"], "kind": "homework", "label": "",
  "chip": "", "box": true, "subject": "Mat.", "cancelled": false, "hidden": false,
- "rain_gear": false, "retold": false, "urgent": null}
+ "rain_gear": false, "retold": false, "unsure": false, "urgent": null}
 ```
 
 - `text`: display wording without presentation labels. Code supplies wording
@@ -64,7 +64,9 @@ Each entry in `lines` or `shared` has wording, fact references, and presentation
   `MØDE`, `ARR.` or empty), the homework `box` and its bold short `subject`,
   `cancelled` (every fact behind it is), `hidden` (a weekly routine, never drawn),
   `rain_gear` (the line includes rain clothes), `retold` (the day's plan
-  headline references one of these facts), and `urgent` (the dates
+  headline references one of these facts), `unsure` (a fact behind it is still
+  flagged for review: the line ends in `(?)`; a line without the field reads as
+  sure), and `urgent` (the dates
   `{"from", "to"}` on which it is yellow, or null). Composition validation
   recomputes the presentation from the referenced facts.
 
@@ -133,11 +135,10 @@ All optional and written by code, never by the model:
 
 ## Review count
 
-`review_count` is optional and set by code, never by the model: the number of
-facts flagged for review in the shown week and weekend that the board leaves out,
-after the [review checks](../../../docs/processing.md#review-checks) have settled what they can.
-Both renderers show it before the update stamp as `2 punkter at tjekke`. It is
-absent when there are none.
+`review_count` is no longer written: a fact flagged for review is shown on its
+line, marked `unsure`, after the [review checks](../../../docs/processing.md#review-checks)
+have settled what they can. A state written earlier may still carry the count
+(0–99); it validates and is never drawn.
 
 ## Day summaries
 

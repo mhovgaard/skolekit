@@ -95,7 +95,8 @@ def test_cancelled_parties_show_as_cancelled_and_other_facts_fill_free_rows():
     assert rows[0]["lines"][0]["cancelled"]
     assert overflow == 0
     assert decisions["fact-2"] == ("omitted", "", "Cancelled activity")
-    assert decisions["fact-4"] == ("omitted", "", "Needs review")
+    # A fact flagged for review competes for a row like any other; these two are full.
+    assert decisions["fact-4"] == ("omitted", "", "Weekend rows full")
     assert decisions["fact-5"] == ("omitted", "", "Classmate birth date only")
 
 
@@ -240,7 +241,10 @@ def test_fallback_board_is_valid_puts_obligations_first_and_says_it_is_plain():
     assert state["health"]["composition"] == {"status": "degraded", "reason": "plain_board"}
     assert state["hero"]["day"] == "Fredag 6. nov." and state["hero"]["state"] == "Næste skoledag"
     assert look(state["hero"]["children"][0]["lines"]) == [
-        ("madpakke", "bring", "Medbring"), ("Læs side 12", "homework", ""), ("Teaterbesøg", "event", "")]
+        ("madpakke", "bring", "Medbring"), ("Læs side 12", "homework", ""), ("Teaterbesøg", "event", ""),
+        ("5. klasse på museum", "event", "")]
+    # The flagged fact is shown last, marked unsure.
+    assert [entry["unsure"] for entry in state["hero"]["children"][0]["lines"]] == [False, False, False, True]
     friday = state["weekdays"][4]
     assert look(friday["shared"]) == [("Morgensang er aflyst", "change", "")]
     assert look(state["weekdays"][1]["children"][1]["lines"]) == [("Alex W. · MAT", "substitute", "Vikar")]
@@ -248,7 +252,7 @@ def test_fallback_board_is_valid_puts_obligations_first_and_says_it_is_plain():
     assert look(state["weekdays"][0]["children"][1]["lines"]) == [("Tilmeld samtale", "optional", "Valgfrit")]
     assert rows_seen(state["weekend"]) == [("Lør. 7. nov.", "ChildB", [("Fødselsdagsfest", "party", "")])]
     decisions = {item["ref"]: item for item in audit["facts"]}
-    assert decisions["fact-4"]["reason"] == "Needs review"
+    assert decisions["fact-4"]["decision"] == "displayed"
     assert decisions["fact-14"]["reason"] == "Outside displayed week"
     assert decisions["fact-8"]["decision"] == "merged"
 

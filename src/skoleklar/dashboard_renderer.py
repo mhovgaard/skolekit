@@ -254,6 +254,7 @@ def validate(data: dict[str, Any]) -> None:
     overflow = data.get("weekend_overflow", 0)
     if type(overflow) is not int or not 0 <= overflow <= 9:
         raise ValueError("weekend_overflow must be a count from 0 to 9")
+    # Left over in a state written before flagged facts were marked on their lines; never drawn.
     review = data.get("review_count", 0)
     if type(review) is not int or not 0 <= review <= 99:
         raise ValueError("review_count must be a count from 0 to 99")
@@ -623,12 +624,6 @@ def pack_panel_frame(image: Image.Image) -> bytes:
                  for index in range(0, len(pixels), 2))
 
 
-def review_label(data: dict[str, Any]) -> str:
-    """'2 punkter at tjekke' for this week's uncertain facts the board leaves out."""
-    count = data.get("review_count", 0)
-    return f"{count} {'punkt' if count == 1 else 'punkter'} at tjekke" if count else ""
-
-
 def draw_freshness_corner(draw: ImageDraw.ImageDraw, data: dict[str, Any]) -> None:
     """The update stamp and battery in the bottom-right corner, as on the parents' board.
 
@@ -834,7 +829,7 @@ def render_png(data: dict[str, Any], *, live_messages=None,
         from skoleklar.day_view_render import draw_day_view, panel_artwork_preset
         from skoleklar.weekend_art import ART_ORIGIN, panel_artwork
         draw_day_view(draw, data)
-        draw_freshness_corner(draw, {**data, "review_count": 0})
+        draw_freshness_corner(draw, data)
         panel = panel_result()
         panel.paste(panel_artwork(panel_artwork_preset(data)), ART_ORIGIN)
         return panel

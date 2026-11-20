@@ -24,7 +24,7 @@ from typing import Any
 from skoleklar import dashboard_renderer as board
 from skoleklar import health
 from skoleklar.parents_board import lookahead_dates, lookahead_span
-from skoleklar.present import urgent_on
+from skoleklar.present import UNSURE_MARK, urgent_on
 
 WIDTH, HEIGHT = board.WIDTH, board.HEIGHT
 SPLIT = board.PANEL_SPLIT_X
@@ -158,8 +158,8 @@ def make_item(entry: dict[str, Any], today: date | None) -> Item:
     """The board item for one line of the state: what `present` returned, drawn as it is.
 
     A homework line is its checkbox, its bold subject and its text; another line
-    is its box, its bold label and its text. Yellow is the line's urgency window
-    on `today`.
+    is its box, its bold label and its text, then `(?)` when the scan is unsure
+    of it. Yellow is the line's urgency window on `today`.
     """
     runs: list[tuple[str, bool]] = []
     for word in (entry["label"], entry["subject"]):
@@ -167,6 +167,8 @@ def make_item(entry: dict[str, Any], today: date | None) -> Item:
             runs.append(((" " if runs else "") + word, True))
     text = entry["text"]
     runs.append(((" " + text) if runs else _capital(text), False))
+    if entry.get("unsure"):
+        runs.append((" " + UNSURE_MARK, False))
     return Item(entry["kind"], runs, chip=entry["chip"], box=entry["box"], urgent=urgent_on(entry, today),
                 retold=entry["retold"])
 
@@ -260,11 +262,14 @@ def _unread(data: dict[str, Any], live_messages) -> Total:
 
 
 def _status(data: dict[str, Any]) -> str:
-    """'ÆLDRE DATA · Mangler: vejret · 2 punkter at tjekke · Opdateret 08/11 19.30'."""
+    """'ÆLDRE DATA · Mangler: vejret · Opdateret 08/11 19.30'.
+
+    What the scan is unsure of is marked on its own line (`(?)`), never counted here.
+    """
     prefix = "ÆLDRE DATA · " if board.is_stale(data) else ""
-    for part in (health.line(data.get("health")), board.review_label(data)):
-        if part:
-            prefix += part + " · "
+    missing = health.line(data.get("health"))
+    if missing:
+        prefix += missing + " · "
     value = board.timestamp(data["freshness"]["source_updated_at"]).astimezone(board.ZONE)
     return prefix + f"Opdateret {value:%d/%m %H.%M}"
 
