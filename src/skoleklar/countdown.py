@@ -190,7 +190,8 @@ def _check_fits(mark: Mark, where: str) -> None:
         from skoleklar.parents_board_render import countdown_room, countdown_width
     except ImportError:  # no drawing libraries here; the board hides what does not fit
         return
-    for days in (0, 1, mark.window if mark.window > 1 else 0):
+    # Only the wordings its window can reach: the day itself, the day before, a count.
+    for days in [0] + [1] * (mark.window >= 1) + [mark.window] * (mark.window >= 2):
         lead, text = wording(mark.name, days, mark.kind)
         if countdown_width(lead, text, mark.kind == "birthday") > countdown_room():
             raise ProfileError(f"{where} {mark.name!r}: too long for the board; use a shorter name")
@@ -217,12 +218,5 @@ def parse_countdown(document: dict[str, Any] | None) -> Countdown:
 
 def load_countdown(home) -> Countdown:
     """`[countdown]` from `home`/skoleklar.toml; the built-in dates without the file."""
-    import tomllib
-    path = home / MEANING_FILE
-    if not path.exists():
-        return Countdown()
-    try:
-        document = tomllib.loads(path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as error:
-        raise ProfileError(f"{MEANING_FILE}: {error}") from None
-    return parse_countdown(document)
+    from skoleklar.meaning import read_household
+    return parse_countdown(read_household(home))

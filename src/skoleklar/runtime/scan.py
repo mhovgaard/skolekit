@@ -37,14 +37,14 @@ from typing import Any, Callable, Protocol
 from zoneinfo import ZoneInfo
 
 from skoleklar import pipeline
-from skoleklar.countdown import load_countdown
+from skoleklar.countdown import parse_countdown
 from skoleklar.delivery_manifest import (
     build_delivery_manifest,
     delivery_items_from_snapshot,
     publish_manifest,
 )
 from skoleklar.household import load_site_profile
-from skoleklar.meaning import load_meaning
+from skoleklar.meaning import parse_meaning, read_household
 from skoleklar.pipeline import (
     ArchiveRequest,
     ConsolidateRequest,
@@ -52,7 +52,7 @@ from skoleklar.pipeline import (
     HarvestRequest,
     StageResult,
 )
-from skoleklar.runtime.config import load_runtime_config, require_writer
+from skoleklar.runtime.config import parse_runtime, require_writer
 from skoleklar import health, processing_cost
 from skoleklar.storage import SnapshotStore
 from skoleklar.triage.prompt_manifest import household_slots
@@ -578,11 +578,13 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
         # runtime has them (skolekit.profile, meaning.py). Read now, so a broken
         # file stops the scan before any work; they are never written back.
         load_site_profile(state_dir)
-        load_meaning(state_dir)
-        countdown = load_countdown(state_dir)
+        # skoleklar.toml is read once; each table's parser checks its own part.
+        household = read_household(state_dir)
+        parse_meaning(household)
+        countdown = parse_countdown(household)
         household_slots(state_dir)
         # One writer: a scan stops here if the household's config names the other place.
-        require_writer(load_runtime_config(state_dir), runtime.name)
+        require_writer(parse_runtime(household or {}), runtime.name)
         database = state_dir / DATABASE
         delivery_store = runtime.delivery
 

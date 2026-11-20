@@ -79,6 +79,13 @@ def test_a_bad_entry_stops_with_its_name(table, message):
         cd.parse_countdown({"countdown": table})
 
 
+def test_only_the_wordings_a_window_can_reach_are_measured():
+    # On the day only: 'I dag: Mormor og Morfar' fits; 'I morgen: …' could never show.
+    cd.parse_countdown({"countdown": {"dates": [{"name": "Mormor og Morfar", "date": "05-01", "window": 0}]}})
+    with pytest.raises(ProfileError, match="too long"):
+        cd.parse_countdown({"countdown": {"dates": [{"name": "Mormor og Morfar", "date": "05-01", "window": 1}]}})
+
+
 def test_skoleklar_toml_accepts_the_countdown_table(tmp_path):
     from skoleklar.meaning import load_meaning
     (tmp_path / "skoleklar.toml").write_text('[[countdown.birthdays]]\nname = "Alfa"\ndate = "03-14"\n')
@@ -98,6 +105,8 @@ def test_the_board_draws_the_line_and_the_status_wins_when_both_do_not_fit(monke
     busy = health.record({**state, "review_count": 3}, "weather", health.degraded("timeout"))
     _, texts = drawn_texts(monkeypatch, busy)
     assert "Mangler: vejret" in texts
+    # The browser board leaves it out by the same rule, never clipped.
+    assert 'class="pb-count"' not in dashboard.render_html(busy)
     assert "dage til juleaften" not in texts
 
 

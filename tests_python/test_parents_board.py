@@ -532,3 +532,25 @@ def test_the_next_school_days_plan_paragraph_shows_while_the_board_has_room(monk
     busy.kids[0].left = busy.kids[0].left * 6
     render.fit_board(busy)
     assert busy.kids[0].plan_text == ""
+
+
+def test_a_long_recap_headline_wraps_instead_of_running_off_the_panel():
+    model = render.build_model(friday_state(later=False))
+    long = "Matematikværksted og gennemgang af ugeprogrammet"
+    model.kids[0].recap = [("2026-11-19", long)]
+    rows = render.recap_rows(model.kids[0].recap, [])
+    assert len(rows) == 3
+    assert " ".join(" ".join(text for row in rows[1:] for text, _ in row.items[0].runs).split()) == long
+    assert all(render.item_width(row.items[0], "r") + row.indent <= render.RIGHT_END - render.TEXT_X
+               for row in rows[1:])
+
+
+def test_the_missing_plan_tag_does_not_make_a_day_an_event_day():
+    model = render.build_model(friday_state(later=False))
+    kid = model.kids[0]
+    tag = render.Item("missing", [("ingen ugeplan endnu", False)], chip="UGE 48", outline=True)
+    bring = render.Item("bring", [("idrætstøj", False)])
+    kid.days = [("2026-11-23", [tag, bring], False)] + [(f"2026-11-2{n}", [bring] * 4, False) for n in (4, 5, 6)]
+    kid.left = []
+    render._drop_right(model, {"bring", "optional"}, unless_event_day=True)
+    assert kid.days[0][1] == [tag]

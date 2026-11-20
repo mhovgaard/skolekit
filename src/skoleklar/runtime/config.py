@@ -28,7 +28,6 @@ that names an unknown table or key stops before any work.
 from __future__ import annotations
 
 import re
-import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -185,14 +184,9 @@ def parse_runtime(document: dict[str, Any]) -> RuntimeConfig:
 
 def load_runtime_config(home: Path) -> RuntimeConfig:
     """The runtime settings in `home`/skoleklar.toml; every default without the file."""
-    path = home / MEANING_FILE
-    if not path.exists():
-        return RuntimeConfig()
-    try:
-        document = tomllib.loads(path.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as error:
-        raise ProfileError(f"{MEANING_FILE}: {error}") from None
-    return parse_runtime(document)
+    from skoleklar.meaning import read_household
+    document = read_household(home)
+    return RuntimeConfig() if document is None else parse_runtime(document)
 
 
 class WrongWriter(RuntimeError):
