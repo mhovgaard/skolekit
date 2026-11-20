@@ -441,7 +441,7 @@ def _with_battery(frames, now, store=None):
 
 
 def _with_countdown(frames, config):
-    """Each frame with the parents' board's countdown for the day it starts on.
+    """Each frame with the countdown for the day it starts on (parents' board and weekend cover).
 
     Weekday frames start at midnight, so the line is right in the morning too.
     Only the one line reaches the state, never the household's dates.

@@ -758,7 +758,15 @@ def draw_weather_panel(draw: ImageDraw.ImageDraw, data: dict[str, Any]) -> None:
     def centred(value: str, style: str, centre: int, y: int, colour: str) -> None:
         draw_text(draw, (centre - width_of(value, style) // 2, y), value, style, colour)
 
-    draw_text(draw, (left, 24), f"WEEKENDVEJR · {weather['place'].upper()}", "small_b", BLACK, right - left)
+    heading = f"WEEKENDVEJR · {weather['place'].upper()}"
+    draw_text(draw, (left, 24), heading, "small_b", BLACK, right - left)
+    if data.get("countdown"):
+        # The family countdown in the top right, so the children see it all weekend; it
+        # takes a second line, right-aligned above the verdict's empty right, when the
+        # heading leaves too little room.
+        from skoleklar.parents_board_render import COUNTDOWN_GAP, draw_countdown_right
+        first_room = right - left - min(width_of(heading, "small_b"), right - left) - COUNTDOWN_GAP
+        draw_countdown_right(draw, data["countdown"], right=right, y=22, first_room=first_room)
     glyph(VERDICT_ICONS[weather["verdict"]], left, 42, 44)
     draw_text(draw, (left + 54, 44), weather["verdict"], "hero", BLACK, right - left - 54)
     draw.line((left, 102, right, 102), fill=BLACK, width=2)
@@ -1167,7 +1175,7 @@ def sun_arc_svg(day: dict[str, Any]) -> str:
     return f'<svg viewBox="0 0 200 104" aria-hidden="true">{"".join(parts)}</svg>'
 
 
-def weather_html(weather: dict[str, Any]) -> str:
+def weather_html(weather: dict[str, Any], countdown: str = "") -> str:
     """The weekend weather panel that takes the school week's place on the right."""
     def glyph(name: str) -> str:
         return icon_svg(name, HTML_ICON_COLOURS)
@@ -1187,7 +1195,8 @@ def weather_html(weather: dict[str, Any]) -> str:
             f'<span>{esc(day["sunset"])}{glyph("sunset")}</span></figcaption></figure></article>'
         )
     return (
-        f'<section class="weather"><div class="state">Weekendvejr · {esc(weather["place"])}</div>'
+        f'<section class="weather"><div class="wx-head"><div class="state">Weekendvejr · {esc(weather["place"])}'
+        f'</div>{countdown}</div>'
         f'<h2 class="wx-verdict">{glyph(VERDICT_ICONS[weather["verdict"]])}{esc(weather["verdict"])}</h2>'
         f'<div class="wx-days">{"".join(days)}</div></section>'
     )
@@ -1231,6 +1240,8 @@ WEEKEND_UNIFORM_CSS = """
 .weekend-art .pb-total{margin:2u 0 0;font-weight:700;font-size:15u;display:flex;align-items:center;gap:7u}
 .weather{padding:22u 10u 14u 14u}
 .weather .pb-status{margin-top:4u}
+.wx-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:4u 16u}
+.wx-head .pb-count{margin:0 0 0 auto;white-space:normal;text-align:right;flex-wrap:wrap;justify-content:flex-end}
 .wx-arc text.label{fill:@INK@}
 .wx-arc .mark{fill:none}
 """
@@ -1269,10 +1280,11 @@ def render_html(data: dict[str, Any], *, live_messages=None, now: datetime | Non
     # Weekend: activities, each child's latest message and the unread total on the
     # left, as on the parents' board; the weather on the right; no school-week table.
     from skoleklar.parents_board_render import SHARED_CSS, message_html as one_message, message_lines
-    from skoleklar.parents_board_render import status_html, total_html
+    from skoleklar.parents_board_render import countdown_html, status_html, total_html
     lines, total = message_lines(data, live_messages)
     message_html = "".join(one_message(message, name) for name, message in lines[:2]) + total_html(total)
-    right_panel = weather_html(data["weather"]).replace("</section>", status_html(data) + "</section>", 1)
+    right_panel = weather_html(data["weather"], countdown_html(data, fitted=False)).replace(
+        "</section>", status_html(data) + "</section>", 1)
     return (
         HTML_TEMPLATE
         .replace("{{CSS}}", _dashboard_css(SHARED_CSS + WEEKEND_UNIFORM_CSS))
