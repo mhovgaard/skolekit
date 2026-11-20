@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Settle the facts flagged for review before the board is written, so it heals itself.
 
-An earlier step flags a fact it is unsure of (`needs_review`), and the board leaves
-it out and counts it as `N punkter at tjekke`. Each scan now checks the flagged
-facts in the board's period instead of leaving them to the parents:
+An earlier step flags a fact it is unsure of (`needs_review`), and the board shows
+it with a quiet `(?)`. Each scan checks the flagged facts in the board's period, so
+as few as possible keep the mark:
 
 1. Rules, no model: a fact marked for another class level than the child's is
    dropped; a vague fact that a specific fact for the same child and day covers
-   (`Skole-hjem-samtale … kl. 15`) is dropped.
+   (`Skole-hjem-samtale … kl. 15`) is dropped; a fact unsure only of the child's
+   hold (`Dansk for hold 2`) is shown: the board takes one named hold as the
+   child's, and with both named it shows each.
 2. The model, for the rest that carry evidence: the stored quotes and the other
    facts for that child and day go through the zero-data-retention route
    (prompt `review-check-v1`); it answers `show` (with an optional note such as
@@ -16,7 +18,7 @@ facts in the board's period instead of leaving them to the parents:
 A verdict is stored with a fingerprint of the fact (`review_verdicts`), so a fact
 is checked once and again only when it changes; every scan retries what is still
 open. The board applies the verdicts when it exports its context: `show` clears
-the flag, `drop` leaves the fact out, `unclear` keeps it counted. If the check
+the flag, `drop` leaves the fact out, `unclear` keeps the mark. If the check
 fails, nothing is stored and the board behaves as before. See docs/processing.md#review-checks.
 """
 from __future__ import annotations
@@ -39,6 +41,9 @@ WINDOW_DAYS = 18
 MAX_MODEL_ITEMS = 8
 NOTE_LIMIT = 40
 REASON_LIMIT = 200
+# 'hold 2', 'Hold B': a class split in teams, which the school seldom says the child is on.
+# A letter hold is a capital, so "hold i gang" is no hold.
+_HOLD = re.compile(r"\b(?i:hold)\s*(?:\d+|[A-H])\b")
 _CLOCK = re.compile(r"\bkl\.?\s*\d{1,2}(?:[.:]\d{2})?\b|\b\d{1,2}[.:]\d{2}\b")
 
 
@@ -104,6 +109,12 @@ def _stems(item: dict) -> set[str]:
     return {word[:7] for word in words if len(word) >= 6}
 
 
+def _only_hold_unsure(item: dict) -> bool:
+    """Whether every sentence of the review reason is about which hold the child is on."""
+    sentences = [part for part in re.split(r"(?<=[.!?])\s+", str(item.get("review_reason") or "").strip()) if part]
+    return bool(sentences) and all(re.search(r"\bhold\b", part, re.IGNORECASE) for part in sentences)
+
+
 def rule_verdict(item: dict, items: list[dict], classes: dict[str, int],
                  label: str = CLASS_LABEL) -> tuple[str, str | None, str] | None:
     """(verdict, note, reason) when a rule settles the fact without a model, else None."""
@@ -114,6 +125,13 @@ def rule_verdict(item: dict, items: list[dict], classes: dict[str, int],
     if own is not None and mentioned and own not in mentioned:
         levels = ", ".join(label.format(level=number) for number in sorted(mentioned))
         return "drop", None, f"Marked for {levels}; {child} is in {label.format(level=own)}."
+    if _only_hold_unsure(item):
+        holds = {" ".join(found.casefold().split()) for found in _HOLD.findall(
+            " ".join([str(item.get("title") or ""), str(item.get("summary") or ""), *_quotes(item)]))}
+        if holds:
+            # One named hold is taken as the child's; with both named, each is shown.
+            return "show", None, ("Names one hold; taken as the child's." if len(holds) == 1
+                                  else "Names each hold; all are shown.")
     for other in items:
         if (other is item or other.get("needs_review") or other.get("child") != child
                 or other.get("effective_date") != item.get("effective_date")

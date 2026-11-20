@@ -65,7 +65,8 @@ uv run --extra board python rendering/ag-school-dashboard-state/scripts/build_st
 
 The builder drops references on the wrong date, shows a certain fact whose
 omission tag does not hold, turns extra lines into a `+N punkter` count, writes
-the weekend rows from the facts and counts uncertain facts it leaves out. It
+the weekend rows from the facts and marks lines whose facts are flagged for review
+(`(?)`). It
 validates the result; the validator can be run again on its own:
 
 ```bash

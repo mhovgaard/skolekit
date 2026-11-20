@@ -4,8 +4,8 @@ A line of the board state (schema 3) is its wording and the facts it shows, by
 reference. `present` turns those facts into everything that guides the eye: the
 homework checkbox and its bold subject, the bold `Medbring`, `Valgfrit`, `Frist`,
 `Vikar` and `Aflyst` labels, the `TUR`/`FEST`/`MØDE`/`ARR.` boxes, the yellow
-time-urgency marker and whether the line is a weekly routine the board leaves
-out. The panel, the browser, the children's view and the weekend cover draw what
+time-urgency marker, the quiet `(?)` of a line the scan is unsure of and whether
+the line is a weekly routine the board leaves out. The panel, the browser, the children's view and the weekend cover draw what
 it returned and never read the wording. See docs/parents-board.md.
 """
 from __future__ import annotations
@@ -31,7 +31,11 @@ SHORT_SUBJECTS = {
 SUBJECT_LIMIT = 16
 # What a line object holds: its wording and facts, then its presentation.
 LINE_FIELDS = ("text", "refs", "kind", "label", "chip", "box", "subject", "cancelled", "hidden",
-               "rain_gear", "retold", "urgent")
+               "rain_gear", "retold", "unsure", "urgent")
+# A line written before `unsure` existed reads as sure.
+_EARLIER_FIELDS = frozenset(LINE_FIELDS) - {"unsure"}
+# After the text of a line the scan is unsure of: the parents see it and can check it.
+UNSURE_MARK = "(?)"
 
 
 def short_subject(name: Any) -> str:
@@ -54,6 +58,7 @@ def present(facts: list[dict[str, Any]], *, day: date | None) -> dict[str, Any]:
     - `hidden`: a weekly routine, which the board leaves out;
     - `rain_gear`: the line's things to bring are rain clothes;
     - `retold`: the day's plan headline already retells one of its facts;
+    - `unsure`: a fact behind it is still flagged for review; the line shows `(?)`;
     - `urgent`: the dates (`from`, `to`) on which the line is yellow, or None.
     """
     kind = fact_model.line_kind(facts) if facts else "more"
@@ -73,6 +78,7 @@ def present(facts: list[dict[str, Any]], *, day: date | None) -> dict[str, Any]:
         "hidden": kind == "routine",
         "rain_gear": any(fact.get("rain_gear") is True for fact in facts),
         "retold": any(fact.get("retold") is True for fact in facts),
+        "unsure": any(bool(fact.get("needs_review")) for fact in facts),
         "urgent": urgent,
     }
 
@@ -96,7 +102,8 @@ REMEMBER = {"optional": "{} (hvis du vil)", "homework": "Lektie: {}", "substitut
 def remember(entry: dict[str, Any]) -> str:
     """A line as the children's view says it: from its presentation, its words kept whole."""
     form = REMEMBER.get(entry["kind"], "{}")
-    if form is None or entry["hidden"]:
+    # A child's list holds only what is sure; the parents' board shows the rest.
+    if form is None or entry["hidden"] or entry.get("unsure"):
         return ""
     if entry["kind"] == "homework" and entry["subject"]:
         form = form.replace("{}", entry["subject"] + " {}")
@@ -114,7 +121,7 @@ def urgent_on(entry: dict[str, Any], today: date | None) -> bool:
 
 def validate_line(value: Any, *, limit: int = 100) -> None:
     """Allowlist one line object of the board state."""
-    if not isinstance(value, dict) or set(value) != set(LINE_FIELDS):
+    if not isinstance(value, dict) or set(value) not in (set(LINE_FIELDS), _EARLIER_FIELDS):
         raise ValueError("a board line has its text, refs and presentation")
     text = value["text"]
     if not isinstance(text, str) or not text or len(text) > limit or any(ord(c) < 32 for c in text):
@@ -130,7 +137,8 @@ def validate_line(value: Any, *, limit: int = 100) -> None:
     subject = value["subject"]
     if not isinstance(subject, str) or len(subject) > SUBJECT_LIMIT or any(ord(c) < 32 for c in subject):
         raise ValueError("a board line's subject is a short word")
-    if any(type(value[key]) is not bool for key in ("box", "cancelled", "hidden", "rain_gear", "retold")):
+    if any(type(value[key]) is not bool for key in ("box", "cancelled", "hidden", "rain_gear", "retold")) \
+            or type(value.get("unsure", False)) is not bool:
         raise ValueError("a board line's flags are booleans")
     urgent = value["urgent"]
     if urgent is not None:

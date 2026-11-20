@@ -68,7 +68,8 @@ def lookahead_span(hero: date) -> list[date]:
 
 
 def _usable(fact: dict) -> bool:
-    return bool(fact.get("effective_date")) and not fact.get("needs_review") and not birthday_notice(fact)
+    # A fact flagged for review is shown, marked `(?)` by its line (skoleklar.present).
+    return bool(fact.get("effective_date")) and not birthday_notice(fact)
 
 
 def _lines(facts: list[dict], day: date) -> list[dict]:

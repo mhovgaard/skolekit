@@ -267,7 +267,7 @@ def body_html(data: dict[str, Any]) -> str:
         )
     from skoleklar.parents_board_render import status_html
     columns = "grid-template-columns:" + " ".join(f"minmax(0,{weight}fr)" for weight in column_weights(view))
-    status = status_html({**data, "review_count": 0})
+    status = status_html(data)
     return hero + f'<section class="dayplan" style="{columns}">{"".join(rows)}{status}</section>'
 
 

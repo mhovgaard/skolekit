@@ -220,7 +220,8 @@ def test_thursday_evening_looks_into_the_weekend_and_next_week():
     saturday, monday, tuesday, thursday = rows
     assert shown(saturday["children"][0]["lines"]) == [("Fødselsdagsfest", "party", "")]
     assert shown(monday["children"][1]["lines"]) == [("Læs s. 90", "homework", "")]
-    assert monday["children"][0]["lines"] == []
+    # A flagged fact is shown, marked unsure.
+    assert [(entry["text"], entry["unsure"]) for entry in monday["children"][0]["lines"]] == [("Uncertain", True)]
     assert shown(monday["shared"]) == [("Skolefest", "party", "")]
     assert shown(tuesday["children"][1]["lines"]) == [("badetøj", "bring", "Medbring")]
     assert shown(thursday["children"][0]["lines"]) == [("Thursday is the fourth school day", "homework", "")]
@@ -554,3 +555,23 @@ def test_the_missing_plan_tag_does_not_make_a_day_an_event_day():
     kid.left = []
     render._drop_right(model, {"bring", "optional"}, unless_event_day=True)
     assert kid.days[0][1] == [tag]
+
+
+def test_an_unsure_line_is_marked_and_the_status_never_counts_it(monkeypatch):
+    """The parents see what the scan is unsure of on its own line, where they can check it."""
+    from skoleklar.present import line, remember, validate_line
+    unsure = line("Dansk for hold 2", ["fact-1"], [{"type": "event", "needs_review": True}],
+                  day=date(2026, 11, 20))
+    assert unsure["unsure"]
+    validate_line(unsure)
+    # A line written before the mark existed still reads, as sure.
+    validate_line({key: value for key, value in unsure.items() if key != "unsure"})
+    # The children's list keeps to what is sure.
+    assert remember(unsure) == ""
+    item = render.make_item(unsure, date(2026, 11, 20))
+    assert "".join(text for text, _ in item.runs).endswith(" (?)")
+    monkeypatch.setattr(dashboard, "datetime", _FridayMorning)
+    state = {**friday_state(), "review_count": 2}
+    dashboard.validate(state)
+    _, texts = drawn_texts(monkeypatch, state)
+    assert "at tjekke" not in texts and "at tjekke" not in dashboard.render_html(state)

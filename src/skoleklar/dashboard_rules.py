@@ -10,11 +10,11 @@ model's slots, or from code's own plain selection when the model fails.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from skoleklar import fact as fact_model
 from skoleklar.dashboard_events import ACTIVITY_LABELS, activity_title, birthday_notice
-from skoleklar.dashboard_timing import dashboard_focus, dashboard_weekend_dates
+from skoleklar.dashboard_timing import dashboard_weekend_dates
 from skoleklar.present import line
 
 WEEKEND_ROWS = 2
@@ -135,9 +135,6 @@ def _weekend_entries(context):
             if owner is not None:
                 owner["bring"].append(fact)
                 continue
-        if fact.get("needs_review") and fact.get("type") != "bring":
-            decisions[fact["ref"]] = ("omitted", "", "Needs review")
-            continue
         others.append(fact)
     return activities, others, decisions
 
@@ -236,32 +233,13 @@ def apply_weekend(state, audit, context):
             selection.update(decision="omitted", location="", reason="Not a weekend fact")
 
 
-def review_count(audit, context):
-    """Facts flagged for review in the shown week and weekend that the board leaves out."""
-    now = _now(context)
-    monday = dashboard_focus(now).school_date - timedelta(days=dashboard_focus(now).school_date.weekday())
-    window = {(monday + timedelta(days=offset)).isoformat() for offset in range(7)}
-    window |= {value.isoformat() for value in dashboard_weekend_dates(now)}
-    omitted = {item["ref"] for item in audit.get("facts", []) if item.get("decision") == "omitted"}
-    return min(99, sum(1 for fact in context.get("items", [])
-                       if fact.get("needs_review") and fact["ref"] in omitted
-                       and fact.get("effective_date") in window and not birthday_notice(fact)))
-
-
 def finalize(state, audit, context):
     """Apply the code-owned parts to a composed state and audit, in place."""
     if not context.get("now"):
         return
     apply_weekend(state, audit, context)
-    _set_review_count(state, audit, context)
-
-
-def _set_review_count(state, audit, context):
-    count = review_count(audit, context)
-    if count:
-        state["review_count"] = count
-    else:
-        state.pop("review_count", None)
+    # A flagged fact is marked on its line now; a week composed earlier loses its count.
+    state.pop("review_count", None)
 
 
 # --- Plain board ----------------------------------------------------------------

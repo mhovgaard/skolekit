@@ -30,8 +30,8 @@ this skill follows the same ones.
    event under both children does not prove both classes are concerned.
 5. Classmate birth dates (`birthday_notice`) are never the child's event: omit
    them. Weekend facts are placed by code: omit them with the tag `weekend`.
-6. `needs_review` facts stay out unless the structured fields settle them; the
-   board shows how many were left out.
+6. Show a `needs_review` fact like any other; code marks its line `(?)` for the
+   parents to check.
 7. Never invent a time, place or obligation, and never write relative time words
    (`i dag`, `i morgen`): the row gives the date.
 

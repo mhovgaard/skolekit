@@ -102,9 +102,10 @@ def test_the_board_draws_the_line_and_the_status_wins_when_both_do_not_fit(monke
     assert "34" in texts and "dage til juleaften" in texts
     assert '<span class="pb-count"><b>34</b> dage til juleaften</span>' in dashboard.render_html(state)
     from skoleklar import health
-    busy = health.record({**state, "review_count": 3}, "weather", health.degraded("timeout"))
+    busy = health.record(health.record(state, "weather", health.degraded("timeout")),
+                         "day_summaries", health.degraded("timeout"))
     _, texts = drawn_texts(monkeypatch, busy)
-    assert "Mangler: vejret" in texts
+    assert "Mangler: ugeplanens dage, vejret" in texts
     # The browser board leaves it out by the same rule, never clipped.
     assert 'class="pb-count"' not in dashboard.render_html(busy)
     assert "dage til juleaften" not in texts

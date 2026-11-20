@@ -157,3 +157,37 @@ def test_class_levels_come_from_the_harvest_configuration():
     children = (ChildConfig(student_id=1, child="Beta", calendar_class_name="002", school=HOUSEHOLD_SCHOOL),
                 ChildConfig(student_id=2, child="Alfa", calendar_class_name="000", school=HOUSEHOLD_SCHOOL))
     assert rc.child_classes(children=children) == {"Beta": 2, "Alfa": 0}
+
+
+def test_a_fact_unsure_only_of_the_hold_is_shown():
+    """One named hold is taken as the child's; with both named, each is shown."""
+    reason = "Det fremgår ikke, om Alfa er på hold 2."
+    one = item("a", "Alfa", "Dansk for hold 2", reason=reason, quotes=("Hold 2 skal læse",))
+    assert rc.rule_verdict(one, [one], CLASSES) == ("show", None, "Names one hold; taken as the child's.")
+    both = item("b", "Alfa", "Svømning", summary="Hold 1 kl. 9, hold 2 kl. 10",
+                reason="Uklart, hvilket hold Alfa går på.")
+    assert rc.rule_verdict(both, [both], CLASSES)[:2] == ("show", None)
+    # Another doubt keeps the flag, and a lowercase letter is no hold.
+    doubled = item("c", "Alfa", "Dansk for hold 2", reason=reason + " Evidence could not be verified in the source.")
+    assert rc.rule_verdict(doubled, [doubled], CLASSES) is None
+    words = item("d", "Alfa", "Vi går i gang", summary="hold i gang med læsning", reason="Uklart hold.")
+    assert rc.rule_verdict(words, [words], CLASSES) is None
+
+
+def test_a_consolidated_fact_carries_its_members_quotes():
+    """Without them the review check had nothing to read and skipped every merged fact."""
+    members = [{"id": 1, "stable_key": "m1", "evidence": [{"quote": "Hold 2 skal læse"}]},
+               {"id": 2, "stable_key": "m2", "evidence": [{"quote": "Husk bog"}]}]
+
+    class Store:
+        def current_derived_items(self):
+            return members
+
+        def consolidation_report(self):
+            return {"harvest_run_id": 3, "items": [{"stable_key": "c1", "member_item_ids": [1, 2]}]}
+
+        def latest_completed_run_id(self):
+            return 3
+
+    [merged] = delivery_manifest.delivery_items_from_snapshot(Store())
+    assert rc._quotes(merged) == ["Hold 2 skal læse", "Husk bog"]

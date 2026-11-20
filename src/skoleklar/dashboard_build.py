@@ -38,7 +38,6 @@ from skoleklar.dashboard_rules import (
     _fact_priority,
     _fit,
     _now,
-    _set_review_count,
     fact_text,
     weekend_selection,
 )
@@ -81,7 +80,8 @@ def _omission_reason(fact, omission, targets, sections, shown, facts=None):
     """The audit reason when leaving `fact` out holds against the facts, else None.
 
     Facts code always leaves out need no tag: classmate birth dates, facts outside
-    the shown week and facts flagged for review. Otherwise the model's tag must hold.
+    the shown week. A fact flagged for review is shown, marked `(?)`, like any other:
+    the `uncertain` tag never holds. Otherwise the model's tag must hold.
     A duplicate must be of a shown fact for the same child: the parents' board gives
     each child a row, so one child's conference cannot hide behind the other's line.
     """
@@ -91,8 +91,6 @@ def _omission_reason(fact, omission, targets, sections, shown, facts=None):
         return "Weekly routine"
     if not targets:
         return "Outside displayed week"
-    if fact.get("needs_review"):
-        return "Needs review"
     tag, same_as = omission or (None, None)
     informational = (fact.get("actionability") == "informational" and not fact.get("cancelled")
                      and fact.get("type") not in _CHANGE_TYPES | {"event"})
@@ -276,7 +274,6 @@ def build_state(context, slots, *, plain=False):
     _apply_inbox(state["messages"], context)
     audit = {"source_updated_at": context["freshness"]["source_updated_at"], "facts": audit_facts,
              "limitations": limitations}
-    _set_review_count(state, audit, context)
     validate_composition(context, state, audit)
     return state, audit
 
@@ -301,8 +298,6 @@ def fallback_slots(context):
         day = date.fromisoformat(fact["effective_date"]) if fact.get("effective_date") else None
         if birthday_notice(fact):
             omitted.append({"ref": fact["ref"], "reason": "birthday_notice", "same_as": None})
-        elif fact.get("needs_review"):
-            omitted.append({"ref": fact["ref"], "reason": "uncertain", "same_as": None})
         elif day not in weekdays:
             omitted.append({"ref": fact["ref"], "reason": "outside_week", "same_as": None})
         else:
@@ -361,10 +356,12 @@ def main():
         with os.fdopen(descriptor, "w") as handle:
             json.dump(value, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
-    shown = sum(item["decision"] != "omitted" for item in audit["facts"])
+    shown_refs = {item["ref"] for item in audit["facts"] if item["decision"] != "omitted"}
+    shown = len(shown_refs)
     print(json.dumps({"state": str(args.state), "selection": str(args.selection),
                       "facts_shown": shown, "facts_total": len(audit["facts"]),
-                      "review_count": state.get("review_count", 0)}))
+                      "unsure_shown": sum(fact.get("needs_review", False) and fact["ref"] in shown_refs
+                                          for fact in context["items"])}))
 
 
 if __name__ == "__main__":

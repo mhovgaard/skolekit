@@ -48,7 +48,7 @@ Review verdicts are applied before composition as described in
 | --- | --- |
 | `outside_week` | No displayed weekday covers the fact |
 | `duplicate` | A shown fact for the same child is named by `same_as` |
-| `uncertain` | The fact is flagged for review |
+| `uncertain` | Never holds: a flagged fact is shown, its line marked `(?)` |
 | `capacity` | Its destination row is full |
 | `other_class` | Audience judgement; requires semantic review in testing |
 | `not_relevant` | Informational context rather than an obligation/change/event |

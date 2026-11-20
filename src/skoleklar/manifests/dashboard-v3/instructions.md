@@ -46,13 +46,13 @@ a record of the week; `already past` is never a reason to leave out a fact dated
 inside the shown week. Deadlines, replies and sign-ups are obligations: show them
 on their date, optional ones included.
 
-Leave a fact out by listing it in `omitted` with one `reason` tag. Code checks each
+A fact with `needs_review` is shown like any other; code marks its line for the
+parents to check. Leave a fact out by listing it in `omitted` with one `reason` tag. Code checks each
 tag against the facts and shows the fact anyway when the tag does not hold:
 
 - `outside_week`: no weekday of the shown week covers its date;
 - `duplicate`: it reports the same thing as a fact you show for the same child;
   put that fact's ref in `same_as`;
-- `uncertain`: it has `needs_review` and the structured fields do not settle it;
 - `capacity`: its row is full with more important lines;
 - `other_class`: it does not concern this child's class, such as an event for
   another year group listed under both children;
