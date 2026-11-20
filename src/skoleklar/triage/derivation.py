@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 from collections.abc import Mapping
 from datetime import date
 from typing import Any
@@ -10,7 +11,7 @@ from typing import Any
 import httpx
 
 from skoleklar import fact as fact_model
-from skoleklar import processing_cost
+from skoleklar import eval_capture, processing_cost
 from skoleklar.triage.prompt_manifest import DEFAULT_SLOTS, PromptManifest, load_prompt_manifest
 from skolekit.records import canonical_hash
 from skolekit.items import read_lesson
@@ -324,6 +325,32 @@ class OpenRouterClient:
         }
 
     def generate(
+        self,
+        document: dict[str, Any],
+        *,
+        manifest: PromptManifest,
+        max_output_tokens: int = 8000,
+    ) -> dict[str, Any]:
+        """One model call; with eval capture on, also kept as an eval case (skoleklar.eval_capture)."""
+        if not eval_capture.active():
+            return self._generate(document, manifest=manifest, max_output_tokens=max_output_tokens)
+        started = time.monotonic()
+        response, failure = None, None
+        try:
+            response = self._generate(document, manifest=manifest, max_output_tokens=max_output_tokens)
+            return response
+        except Exception as error:
+            failure = error
+            raise
+        finally:
+            try:
+                eval_capture.record(manifest, model=self.model, document=document,
+                                    max_output_tokens=max_output_tokens, stage=processing_cost.current_stage(),
+                                    seconds=time.monotonic() - started, response=response, error=failure)
+            except Exception:  # capture never changes a call
+                pass
+
+    def _generate(
         self,
         document: dict[str, Any],
         *,

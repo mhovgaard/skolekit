@@ -15,6 +15,17 @@
       "condition": {
         "age": 1
       }
+    },
+    {
+      "action": {
+        "type": "Delete"
+      },
+      "condition": {
+        "age": 30,
+        "matchesPrefix": [
+          "dashboard/evals/"
+        ]
+      }
     }
   ]
 }

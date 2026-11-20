@@ -76,7 +76,7 @@ All four use uniform bucket-level access and public access prevention.
 
 | Bucket | Module | Versioning | Soft delete | Retention | Lifecycle | Holds |
 | --- | --- | --- | --- | --- | --- | --- |
-| `PROJECT-ag-private-state` | `core` | on | 7 days | — | old versions go after 30 days | the database (`state/restricted-v1/school-restricted.db`), the school session (`state/auth-state.json`), the household's config when there is one (`state/school.toml`, `state/profile.toml` and `state/skoleklar.toml`, `state/triage.toml`, and its own house pictures in `state/artwork/`; read by the scan, never written by it), and the board's saved state and caches (`dashboard/*.json`) |
+| `PROJECT-ag-private-state` | `core` | on | 7 days | — | old versions go after 30 days; eval captures (`dashboard/evals/`) after 30 days | the database (`state/restricted-v1/school-restricted.db`), the school session (`state/auth-state.json`), the household's config when there is one (`state/school.toml`, `state/profile.toml` and `state/skoleklar.toml`, `state/triage.toml`, and its own house pictures in `state/artwork/`; read by the scan, never written by it), the board's saved state and caches (`dashboard/*.json`), and, while eval capture is on, each scan's model calls (`dashboard/evals/DATE/RUN.jsonl`) |
 | `PROJECT-ag-delivery` | `core` | on | 7 days | 7 days, unlocked | objects go after 90 days, old versions after 30 | phone manifests and phone receipts |
 | `PROJECT-ag-control` | `core` | off | none | — | — | the scan lock, `latest-run.json`, refresh requests and device status |
 | `PROJECT-ag-display-current` | `core` | off | none | — | objects go after 2 days | `current.json`: the pre-drawn board frames |
@@ -146,6 +146,11 @@ Cloud Run job `agskoleintra-sync`, deployed by `deploy-sync-job.sh`:
     `AG_MESSAGE_TOPICS`;
   - `AG_WEATHER_PLACE`, `AG_WEATHER_LATITUDE`, `AG_WEATHER_LONGITUDE` and
     `AG_WEATHER_MODE`;
+  - optionally `SKOLEKLAR_EVAL_CAPTURE=1`, while eval cases are being
+    collected (docs/processing.md#eval-capture). It is set with
+    `gcloud run jobs update agskoleintra-sync --update-env-vars=SKOLEKLAR_EVAL_CAPTURE=1`
+    and removed with `--remove-env-vars=SKOLEKLAR_EVAL_CAPTURE`;
+    `deploy-sync-job.sh` replaces the environment and drops it;
 - secrets as environment variables: `AG_SCHOOL_USERNAME`, `AG_SCHOOL_PASSWORD`,
   `OPENROUTER_API_KEY` and `AG_SCHOOL_MESSAGE_HANDLE_KEY`;
 - invoked by `ag-scheduler`, `ag-delivery` and `ag-browser`, and by nobody else.

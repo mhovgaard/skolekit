@@ -46,6 +46,11 @@ def set_stage(name: str) -> None:
     _stage = name
 
 
+def current_stage() -> str:
+    """The stage the calls are attributed to now."""
+    return _stage
+
+
 @contextlib.contextmanager
 def stage(name: str):
     """Attribute the calls made inside to `name`."""

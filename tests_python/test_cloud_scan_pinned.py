@@ -107,6 +107,8 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
     "dashboard_failed": (("failure_stage", "error_type", "failure_code"), frozenset({"attempts"})),
     "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset({"health", "processing"})),
     "processing_cost_not_recorded": (("error_type",), frozenset()),
+    "eval_capture_written": (("call_count",), frozenset()),
+    "eval_capture_not_written": (("error_type",), frozenset()),
     "sync_failed": (("error_type",), frozenset()),
 }
 # The fake services call no model, so a run spends nothing (skoleklar.processing_cost).
@@ -285,7 +287,7 @@ class Scan:
         }.items():
             monkeypatch.setenv(name, value)
         for name in ("AG_TIMEZONE", "AG_DAY_VIEW", "AG_MESSAGE_TOPICS", "AG_DISPLAY_ROOT",
-                     "AG_CONTROL_ROOT"):
+                     "AG_CONTROL_ROOT", "SKOLEKLAR_EVAL_CAPTURE"):
             monkeypatch.delenv(name, raising=False)
 
         monkeypatch.setattr(storage, "Client", self.gcs)
@@ -740,6 +742,31 @@ def test_rejected_cache_and_failed_composition_fall_back_to_a_plain_board(scan, 
 
 
 # The household's profile and school (phase 1 of the architecture review)
+
+
+def test_with_eval_capture_on_the_scan_keeps_its_run_in_the_private_bucket(scan, caplog, monkeypatch) -> None:
+    monkeypatch.setenv("SKOLEKLAR_EVAL_CAPTURE", "1")
+    scan.run(caplog)
+    assert scan.result["status"] == "complete"
+    blob = f"dashboard/evals/2026-11-12/{REFRESH_ID}.jsonl"
+    lines = [json.loads(line) for line in scan.gcs.objects[("private", blob)][0].decode().splitlines()]
+    assert [line["kind"] for line in lines] == ["run", "outcome"]
+    assert lines[0]["run_id"] == REFRESH_ID and lines[0]["model"] == "synthetic/model-1"
+    outcome = lines[-1]
+    assert outcome["summary"]["status"] == "complete"
+    assert outcome["derive"] == {"candidate_count": 3, "failures": 0}
+    assert isinstance(outcome["delivered"], list)
+    assert [week["reused"] for week in outcome["board_weeks"]] == [True, False]
+    assert {"event": "eval_capture_written", "call_count": 0} in scan.events
+    # Only the private bucket holds it.
+    assert [name for bucket, name in scan.gcs.objects if "evals/" in name] == [blob]
+    assert all(bucket == "private" for bucket, name in scan.gcs.objects if "evals/" in name)
+
+
+def test_without_eval_capture_nothing_is_kept(scan, caplog) -> None:
+    scan.run(caplog)
+    assert not [name for _, name in scan.gcs.objects if "evals/" in name]
+    assert "eval_capture_written" not in names(scan.events)
 
 
 # The event list itself
