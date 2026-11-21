@@ -167,9 +167,11 @@ def test_default_font_fits_the_800_by_480_panel():
 
 
 def test_countdown_leaves_room_for_the_update_stamp_on_a_narrow_screen(monkeypatch):
+    from skoleklar import dashboard_renderer
     from tests_python.test_parents_board import _FridayMorning, friday_state
 
-    monkeypatch.setattr(dashboard, "datetime", _FridayMorning)
+    # The renderer's own clock: `dashboard` here is the compatibility module, a separate object.
+    monkeypatch.setattr(dashboard_renderer, "datetime", _FridayMorning)
     value = {**friday_state(), "device": {"battery_percent": 100},
              "countdown": {"lead": "I dag:", "text": "Mormor og Morfar", "flag": False}}
     result = measure(dashboard.render_html(value), width=320)
