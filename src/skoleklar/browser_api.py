@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from skoleklar import processing_cost
+from skoleklar import processing_cost, scan_log
 from skoleklar.board_status import latest_record, render_page as render_board_status, status_store_from_environment
 from skoleklar.dashboard_renderer import FOLD_SCRIPT_CSP_HASH
 from skoleklar.display_store import (
@@ -230,7 +230,9 @@ def create_app(*, store=None, controller=None, verifier=verify_iap, audience=Non
             return HTMLResponse("<h1>Board status unavailable</h1>", status_code=503)
         # The scan's cost history; the page still renders without it.
         costs = await run_in_threadpool(processing_cost.history, statuses)
-        return HTMLResponse(render_board_status(record, processing=costs))
+        # The scan's own log, folded; the page still renders without it.
+        scans = await run_in_threadpool(scan_log.history, statuses)
+        return HTMLResponse(render_board_status(record, processing=costs, scans=scans))
 
     @app.get("/panel-preview")
     async def panel_preview():

@@ -213,7 +213,8 @@ def validate(data: dict[str, Any]) -> None:
 
     obj(data, {"schema_version", "week_label", "updated_label", "hero", "weekdays", "weekend",
                "weekend_overflow", "messages", "freshness", "weather", "day_weather", "day_summaries",
-               "review_count", "day_view", "ahead", "later_events", "device", "countdown", "health"},
+               "review_count", "day_view", "ahead", "later_events", "device", "countdown", "health",
+               "alert"},
               {"schema_version", "week_label", "updated_label", "hero", "weekdays", "messages",
                "freshness"})
     if type(data["schema_version"]) is not int or data["schema_version"] != 3:
@@ -261,6 +262,12 @@ def validate(data: dict[str, Any]) -> None:
     if "health" in data:
         from skoleklar.health import validate_health
         validate_health(data["health"])
+    if "alert" in data:
+        # A scan that could not refresh the board (skoleklar.scan_log): one fixed code.
+        obj(data["alert"], {"code"}, {"code"})
+        if not isinstance(data["alert"]["code"], str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,63}",
+                                                                          data["alert"]["code"]):
+            raise ValueError("alert.code must be a fixed failure code")
     if {"ahead", "later_events", "device", "countdown"} & set(data):
         from skoleklar.parents_board import validate_parents_board
         validate_parents_board(data, names)

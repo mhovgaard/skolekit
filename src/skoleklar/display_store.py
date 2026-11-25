@@ -59,8 +59,9 @@ def display_store_from_environment():
     return None
 
 
-def make_bundle(state, refresh_id, *, live_messages=None, now=None):
+def make_bundle(state, refresh_id, *, live_messages=None, now=None, expires_at=None):
     now = now or datetime.now(UTC)
+    expires = expires_at or min(timestamp(state["freshness"]["expires_at"]), now + timedelta(hours=36))
     image = render_png(state, live_messages=live_messages)
     validate_panel_image(image)
     output = io.BytesIO()
@@ -70,7 +71,7 @@ def make_bundle(state, refresh_id, *, live_messages=None, now=None):
     return {"schema_version": 1,
             "metadata": {"version": refresh_id, "generated_at": now.isoformat(),
                          "source_updated_at": state["freshness"]["source_updated_at"],
-                         "expires_at": min(timestamp(state["freshness"]["expires_at"]), now + timedelta(hours=36)).isoformat(),
+                         "expires_at": expires.isoformat(),
                          "status": state["freshness"]["status"],
                          "sha256": hashlib.sha256(png).hexdigest(), "width": 800, "height": 480,
                          "palette_colours": 6, "pixel_format": "spectra6-indexed",
@@ -107,6 +108,27 @@ def make_timeline(frames, refresh_id, *, live_messages=None, now=None):
     entries[-1]["metadata"]["valid_until"] = entries[-1]["metadata"]["expires_at"]
     return {"schema_version": 2, "refresh_id": refresh_id, "generated_at": now.isoformat(),
             "expires_at": entries[-1]["metadata"]["expires_at"], "frames": entries}
+
+
+# How long an alert frame is served. A scan that publishes replaces it sooner.
+ALERT_HOURS = 36
+
+
+def make_alert_timeline(state, refresh_id, *, code, now=None):
+    """The last board, marked with the warning triangle, served from now on.
+
+    `state` is the last composed board (its freshness is long past, so it also
+    says ÆLDRE DATA); `code` is the scan's fixed failure code.
+    """
+    now = now or datetime.now(UTC)
+    bundle = make_bundle({**state, "alert": {"code": code}}, refresh_id, now=now,
+                         expires_at=now + timedelta(hours=ALERT_HOURS))
+    metadata = bundle["metadata"]
+    metadata["version"] = f'{refresh_id}-{metadata["frame_sha256"][:12]}'
+    metadata["valid_from"] = now.astimezone(UTC).isoformat()
+    metadata["valid_until"] = metadata["expires_at"]
+    return {"schema_version": 2, "refresh_id": refresh_id, "generated_at": now.isoformat(),
+            "expires_at": metadata["expires_at"], "frames": [bundle]}
 
 
 class VersionChanged(Exception):

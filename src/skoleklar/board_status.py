@@ -13,7 +13,7 @@ import os
 import re
 from datetime import UTC, datetime, timedelta
 
-from skoleklar import processing_cost
+from skoleklar import processing_cost, scan_log
 
 STATUS_PREFIX = "device-status"
 MAX_ROWS = 150
@@ -262,19 +262,21 @@ def _page(body):
     return ("<!doctype html><html lang=en><head><meta charset=utf-8>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
             "<meta http-equiv=refresh content=60><title>Board status</title>"
-            f"<style>{BOARD_CSS}{processing_cost.CSS}</style></head><body>"
+            f"<style>{BOARD_CSS}{processing_cost.CSS}{scan_log.CSS}</style></head><body>"
             "<nav aria-label='Visning'><a href='/'>← Skoleoverblik</a></nav>"
             "<p class=intro>AG board · FireBeetle</p>" + body + "</body></html>")
 
 
-def render_page(record, now=None, processing=None):
+def render_page(record, now=None, processing=None, scans=None):
     """The cloud copy of the board's status page, with what it is doing now.
 
-    `processing` is the scan's cost history (skoleklar.processing_cost), drawn at the top.
+    `processing` is the scan's cost history (skoleklar.processing_cost), drawn at the top;
+    `scans` is the scan log (skoleklar.scan_log), a folding list under it.
     """
     now = now or datetime.now(UTC)
     escape = html.escape
-    cost = processing_cost.render_section(processing or [], now, _zone())
+    cost = processing_cost.render_section(processing or [], now, _zone()) \
+        + scan_log.render_section(scans or [], now, _zone())
     if record is None:
         return _page("<h1>Board status</h1>" + cost + "<div class=empty><p><strong>No report from the board yet.</strong></p>"
                      "<p>From firmware ag-cloud-0.7.0 the board sends its status here after every sync. "

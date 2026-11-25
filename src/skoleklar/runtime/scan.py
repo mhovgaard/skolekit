@@ -53,7 +53,7 @@ from skoleklar.pipeline import (
     StageResult,
 )
 from skoleklar.runtime.config import parse_runtime, require_writer
-from skoleklar import eval_capture, health, processing_cost
+from skoleklar import eval_capture, health, processing_cost, scan_log
 from skoleklar.storage import SnapshotStore
 from skoleklar.triage.prompt_manifest import household_slots
 from skoleklar.triage.review_checks import apply_verdicts
@@ -93,6 +93,8 @@ class Runtime(Protocol):
 
 def _event(name: str, **fields: Any) -> None:
     logger.info(json.dumps({"event": name, **fields}, separators=(",", ":")))
+    # The same safe fields, for Tavlestatus's scan log (skoleklar.scan_log).
+    scan_log.note(name, fields, at=datetime.now(UTC))  # the scan's own clock
 
 
 def _check_invariants(database: Path) -> None:
@@ -158,9 +160,33 @@ def _stage_summary(stage: str, payload: dict[str, Any] | None) -> dict[str, Any]
     return {}
 
 
+_FIXED_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+
+
 def _safe_failure_code(payload: dict[str, Any] | None) -> str:
     if not isinstance(payload, dict):
         return "command_failed"
+    # A stage that names its own fixed reason (pipeline.harvest's login and setup checks).
+    named = payload.get("failure_code")
+    if isinstance(named, str) and _FIXED_CODE.fullmatch(named):
+        return named
+    # The harvest's message events: per-thread error codes such as http_401, never text.
+    events = payload.get("message_events")
+    reasons = events.get("failure_reasons") if isinstance(events, dict) else None
+    if isinstance(reasons, dict) and reasons:
+        top = max(reasons, key=lambda key: reasons[key] if isinstance(reasons[key], int) else 0)
+        status = re.fullmatch(r"http_(\d{3})", str(top))
+        if status:
+            return f"provider_http_{status.group(1)}"
+        if top == "timeout":
+            return "provider_timeout"
+        if isinstance(top, str) and _FIXED_CODE.fullmatch(f"message_events_{top}"):
+            return f"message_events_{top}"
+    sources = payload.get("sources")
+    if isinstance(sources, list) and any(
+            isinstance(source, dict) and (source.get("error") or source.get("complete") is False)
+            for source in sources):
+        return "source_incomplete"
     errors: list[str] = []
     if isinstance(payload, dict):
         if isinstance(payload.get("error"), str):
@@ -565,6 +591,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
     """One scan with every stage, on `runtime`; returns the run summary."""
     settings = runtime.start()
     processing_cost.reset()
+    scan_log.reset()
     eval_capture.start(settings.refresh_id, model=settings.model, at=datetime.now(UTC))
     model, message_mode = settings.model, settings.message_mode
     message_processor, timezone, refresh_id = settings.message_processor, settings.timezone, settings.refresh_id
@@ -755,12 +782,52 @@ def run(runtime: Runtime) -> dict[str, Any]:
                        "processing": processing_cost.snapshot()}
             runtime.write_control("latest-run.json", summary)
             _record_processing_cost(runtime, summary)
+            _record_scan_log(runtime, summary)
             eval_capture.note("summary", summary)
             _write_eval_capture(runtime)
             raise
         _record_processing_cost(runtime, summary)
+        _record_scan_log(runtime, summary)
         _write_eval_capture(runtime)
         return summary
+
+
+def _record_scan_log(runtime: Runtime, summary: dict[str, Any]) -> None:
+    """Keep the run for Tavlestatus, and flag the board when it got no new frame.
+
+    Neither step ever fails the scan.
+    """
+    entry = None
+    try:
+        entry = scan_log.append_run(runtime.status_store(), summary)
+    except Exception as error:
+        _event("scan_log_not_recorded", error_type=type(error).__name__)
+    if scan_log.is_critical(summary):
+        found = (entry or {}).get("failure") or scan_log.failure(summary, scan_log.events())
+        _publish_alert(runtime, (found or {}).get("code", "command_failed"),
+                       refresh_id=summary.get("refresh_id"))
+
+
+def _publish_alert(runtime: Runtime, code: str, *, refresh_id: str | None = None) -> None:
+    """Redraw the last board with the warning triangle, so a failing scan is seen on the panel.
+
+    The board otherwise keeps its last frame without a word once that frame
+    expires. The alert frame is the last composed state (current-state.json)
+    marked `alert`; the next scan that publishes replaces it.
+    """
+    try:
+        displays = runtime.display_store()
+        data = runtime.read_private("current-state.json")
+        if displays is None or data is None:
+            _event("alert_not_published", reason="no_display_or_state")
+            return
+        from skoleklar.display_store import make_alert_timeline
+        state = json.loads(data)
+        version = f"alert-{refresh_id or datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
+        displays.write_json("current.json", make_alert_timeline(state, version, code=code))
+        _event("alert_published", failure_code=code)
+    except Exception as error:
+        _event("alert_not_published", error_type=type(error).__name__)
 
 
 def _write_eval_capture(runtime: Runtime) -> None:
