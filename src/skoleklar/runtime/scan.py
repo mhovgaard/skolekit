@@ -94,7 +94,7 @@ class Runtime(Protocol):
 def _event(name: str, **fields: Any) -> None:
     logger.info(json.dumps({"event": name, **fields}, separators=(",", ":")))
     # The same safe fields, for Tavlestatus's scan log (skoleklar.scan_log).
-    scan_log.note(name, fields)
+    scan_log.note(name, fields, at=datetime.now(UTC))  # the scan's own clock
 
 
 def _check_invariants(database: Path) -> None:
