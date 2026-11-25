@@ -266,7 +266,9 @@ def _status(data: dict[str, Any]) -> str:
 
     What the scan is unsure of is marked on its own line (`(?)`), never counted here.
     """
-    prefix = "ÆLDRE DATA · " if board.is_stale(data) else ""
+    # A scan that failed says so first: the triangle beside it is drawn by draw_status.
+    prefix = "OPDATERING FEJLER · " if data.get("alert") else ""
+    prefix += "ÆLDRE DATA · " if board.is_stale(data) and not data.get("alert") else ""
     missing = health.line(data.get("health"))
     if missing:
         prefix += missing + " · "
@@ -275,8 +277,8 @@ def _status(data: dict[str, Any]) -> str:
 
 
 def _status_bold(data: dict[str, Any]) -> bool:
-    """Old data or a missing part is said in bold, so it is noticed."""
-    return board.is_stale(data) or bool(health.missing(data.get("health")))
+    """Old data, a missing part or a failing scan is said in bold, so it is noticed."""
+    return bool(data.get("alert")) or board.is_stale(data) or bool(health.missing(data.get("health")))
 
 
 def _weather(data: dict[str, Any], hero_date: str | None) -> tuple[str, str, str] | None:
@@ -909,8 +911,27 @@ def draw_status(draw, data: dict[str, Any], *, bottom: bool = False) -> float:
         label = f"{battery} %"
         _text(draw, RIGHT_END - text_width(label, style), y, label, style, board.BLACK)
         _battery(draw, round(RIGHT_END - text_width(label, style) - 29), y + 3, battery)
+    if data.get("alert"):
+        _warning(draw, round(left), y - 2)
+        left += ALERT_WIDTH
     _text(draw, left, y, status, style, board.BLACK)
-    return left
+    return left - (ALERT_WIDTH if data.get("alert") else 0)
+
+
+# The warning triangle before the status when the scan failed, and the gap after it.
+ALERT_SIZE = 18
+ALERT_WIDTH = ALERT_SIZE + 6
+
+
+def _warning(draw, x: int, y: int) -> None:
+    """A yellow warning triangle with an ink outline and exclamation mark: the board has no red."""
+    size = ALERT_SIZE
+    points = [(x + size / 2, y), (x + size, y + size), (x, y + size)]
+    draw.polygon(points, fill=board.YELLOW, outline=board.BLACK)
+    draw.line([*points, points[0]], fill=board.BLACK, width=2, joint="curve")
+    middle = x + size // 2
+    draw.rectangle((middle - 1, y + 6, middle, y + size - 7), fill=board.BLACK)
+    draw.rectangle((middle - 1, y + size - 4, middle, y + size - 3), fill=board.BLACK)
 
 
 def status_layout(data: dict[str, Any]) -> tuple[str, str, float]:
@@ -920,9 +941,10 @@ def status_layout(data: dict[str, Any]) -> tuple[str, str, float]:
     battery = data.get("device", {}).get("battery_percent")
     if battery is not None:
         x -= text_width(f"{battery} %", style) + 29 + 14
+    triangle = ALERT_WIDTH if data.get("alert") else 0
     # The status fits the right half; a longer one is shortened, never run into the left.
-    status = board.fit(_ruler(), _status(data), int(x - RIGHT_X), face(style)[0])
-    return style, status, x - text_width(status, style)
+    status = board.fit(_ruler(), _status(data), int(x - RIGHT_X - triangle), face(style)[0])
+    return style, status, x - text_width(status, style) - triangle
 
 
 # --- Countdown (skoleklar.countdown) ---------------------------------------------------
@@ -1036,6 +1058,8 @@ def status_html(data: dict[str, Any]) -> str:
     """The update stamp and battery as HTML, for any view."""
     battery = data.get("device", {}).get("battery_percent")
     html = f'<span>{_esc(_status(data))}</span>'
+    if data.get("alert"):
+        html = '<span class="pb-alert" role="img" aria-label="Opdatering fejler">⚠</span>' + html
     if battery is not None:
         level = max(0, min(15, round(15 * battery / 100)))
         html += ('<span class="pb-battery"><svg class="pb-env" viewBox="0 0 23 11" aria-hidden="true">'
@@ -1144,7 +1168,7 @@ def draw_parents_board(draw, data: dict[str, Any], live_messages=None) -> None:
 # checkboxes and message lines. Added to the weekend and day view pages too.
 SHARED_CSS = """
 .pb-status{display:flex;justify-content:flex-end;align-items:center;gap:14u;font-size:14u;color:@INK@}
-.pb-status.stale{font-weight:700}
+.pb-status.stale{font-weight:700}.pb-alert{color:@INK@;background:@MARK@;padding:0 3u;font-weight:700}
 .pb-count{margin-right:auto;display:flex;align-items:center;gap:4u;font:400 16u/1.2 var(--serif);white-space:nowrap}
 .pb-count b{font:700 15u/1.2 var(--sans)}
 .pb-flag{width:16u;height:17u;flex:none}

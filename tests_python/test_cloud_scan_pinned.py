@@ -107,6 +107,10 @@ EVENT_FIELDS: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {
     "dashboard_failed": (("failure_stage", "error_type", "failure_code"), frozenset({"attempts"})),
     "sync_completed": (("status", "refresh_id", "finished_at", "outputs"), frozenset({"health", "processing"})),
     "processing_cost_not_recorded": (("error_type",), frozenset()),
+    "scan_log_not_recorded": (("error_type",), frozenset()),
+    # A scan that left the board without a new frame redraws the last one with the warning.
+    "alert_published": (("failure_code",), frozenset()),
+    "alert_not_published": ((), frozenset({"reason", "error_type"})),
     "eval_capture_written": (("call_count",), frozenset()),
     "eval_capture_not_written": (("error_type",), frozenset()),
     "sync_failed": (("error_type",), frozenset()),

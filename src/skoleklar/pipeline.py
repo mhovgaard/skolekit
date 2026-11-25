@@ -210,7 +210,7 @@ async def harvest(request: HarvestRequest) -> StageResult:
     profile = load_profile_or_report()
     meaning = load_meaning_or_report() if profile is not None else None
     if profile is None or meaning is None:
-        return StageResult(2)
+        return StageResult(2, {"failure_code": "profile_missing"})
     database = (
         Path(request.db).expanduser().resolve()
         if request.db
@@ -231,7 +231,7 @@ async def harvest(request: HarvestRequest) -> StageResult:
                 "Events-only ZDR processing requires an OpenRouter API key.",
                 file=sys.stderr,
             )
-            return StageResult(2)
+            return StageResult(2, {"failure_code": "provider_key_missing"})
     local_command = os.environ.get("AG_SCHOOL_MESSAGE_LOCAL_COMMAND")
     if message_processor == "local" and not local_command:
         print(
@@ -273,7 +273,7 @@ async def harvest(request: HarvestRequest) -> StageResult:
                 "`uv run skoleklar harvest --auto-login`.",
                 file=sys.stderr,
             )
-            return StageResult(2)
+            return StageResult(2, {"failure_code": "school_session_expired"})
         login_result = await browser_login(
             profile.login_url,
             timeout=request.auto_login_timeout,
@@ -282,11 +282,11 @@ async def harvest(request: HarvestRequest) -> StageResult:
             headless=True,
         )
         if login_result != 0:
-            return StageResult(login_result)
+            return StageResult(login_result, {"failure_code": "school_login_failed"})
         state = SessionStore().load()
         if state is None or not session_is_valid(state, profile.login_url):
             print("Automatic login did not produce a usable session.", file=sys.stderr)
-            return StageResult(2)
+            return StageResult(2, {"failure_code": "school_login_failed"})
     timings_ms["authentication"] = round(
         (monotonic() - authentication_started) * 1000
     )
