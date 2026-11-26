@@ -1,8 +1,9 @@
 """The children's view of one school day: the timetable, its changes and what to remember.
 
-Before school (until 08:30) the panel shows the children their day, and after
-school (15:00–19:00, Sunday to Thursday) the next one. The parents' board shows
-the rest of the time. Code builds the view from the stored calendar lesson slots;
+In the school morning (06:00–09:00) the panel shows the children their day, and
+after school (15:00–20:00, Sunday to Thursday) the next one. The parents' board
+shows the rest of the time; the weekend cover replaces both from Friday 15:00 to
+Sunday 12:00. Code builds the view from the stored calendar lesson slots;
 no model call is involved. The remember list, weather and weekly-plan summary
 come from what the frame already carries (the hero, `day_weather` and
 `day_summaries`).
@@ -16,10 +17,10 @@ from typing import Any, Callable, Iterable
 from skoleklar.dashboard_timing import ZONE, dashboard_focus
 from skolekit.wording import DANISH
 
-# School-day mornings until this time show today's view.
-MORNING_END = time(8, 30)
+# School-day mornings show today's view in this window; the daily scan runs before it.
+MORNING_START, MORNING_END = time(6, 0), time(9, 0)
 # Afternoons before a school day show tomorrow's view in this window.
-AFTERNOON_START, AFTERNOON_END = time(15, 0), time(19, 0)
+AFTERNOON_START, AFTERNOON_END = time(15, 0), time(20, 0)
 
 # SkoleIntra's lesson codes, as a child reads them. Soft hyphens (U+00AD) let a
 # long name break inside a narrow tile; codes not listed are shown as given.
@@ -56,7 +57,7 @@ def view_date(at: datetime) -> date | None:
     if focus.mode != "schoolday":
         return None
     clock = local.timetz().replace(tzinfo=None)
-    if clock < MORNING_END and focus.school_date == local.date():
+    if MORNING_START <= clock < MORNING_END and focus.school_date == local.date():
         return focus.school_date
     if (AFTERNOON_START <= clock < AFTERNOON_END
             and focus.school_date == local.date() + timedelta(days=1)):
@@ -68,7 +69,7 @@ def change_times(day: date) -> list[time]:
     """Clock times on `day` at which the children's view starts or ends."""
     times = []
     if day.weekday() < 5:
-        times.append(MORNING_END)
+        times += [MORNING_START, MORNING_END]
     if day.weekday() in (6, 0, 1, 2, 3):
         times += [AFTERNOON_START, AFTERNOON_END]
     return times

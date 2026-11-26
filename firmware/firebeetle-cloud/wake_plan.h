@@ -6,10 +6,12 @@
 // When to wake next. Pure, so firmware/tests checks it on the Mac.
 namespace wake {
 struct Check { uint16_t minute; uint8_t weekdays; }; // Copenhagen minute of day; bit 0 = Monday.
-// About seven minutes after each cloud scan starts (infra/gcp/create-schedules.sh),
-// when its new board has been published.
-constexpr Check kChecks[] = {{5 * 60 + 52, 0x1F}, {12 * 60 + 37, 0x7F}, {19 * 60 + 37, 0x7F}};
+// Half an hour after the daily cloud scan starts at 05:30 (infra/gcp/create-schedules.sh,
+// a retry included), when its new board has been published.
+constexpr Check kChecks[] = {{6 * 60, 0x7F}};
 constexpr int64_t kChangeMargin = 30;   // Seconds after the server's next frame starts.
+// A board change this close to the check fetches the newest board itself: one wake, one draw.
+constexpr int64_t kMergeWindow = 20 * 60;
 constexpr int64_t kMinimumSleep = 60;
 constexpr int64_t kMaximumSleep = 12 * 3600;
 
@@ -47,7 +49,11 @@ inline Plan plan(int64_t now, int64_t nextChange, uint32_t testMinutes, uint32_t
     if (at > now && at < result.at) result = {at, reason};
   };
   if (testMinutes) consider(now + static_cast<int64_t>(testMinutes) * 60, "test_interval");
-  else consider(nextCheck(now), "scan_published");
+  else {
+    const int64_t check = nextCheck(now);
+    const bool merged = nextChange > now && check > nextChange - kMergeWindow && check < nextChange + kMergeWindow;
+    if (!merged) consider(check, "scan_published");
+  }
   if (nextChange > 0) consider(nextChange + kChangeMargin, "board_changes");
   if (failures) consider(now + retryDelay(failures), "retry");
   if (result.at < now + kMinimumSleep) result.at = now + kMinimumSleep;

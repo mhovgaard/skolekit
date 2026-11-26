@@ -469,7 +469,8 @@ def _with_battery(frames, now, store=None):
 def _with_countdown(frames, config):
     """Each frame with the countdown for the day it starts on (parents' board and weekend cover).
 
-    Weekday frames start at midnight, so the line is right in the morning too.
+    A school night's frame starts at 20:00 and the morning's at 06:00, so the
+    line is right whenever the parents' board is read.
     Only the one line reaches the state, never the household's dates.
     """
     from skoleklar.countdown import line
@@ -739,6 +740,7 @@ def run_scan(runtime: Runtime) -> dict[str, Any]:
                     bundle = make_timeline(frames, refresh_id, live_messages=live)
                     stage["name"] = "publish_bundle"
                     displays.write_json("current.json", bundle)
+                    _persist_frames(runtime, frames, bundle)
                     outcomes["dashboard"] = {"status": "published", "artifact_id": refresh_id,
                                              **({"fallback_weeks": fallback_weeks} if fallback_weeks else {})}
                 except Exception as error:
@@ -808,23 +810,46 @@ def _record_scan_log(runtime: Runtime, summary: dict[str, Any]) -> None:
                        refresh_id=summary.get("refresh_id"))
 
 
+def _persist_frames(runtime: Runtime, frames, bundle: dict[str, Any]) -> None:
+    """Keep the published frames' states, so a failing scan can mark this timeline.
+
+    The board is already published; a failure here only costs the next alert its
+    view switching (_publish_alert falls back to current-state.json), never the board.
+    """
+    try:
+        runtime.write_private("current-frames.json", json.dumps(
+            {"expires_at": bundle.get("expires_at"), "frames": [[at.isoformat(), state] for at, state in frames]}))
+    except Exception as error:
+        _event("frames_not_kept", error_type=type(error).__name__)
+
+
 def _publish_alert(runtime: Runtime, code: str, *, refresh_id: str | None = None) -> None:
-    """Redraw the last board with the warning triangle, so a failing scan is seen on the panel.
+    """Redraw the last timeline with the warning triangle, so a failing scan is seen on the panel.
 
     The board otherwise keeps its last frame without a word once that frame
-    expires. The alert frame is the last composed state (current-state.json)
-    marked `alert`; the next scan that publishes replaces it.
+    expires. The alert timeline is the last published one (current-frames.json),
+    each frame marked `alert`, so the children's view and the parents' board
+    still take turns; a scan from before those were kept falls back to the last
+    composed state (current-state.json). The next scan that publishes replaces it.
     """
     try:
         displays = runtime.display_store()
-        data = runtime.read_private("current-state.json")
-        if displays is None or data is None:
+        kept = runtime.read_private("current-frames.json")
+        single = None if kept else runtime.read_private("current-state.json")
+        if displays is None or (kept is None and single is None):
             _event("alert_not_published", reason="no_display_or_state")
             return
         from skoleklar.display_store import make_alert_timeline
-        state = json.loads(data)
-        version = f"alert-{refresh_id or datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
-        displays.write_json("current.json", make_alert_timeline(state, version, code=code))
+        now = datetime.now(UTC)
+        if kept:
+            document = json.loads(kept)
+            frames = [(datetime.fromisoformat(at), state) for at, state in document["frames"]]
+            ends_at = datetime.fromisoformat(document["expires_at"]) if document.get("expires_at") else None
+        else:
+            frames, ends_at = [(now, json.loads(single))], None
+        version = f"alert-{refresh_id or now.strftime('%Y%m%dT%H%M%S')}"
+        displays.write_json("current.json", make_alert_timeline(frames, version, code=code,
+                                                                ends_at=ends_at, now=now))
         _event("alert_published", failure_code=code)
     except Exception as error:
         _event("alert_not_published", error_type=type(error).__name__)

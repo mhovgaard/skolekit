@@ -7,7 +7,7 @@ settings beside `[meaning]`:
 [runtime]
 where = "gcp"                        # "local" or "gcp": the one place that writes the database
 model = "openai/gpt-5.6-terra"       # optional
-scans = ["mon-fri 05:45", "12:30", "19:30"]   # optional; these are the defaults
+scans = ["05:30"]                    # optional; the default: once a day, before the 06:00 view
 
 [weather]                            # optional; without it the board shows no forecast
 place = "Byen"
@@ -36,7 +36,9 @@ from skolekit.profile import ProfileError
 from skoleklar.meaning import MEANING_FILE
 
 WHERE = ("local", "gcp")
-DEFAULT_SCANS = ("mon-fri 05:45", "12:30", "19:30")
+# One scan a day, finished before the children's view at 06:00; the board's firmware
+# checks for it at 06:00 (wake_plan.h). Each scan draws the next 36 hours.
+DEFAULT_SCANS = ("05:30",)
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SCAN = re.compile(r"(?:(?P<first>[a-z]{3})(?:-(?P<last>[a-z]{3}))? )?(?P<hour>\d{2}):(?P<minute>\d{2})")
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")

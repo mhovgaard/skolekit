@@ -311,8 +311,8 @@ board will sleep and why. When that looks right, switch to the real schedule:
 
 From now on, the board wakes at the earliest of these times:
 
-- about seven minutes after each scan: 05:52 on weekdays, and 12:37 and 19:37
-  every day;
+- at 06:00 every day, half an hour after the 05:30 scan (on school days the
+  06:00 change to the children's view does this, so it is one wake);
 - 30 seconds after the next pre-drawn frame takes over;
 - a retry after a failed wake: 5, 10, 20 and 40 minutes, then every 60;
 - at most 12 hours after the last wake.

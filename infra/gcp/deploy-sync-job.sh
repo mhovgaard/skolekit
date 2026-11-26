@@ -102,7 +102,7 @@ gcloud run jobs deploy agskoleintra-sync \
   --cpu=1 \
   --memory=2Gi \
   --task-timeout=30m \
-  --max-retries=0 \
+  --max-retries=1 \
   --tasks=1 \
   --parallelism=1 \
   --quiet

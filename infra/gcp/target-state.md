@@ -173,9 +173,10 @@ OAuth token for `ag-scheduler`. Their timezone comes from the school configurati
 
 | Job | Schedule |
 | --- | --- |
-| `agskoleintra-morning` | `45 5 * * 1-5` |
-| `agskoleintra-midday` | `30 12 * * *` |
-| `agskoleintra-evening` | `30 19 * * *` |
+| `agskoleintra-morning` | `30 5 * * *` |
+
+`agskoleintra-midday` and `agskoleintra-evening` (12:30 and 19:30) belong to the
+earlier three-scan default; a project that still has them pauses them.
 
 Each scan pre-draws every board change for the next 36 hours, so the board
 needs no triggers of its own. Verify their enabled/paused state explicitly.

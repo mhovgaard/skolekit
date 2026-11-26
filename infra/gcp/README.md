@@ -304,7 +304,7 @@ Write that file before the first deploy:
 ```toml
 [runtime]
 where = "gcp"
-scans = ["mon-fri 05:45", "12:30", "19:30"]
+scans = ["05:30"]
 
 [weather]
 place = "Byen"

@@ -83,17 +83,18 @@ def make_bundle(state, refresh_id, *, live_messages=None, now=None, expires_at=N
             "png_base64": base64.b64encode(png).decode("ascii")}
 
 
-def make_timeline(frames, refresh_id, *, live_messages=None, now=None):
+def make_timeline(frames, refresh_id, *, live_messages=None, now=None, expires_at=None):
     """One frame per moment the panel changes, each served under its own version.
 
     `frames` pairs each start time with the state shown from then on. A moment
     that changes nothing visible is merged into the frame before it. The version
     follows the panel bytes, so a device never redraws an identical frame.
+    `expires_at` overrides the data's own expiry (the alert timeline).
     """
     now = now or datetime.now(UTC)
     entries = []
     for start, state in frames:
-        bundle = make_bundle(state, refresh_id, live_messages=live_messages, now=now)
+        bundle = make_bundle(state, refresh_id, live_messages=live_messages, now=now, expires_at=expires_at)
         metadata = bundle["metadata"]
         if (entries and entries[-1]["metadata"]["sha256"] == metadata["sha256"]
                 and entries[-1]["html"] == bundle["html"]):
@@ -114,21 +115,28 @@ def make_timeline(frames, refresh_id, *, live_messages=None, now=None):
 ALERT_HOURS = 36
 
 
-def make_alert_timeline(state, refresh_id, *, code, now=None):
-    """The last board, marked with the warning triangle, served from now on.
+def make_alert_timeline(frames, refresh_id, *, code, ends_at=None, now=None):
+    """The last published timeline from now on, every frame marked with the warning triangle.
 
-    `state` is the last composed board (its freshness is long past, so it also
-    says ÆLDRE DATA); `code` is the scan's fixed failure code.
+    `frames` pairs each start time with its state, as the last scan published
+    them; `ends_at` is when that timeline ran out. The board keeps switching
+    between the children's view and the parents' board until then; after it, the
+    parents' board of the last moment stays (a children's view of a past day
+    would mislead). `code` is the scan's fixed failure code.
     """
     now = now or datetime.now(UTC)
-    bundle = make_bundle({**state, "alert": {"code": code}}, refresh_id, now=now,
-                         expires_at=now + timedelta(hours=ALERT_HOURS))
-    metadata = bundle["metadata"]
-    metadata["version"] = f'{refresh_id}-{metadata["frame_sha256"][:12]}'
-    metadata["valid_from"] = now.astimezone(UTC).isoformat()
-    metadata["valid_until"] = metadata["expires_at"]
-    return {"schema_version": 2, "refresh_id": refresh_id, "generated_at": now.isoformat(),
-            "expires_at": metadata["expires_at"], "frames": [bundle]}
+    if not frames:
+        raise ValueError("An alert needs the last board")
+    frames = sorted(frames, key=lambda frame: frame[0])
+    showing = max((index for index, (start, _) in enumerate(frames) if start <= now), default=0)
+    kept = [(max(start, now), state) for start, state in frames[showing:]]
+    parents = {key: value for key, value in kept[-1][1].items() if key != "day_view"}
+    if ends_at is None or ends_at <= now:
+        kept = [(now, parents)]
+    elif "day_view" in kept[-1][1]:
+        kept.append((ends_at, parents))
+    marked = [(start, {**state, "alert": {"code": code}}) for start, state in kept]
+    return make_timeline(marked, refresh_id, now=now, expires_at=now + timedelta(hours=ALERT_HOURS))
 
 
 class VersionChanged(Exception):

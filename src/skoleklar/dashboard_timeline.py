@@ -1,7 +1,8 @@
 """States for every moment the dashboard layout changes, drawn ahead by one scan.
 
-A scan composes each school week once. The later changes (15:00, the weekend
-cover, Saturday's weather shift, Sunday noon and each new date) are derived here
+A scan composes each school week once. The later changes (the children's view,
+15:00, the weekend cover, Saturday's weather shift, Sunday noon and each new
+weekend date) are derived here
 from that composition without another scan or model call, so a device can be
 served the right frame at any time until the data itself expires.
 """
@@ -31,9 +32,14 @@ def _changes_on(day: date) -> list[time]:
     Besides the board's own changes, the children's day view starts and ends
     (`day_view.change_times`). A moment that changes nothing visible, such as
     when no view is attached, is merged into the frame before it.
+
+    A school night has no midnight change: the parents' board from 20:00 already
+    shows the next school day, and the children's view takes over at 06:00, so
+    the board is not woken to redraw a date nobody reads. The weekend cover keeps
+    midnight, where its 'i morgen' becomes today.
     """
     if day.weekday() < 5:
-        board = [time(0), SCHOOL_DAY_CUTOFF]
+        board = [SCHOOL_DAY_CUTOFF]
     elif day.weekday() == 5:
         board = [time(0), time(SATURDAY_UNTIL_HOUR)]
     else:

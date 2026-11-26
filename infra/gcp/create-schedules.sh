@@ -57,17 +57,18 @@ ensure_schedule() {
   fi
 }
 
-# Scans only. Each run draws every layout change for the next 36 hours (15:00,
-# the weekend cover, Saturday 18:00, Sunday noon), so none needs its own trigger.
-# The times are the household's ([runtime] scans). Today's three keep their old
-# names, so a live project gets no second set; any other time is named after itself.
-# The longest gap must stay inside the board's 36-hour expiry. The board's firmware
-# wakes about seven minutes after each of today's times (wake_plan.h).
+# Scans only. Each run draws every layout change for the next 36 hours (the
+# children's view 06–09 and 15–20, the weekend cover, Saturday 18:00, Sunday
+# noon), so none needs its own trigger. The times are the household's
+# ([runtime] scans; the default is 05:30 every day). The daily scan takes over the
+# old morning schedule's name, so a live project gets no second one; any other time
+# is named after itself. The longest gap must stay inside the board's 36-hour
+# expiry. The board's firmware checks at 06:00 for the 05:30 scan (wake_plan.h).
 declare -a WANTED=()
 while IFS='|' read -r cron text; do
   [[ -z "${cron}" ]] && continue
   case "${cron}" in
-    "45 5 * * 1-5") name=agskoleintra-morning ;;
+    "30 5 * * *" | "45 5 * * 1-5") name=agskoleintra-morning ;;
     "30 12 * * *") name=agskoleintra-midday ;;
     "30 19 * * *") name=agskoleintra-evening ;;
     *) name="agskoleintra-scan-$(tr -c 'a-z0-9' '-' <<<"${text}" | tr -s '-' | sed 's/-$//')" ;;

@@ -118,7 +118,9 @@ def test_one_scan_composes_each_school_week_once_and_reuses_unchanged_weeks(monk
     assert calls == [now.isoformat(), local("2026-09-25T15:00:00").isoformat()]
     assert set(weeks) == {date(2026, 9, 21), date(2026, 9, 28)}
     assert [state["hero"]["day"] for _, state in frames] == [
-        "Fredag 25. sep.", "Fredag 25. sep.", "Fredag 25. sep.", "Mandag 28. sep.", "Mandag 28. sep."]
+        # Thursday 19:30 and 20:00, Friday 06:00 and 09:00; the weekend cover from 15:00 and midnight.
+        "Fredag 25. sep.", "Fredag 25. sep.", "Fredag 25. sep.", "Fredag 25. sep.",
+        "Mandag 28. sep.", "Mandag 28. sep."]
     assert first["now"] == now.isoformat()
     assert cache_events() == [("2026-09-21", "miss", None), ("2026-09-28", "miss", None)]
 
@@ -151,3 +153,18 @@ def timeline_fixture(tmp_path):
     return timeline, store
 
 
+
+
+def test_a_school_day_changes_at_six_nine_three_and_eight_and_the_weekend_keeps_midnight():
+    """Children 06–09 and 15–20, parents otherwise; no wake to redraw a school night's date."""
+    def clocks(start, hours):
+        now = local(start)
+        return [moment.strftime("%a %H:%M") for moment in slice_starts(now, now + timedelta(hours=hours))[1:]]
+
+    # Wednesday 05:30, the daily scan: Wednesday, then Thursday until the scan after it.
+    assert clocks("2026-09-23T05:30:00", 24) == ["Wed 06:00", "Wed 09:00", "Wed 15:00", "Wed 20:00"]
+    # Friday 05:30: the weekend cover from 15:00 keeps its midnight and Saturday's 18:00.
+    assert clocks("2026-09-25T05:30:00", 48) == [
+        "Fri 06:00", "Fri 09:00", "Fri 15:00", "Sat 00:00", "Sat 18:00", "Sun 00:00"]
+    # Sunday 05:30: the cover until noon, Monday's children's view 15–20, then Monday.
+    assert clocks("2026-09-27T05:30:00", 24) == ["Sun 12:00", "Sun 15:00", "Sun 20:00"]

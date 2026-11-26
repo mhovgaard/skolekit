@@ -22,7 +22,7 @@
 #include <atomic>
 
 namespace {
-constexpr char kFirmware[] = "ag-cloud-0.7.1";
+constexpr char kFirmware[] = "ag-cloud-0.8.0";
 constexpr char kHostname[] = "firebeetle-ag";
 constexpr size_t kMaxConfig = 8192;
 constexpr size_t kMaxMetadata = 4096;

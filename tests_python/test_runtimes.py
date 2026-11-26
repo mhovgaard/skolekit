@@ -205,8 +205,7 @@ def test_one_local_scan_at_a_time_and_a_dead_scans_lock_is_taken_over(tmp_path):
 # --- The household's settings ----------------------------------------------------------------------
 
 def test_the_runtime_settings_and_their_defaults(tmp_path):
-    assert [scan.cron() for scan in load_runtime_config(tmp_path).scans] == [
-        "45 5 * * 1-5", "30 12 * * *", "30 19 * * *"]
+    assert [scan.cron() for scan in load_runtime_config(tmp_path).scans] == ["30 5 * * *"]
     (tmp_path / "skoleklar.toml").write_text(
         '[runtime]\nwhere = "local"\nscans = ["sat-sun 09:00", "fri 15:30"]\n'
         '[weather]\nplace = "Byen"\nlatitude = 55.6789\nlongitude = 12.5678\n'
@@ -258,12 +257,10 @@ def test_the_scan_times_as_launchd_and_systemd_units(tmp_path):
     plist = plistlib.loads(schedule.launchd_plist(config, tmp_path))
     assert plist["ProgramArguments"][-2:] == ["skoleklar.cli", "scan"]
     assert plist["EnvironmentVariables"] == {"AG_SCHOOL_HOME": str(tmp_path)}
-    assert plist["StartCalendarInterval"] == [
-        *({"Weekday": day, "Hour": 5, "Minute": 45} for day in range(1, 6)),
-        {"Hour": 12, "Minute": 30}, {"Hour": 19, "Minute": 30}]
+    assert plist["StartCalendarInterval"] == [{"Hour": 5, "Minute": 30}]
     timer = schedule.systemd_units(config, tmp_path)["skoleklar-scan.timer"]
     assert [line for line in timer.splitlines() if line.startswith("OnCalendar")] == [
-        "OnCalendar=Mon..Fri *-*-* 05:45:00", "OnCalendar=*-*-* 12:30:00", "OnCalendar=*-*-* 19:30:00"]
+        "OnCalendar=*-*-* 05:30:00"]
 
 
 def test_a_schedule_is_installed_only_for_the_local_runtime(capsys):
