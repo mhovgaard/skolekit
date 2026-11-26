@@ -11,14 +11,14 @@ a real browser and as a panel frame.
 
 | Window (Europe/Copenhagen) | Shows |
 |---|---|
-| School days 00:00–08:30 | Today, headed `I dag` |
-| Sunday–Thursday 15:00–19:00 | The next school day, headed `I morgen` |
+| School days 06:00–09:00 | Today, headed `I dag` |
+| Sunday–Thursday 15:00–20:00 | The next school day, headed `I morgen` |
 
-The parents' board shows the rest of the time, and the weekend panel from
-Friday 15:00 until Sunday 12:00 as before. `day_view.view_date` holds the rule.
-The windows add two layout changes per school day (08:30 and 19:00) and Sunday
-15:00 and 19:00 to the [timeline](dashboard-timeline.md); the board wakes for
-each, so a school day costs two more panel refreshes. A day on which neither child
+The parents' board shows the rest of the time (09:00–15:00, and from 20:00 to
+06:00), and the weekend panel from Friday 15:00 until Sunday 12:00 as before.
+`day_view.view_date` holds the rule. A school day changes at 06:00, 09:00, 15:00
+and 20:00 in the [timeline](dashboard-timeline.md), and the board wakes for each:
+four panel refreshes a day. A school night has no midnight change. A day on which neither child
 has a lesson slot (a holiday the timing policy does not know) keeps the parents'
 board.
 

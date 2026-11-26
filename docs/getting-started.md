@@ -103,7 +103,7 @@ Create `skoleklar.toml` beside the household profile:
 ```toml
 [runtime]
 where = "local"
-scans = ["mon-fri 05:45", "12:30", "19:30"]
+scans = ["05:30"]
 ```
 
 Optional tables configure `[weather]`, `[meaning]`, `[countdown]` and `[gcp]`.

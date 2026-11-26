@@ -6,7 +6,7 @@ layout and emphasis; it is not a record of any household's deployment.
 The board replaces the school-week table on the panel and in the browser
 whenever neither the [weekend cover](../rendering/ag-school-dashboard-state/references/state.md#weekend-weather)
 nor the [children's day view](day-view.md) shows: the evening before a school day
-from 19:00, school days 08:30–15:00, and Sunday 12:00–15:00.
+from 20:00 until 06:00, school days 09:00–15:00, and Sunday 12:00–15:00.
 
 Each child has a row across the panel, and the dividers line up on both halves.
 

@@ -6,21 +6,29 @@ static int64_t at(const char *iso) { return friendly::timestamp(iso); }
 
 int main() {
   using wake::nextCheck; using wake::plan;
-  assert(nextCheck(at("2026-11-02T05:00:00+01:00")) == at("2026-11-02T05:52:00+01:00")); // Monday morning.
-  assert(nextCheck(at("2026-11-02T05:52:00+01:00")) == at("2026-11-02T12:37:00+01:00"));
-  assert(nextCheck(at("2026-11-02T20:00:00+01:00")) == at("2026-11-03T05:52:00+01:00"));
-  assert(nextCheck(at("2026-11-06T20:00:00+01:00")) == at("2026-11-07T12:37:00+01:00")); // No Saturday 05:52.
-  assert(nextCheck(at("2026-11-07T13:00:00+01:00")) == at("2026-11-07T19:37:00+01:00"));
-  assert(nextCheck(at("2026-11-08T20:00:00+01:00")) == at("2026-11-09T05:52:00+01:00")); // Sunday night to Monday.
-  assert(nextCheck(at("2027-03-27T20:00:00+01:00")) == at("2027-03-28T12:37:00+02:00")); // Into summer time.
-  assert(nextCheck(at("2026-10-24T20:00:00+02:00")) == at("2026-10-25T12:37:00+01:00")); // Into winter time.
+  // One check a day, at 06:00, after the 05:30 scan; weekends too.
+  assert(nextCheck(at("2026-11-02T05:00:00+01:00")) == at("2026-11-02T06:00:00+01:00")); // Monday morning.
+  assert(nextCheck(at("2026-11-02T06:00:00+01:00")) == at("2026-11-03T06:00:00+01:00"));
+  assert(nextCheck(at("2026-11-06T20:00:00+01:00")) == at("2026-11-07T06:00:00+01:00")); // Saturday too.
+  assert(nextCheck(at("2026-11-08T20:00:00+01:00")) == at("2026-11-09T06:00:00+01:00")); // Sunday night to Monday.
+  assert(nextCheck(at("2027-03-27T20:00:00+01:00")) == at("2027-03-28T06:00:00+02:00")); // Into summer time.
+  assert(nextCheck(at("2026-10-24T20:00:00+02:00")) == at("2026-10-25T06:00:00+01:00")); // Into winter time.
 
   const int64_t monday = at("2026-11-02T13:00:00+01:00");
   wake::Plan p = plan(monday, at("2026-11-02T15:00:00+01:00"), 0, 0);
   assert(p.at == at("2026-11-02T15:00:30+01:00") && !strcmp(p.reason, "board_changes"));
-  p = plan(monday, 0, 0, 0);
-  assert(p.at == at("2026-11-02T19:37:00+01:00") && !strcmp(p.reason, "scan_published"));
-  p = plan(monday, at("2026-11-02T12:00:00+01:00"), 0, 0); // A past change is ignored.
+  p = plan(monday, 0, 0, 0); // 17 hours to the next check: the longest sleep comes first.
+  assert(p.at == monday + 12 * 3600 && !strcmp(p.reason, "longest_sleep"));
+  p = plan(at("2026-11-02T20:00:00+01:00"), 0, 0, 0);
+  assert(p.at == at("2026-11-03T06:00:00+01:00") && !strcmp(p.reason, "scan_published"));
+  // A school night: the 06:00 change to the children's view brings the new board; no second wake.
+  const int64_t night = at("2026-11-02T20:00:30+01:00");
+  p = plan(night, at("2026-11-03T06:00:00+01:00"), 0, 0);
+  assert(p.at == at("2026-11-03T06:00:30+01:00") && !strcmp(p.reason, "board_changes"));
+  // Saturday: the next change is at 18:00, so the 06:00 check fetches the morning's board.
+  p = plan(at("2026-11-07T00:00:30+01:00"), at("2026-11-07T18:00:00+01:00"), 0, 0);
+  assert(p.at == at("2026-11-07T06:00:00+01:00") && !strcmp(p.reason, "scan_published"));
+  p = plan(at("2026-11-02T20:00:00+01:00"), at("2026-11-02T15:00:00+01:00"), 0, 0); // A past change is ignored.
   assert(!strcmp(p.reason, "scan_published"));
   p = plan(monday, at("2026-11-02T15:00:00+01:00"), 3, 0);
   assert(p.at == monday + 180 && !strcmp(p.reason, "test_interval"));
@@ -31,8 +39,8 @@ int main() {
   assert(wake::retryDelay(3) == 1200 && wake::retryDelay(9) == 3600);
   p = plan(monday, monday + 5, 0, 0); // Never sooner than a minute.
   assert(p.at == monday + 60);
-  p = plan(at("2026-11-02T19:36:00+01:00"), 0, 0, 0);
-  assert(p.at == at("2026-11-02T19:37:00+01:00"));
+  p = plan(at("2026-11-02T05:59:30+01:00"), 0, 0, 0); // Never sooner than a minute.
+  assert(p.at == at("2026-11-02T06:00:30+01:00"));
 
   // Timer drift, from the board's wakes on 3–4 November 2026 (Copenhagen time).
   using wake::learnDrift; using wake::measureDrift; using wake::timerSeconds;

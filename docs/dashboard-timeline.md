@@ -12,11 +12,13 @@ another school read or model call.
 | Layout timeline | Which pre-rendered view is valid at a given moment |
 | Device wake | When the ESP32 checks and draws a publication |
 
-Default scans are weekdays 05:45, and daily 12:30 and 19:30, using the school's
-configured timezone. The morning scan catches substitutions and overnight
-changes before school; midday catches the morning's messages before the
-afternoon; the evening scan catches the afternoon, weekly plans and Sunday's
-preparation for Monday. A change waits for the next successful scan. Scan times are configurable in `skoleklar.toml`.
+The default is one scan a day at 05:30, using the school's configured
+timezone, finished before the children's view at 06:00; the cloud job retries a
+failed scan once. The scan draws the next 36 hours, so the board keeps changing
+views all day without another scan. A message posted during the day waits for
+the next morning's scan: the afternoon's "I morgen" view and the evening's
+parents' board show what the morning knew. A scan that fails marks the last
+timeline with the warning triangle, and Tavlestatus says why in its scan log. Scan times are configurable in `skoleklar.toml`.
 The product's display timing policy currently uses Europe/Copenhagen; changing
 the school timezone alone does not generalize all board timing.
 

@@ -8,7 +8,7 @@ The supported controller is **DFRobot FireBeetle 2 ESP32-E with headers
 (DFR0654-F)**, ESP32-WROOM-32E with 4 MB flash. It is not the FireBeetle C6.
 The panel is the Waveshare 7.3-inch HAT (E), 800×480 Spectra 6.
 `firebeetle-cloud/cloud_app.cpp` declares the current source firmware version
-(`ag-cloud-0.7.1`); this does not identify the build on a particular device.
+(`ag-cloud-0.8.0`); this does not identify the build on a particular device.
 
 ## Sketches and tools
 
@@ -81,8 +81,9 @@ do not infer that a missing report means a frame was not drawn.
 | `awake` | Stay awake and check publications at scheduled wake times |
 | `sleep` | Wake, sync/report, then deep-sleep; maintenance/button wakes keep the page available temporarily |
 
-Default scan-following wakes are 05:52 on weekdays, 12:37 and 19:37 daily,
-plus 30 seconds after a published frame transition. Retry/backoff and the
+The default scan-following wake is 06:00 every day, after the 05:30 scan; a
+frame transition within 20 minutes of it takes its place, so a school morning is
+one wake. The board also wakes 30 seconds after each published frame transition. Retry/backoff and the
 maximum sleep bound also apply. Changing cloud scan times requires checking
 this device policy; a cloud schedule does not reconfigure firmware wake constants.
 Below 3.45 V, the device skips Wi-Fi/refresh and sleeps 12 hours, preserving

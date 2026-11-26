@@ -1,5 +1,6 @@
 import json
-from datetime import UTC, datetime, timedelta
+import re
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,9 +9,11 @@ from skoleklar import dashboard_renderer, display_store, scan_log
 from skoleklar.board_status import render_page
 from skoleklar.browser_api import create_app as browser_app
 from skoleklar.delivery_store import DeliveryObjectNotFoundError, LocalDeliveryStore
+from skoleklar.day_view import build_day_view
 from skoleklar.parents_board_render import _status, status_html
 from skoleklar.runtime import scan
 from skoleklar.runtime.scan import _safe_failure_code
+from tests_python.test_day_view import lesson
 from tests_python.test_parents_board import heavy_week_state
 from tests_python.test_refresh_control import Dispatcher, MemoryStore, RefreshController
 
@@ -123,22 +126,58 @@ def test_the_triangle_is_drawn_in_yellow_and_ink_beside_the_status():
     assert yellow in [colour for _, colour in alert.crop(corner).getcolors(1 << 16)]
 
 
-def test_the_alert_frame_is_served_from_now_although_the_board_is_old():
-    timeline = display_store.make_alert_timeline(heavy_week_state(), "alert-run", code="provider_http_401", now=NOW)
+def kids(state):
+    """The same moment as the children's view, built as the scan builds it."""
+    names = [child["name"] for child in state["hero"]["children"]]
+    view = build_day_view(date.fromisoformat(state["hero"]["date"]), names, "I dag",
+                          {name: [lesson("08:00", "08:45", "DAN", day=state["hero"]["date"])] for name in names})
+    return {**state, "day_view": view}
 
+
+def is_kids(frame):
+    return "day-view" in re.search(r'<main class="([^"]*)"', frame["html"]).group(1)
+
+
+def served(timeline, at):
     class Store:
         def read_json(self, name):
             return timeline
-    bundle = display_store.current_bundle(Store(), now=NOW + timedelta(hours=1))
-    assert bundle["metadata"]["version"].startswith("alert-run-")
-    assert bundle["metadata"]["valid_until"] == (NOW + timedelta(hours=display_store.ALERT_HOURS)).isoformat()
+    return display_store.current_bundle(Store(), now=at)
+
+
+def test_the_alert_keeps_the_timeline_switching_then_stays_on_the_parents_board():
+    parents = heavy_week_state()
+    frames = [(NOW - timedelta(hours=2), parents), (NOW + timedelta(hours=1), kids(parents))]
+    ends = NOW + timedelta(hours=3)
+    timeline = display_store.make_alert_timeline(frames, "alert-run", code="provider_http_401",
+                                                 ends_at=ends, now=NOW)
+    shown = [(is_kids(frame), frame["metadata"]["valid_from"]) for frame in timeline["frames"]]
+    assert [view for view, _ in shown] == [False, True, False]
+    assert [start for _, start in shown] == [NOW.isoformat(), (NOW + timedelta(hours=1)).isoformat(),
+                                             ends.isoformat()]
+    assert all('class="pb-alert"' in frame["html"] or "OPDATERING FEJLER" in frame["html"]
+               for frame in timeline["frames"])
+    later = served(timeline, NOW + timedelta(hours=20))
+    assert later["metadata"]["valid_until"] == (NOW + timedelta(hours=display_store.ALERT_HOURS)).isoformat()
+
+
+def test_an_alert_after_the_timeline_ran_out_is_the_parents_board_from_now():
+    timeline = display_store.make_alert_timeline([(NOW - timedelta(hours=40), kids(heavy_week_state()))],
+                                                 "alert-run", code="x", ends_at=NOW - timedelta(hours=4), now=NOW)
+    assert len(timeline["frames"]) == 1
+    frame = served(timeline, NOW + timedelta(hours=1))
+    assert frame["metadata"]["version"].startswith("alert-run-") and not is_kids(frame)
 
 
 class Runtime:
-    def __init__(self, tmp_path, state):
+    def __init__(self, tmp_path, state, *, frames=None):
         self.control = LocalDeliveryStore(tmp_path / "control")
         self.displays = LocalDeliveryStore(tmp_path / "display")
-        self.state = state
+        self.private = {}
+        if state:
+            self.private["current-state.json"] = json.dumps(state).encode()
+        if frames:
+            self.private["current-frames.json"] = json.dumps(frames).encode()
 
     def status_store(self):
         return self.control
@@ -147,7 +186,10 @@ class Runtime:
         return self.displays
 
     def read_private(self, name):
-        return json.dumps(self.state).encode() if name == "current-state.json" and self.state else None
+        return self.private.get(name)
+
+    def write_private(self, name, text):
+        self.private[name] = text.encode()
 
 
 def test_a_failed_scan_records_itself_and_puts_the_alert_on_the_board(tmp_path):
@@ -159,6 +201,23 @@ def test_a_failed_scan_records_itself_and_puts_the_alert_on_the_board(tmp_path):
     published = runtime.displays.read_json("current.json")
     assert published["refresh_id"] == "alert-run-7" and len(published["frames"]) == 1
     assert [entry["event"] for entry in scan_log.events()][-1] == "alert_published"
+
+
+def test_a_failed_scan_marks_the_kept_frames_of_the_last_timeline(tmp_path):
+    now = datetime.now(UTC)
+    state = heavy_week_state()
+    frames = [[(now - timedelta(hours=1)).isoformat(), state], [(now + timedelta(hours=2)).isoformat(), kids(state)]]
+    runtime = Runtime(tmp_path, state, frames={"expires_at": (now + timedelta(hours=5)).isoformat(), "frames": frames})
+    scan._record_scan_log(runtime, {"status": "failed", "finished_at": now.isoformat(), "outputs": {}})
+    assert len(runtime.displays.read_json("current.json")["frames"]) == 3
+
+
+def test_a_published_timeline_keeps_its_frames_for_the_next_alert(tmp_path):
+    runtime = Runtime(tmp_path, None)
+    at = NOW
+    scan._persist_frames(runtime, [(at, {"x": 1})], {"expires_at": "2026-11-27T00:00:00+00:00"})
+    assert json.loads(runtime.private["current-frames.json"]) == {
+        "expires_at": "2026-11-27T00:00:00+00:00", "frames": [[at.isoformat(), {"x": 1}]]}
 
 
 def test_a_good_scan_leaves_the_board_alone_and_a_missing_state_never_fails_the_scan(tmp_path):
